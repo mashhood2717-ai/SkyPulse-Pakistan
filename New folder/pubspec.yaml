@@ -1,0 +1,43 @@
+name: 'SkyPulse_Pakistan'
+description: 'precise real-time weather and storm alerts for every city in Pakistan'
+
+publish_to: 'none'
+
+version: 1.2.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # HTTP requests
+  http: ^1.1.0
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Location services
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  
+  # Permissions
+  permission_handler: ^11.0.1
+  
+  # Storage for favorites
+  shared_preferences: ^2.2.2
+  
+  # UI
+  intl: ^0.18.1
+  flutter_svg: ^2.0.9
+  
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true

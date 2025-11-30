@@ -93,10 +93,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _navigateToLocation(String cityName) {
-    context.read<WeatherProvider>().fetchWeatherByCity(cityName);
-  }
-
   Future<void> _navigateToLocationAsync(String cityName) async {
     await context.read<WeatherProvider>().fetchWeatherByCity(cityName);
   }

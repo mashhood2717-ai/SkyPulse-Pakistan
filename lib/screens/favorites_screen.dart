@@ -6,7 +6,12 @@ import '../services/weather_service.dart';
 import '../models/weather_model.dart';
 
 class FavoritesScreen extends StatefulWidget {
-  const FavoritesScreen({Key? key}) : super(key: key);
+  final VoidCallback? onLocationSelected;
+
+  const FavoritesScreen({
+    Key? key,
+    this.onLocationSelected,
+  }) : super(key: key);
 
   @override
   State<FavoritesScreen> createState() => _FavoritesScreenState();
@@ -103,8 +108,13 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   void _selectLocation(String city) {
-    context.read<WeatherProvider>().fetchWeatherByCity(city);
-    Navigator.pop(context);
+    final provider = context.read<WeatherProvider>();
+
+    // Immediately switch to weather tab
+    widget.onLocationSelected?.call();
+
+    // Fetch weather in background without waiting
+    provider.fetchWeatherByCity(city);
   }
 
   @override
@@ -134,7 +144,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         IconButton(
                           icon:
                               const Icon(Icons.arrow_back, color: Colors.white),
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () {
+                            // Switch back to Weather tab when back is pressed
+                            widget.onLocationSelected?.call();
+                          },
                         ),
                         const SizedBox(width: 8),
                         const Expanded(

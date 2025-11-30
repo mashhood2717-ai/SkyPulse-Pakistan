@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1062690430472",
+    "project_id": "skypulse-pakistan",
+    "storage_bucket": "skypulse-pakistan.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1062690430472:android:045e0ad1362f3cbbd0bbbd",
+        "android_client_info": {
+          "package_name": "com.mashhood.skypulse"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGZubwEXdVU4Zor9st0l27zKVBkFVGEcw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

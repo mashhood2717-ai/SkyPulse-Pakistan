@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SkyPulse Brand Colors -->
+    <color name="splash_background">#1E88E5</color>
+    <color name="primary_blue">#1E88E5</color>
+    <color name="dark_blue">#0D47A1</color>
+    <color name="orange_accent">#FF8A00</color>
+    <color name="light_orange">#FFB74D</color>
+    <color name="white">#FFFFFF</color>
+</resources>

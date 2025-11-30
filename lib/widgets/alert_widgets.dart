@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/alert_service.dart';
 import '../screens/alert_detail_screen.dart';
 
 /// Clickable Alert Banner Widget

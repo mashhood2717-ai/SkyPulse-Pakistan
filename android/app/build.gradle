@@ -2,6 +2,7 @@ plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services"
 }
 
 def localProperties = new Properties()
@@ -23,7 +24,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.example.weather_app"
+    namespace "com.mashhood.skypulse"
     compileSdk 36
     ndkVersion flutter.ndkVersion
 
@@ -41,7 +42,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.example.weather_app"
+        applicationId "com.mashhood.skypulse"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
@@ -59,4 +60,14 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    // Firebase BOM for version management
+    implementation platform('com.google.firebase:firebase-bom:33.1.0')
+    
+    // Firebase libraries (versions managed by BOM)
+    implementation 'com.google.firebase:firebase-core:21.1.1'
+    implementation 'com.google.firebase:firebase-messaging:23.4.1'
+    
+    // AndroidX for background work
+    implementation 'androidx.work:work-runtime-ktx:2.8.1'
+}

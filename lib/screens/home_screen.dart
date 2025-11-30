@@ -7,8 +7,6 @@ import '../widgets/forecast_card.dart';
 import '../widgets/sun_arc_widget.dart';
 import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
-import '../widgets/alert_widgets.dart';
-import 'favorites_screen.dart';
 import '../services/favorites_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -34,16 +32,32 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadFavorites();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<WeatherProvider>().fetchWeatherByLocation();
-      if (mounted) {
-        final provider = context.read<WeatherProvider>();
-        setState(() {
-          _initialLocationCity = provider.cityName;
-          _initialLocationCountry = provider.countryCode;
-          _cachedInitialWeather = provider.weatherData;
-        });
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Don't await - fire and forget with timeout to avoid blocking UI
+      context
+          .read<WeatherProvider>()
+          .fetchWeatherByLocation()
+          .timeout(const Duration(seconds: 15))
+          .then((_) {
+        if (mounted) {
+          final provider = context.read<WeatherProvider>();
+          setState(() {
+            _initialLocationCity = provider.cityName;
+            _initialLocationCountry = provider.countryCode;
+            _cachedInitialWeather = provider.weatherData;
+          });
+        }
+      }).catchError((e) {
+        print('⚠️ Error fetching location: $e');
+        if (mounted) {
+          final provider = context.read<WeatherProvider>();
+          setState(() {
+            _initialLocationCity = provider.cityName;
+            _initialLocationCountry = provider.countryCode;
+            _cachedInitialWeather = provider.weatherData;
+          });
+        }
+      });
     });
   }
 
@@ -94,10 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _navigateToLocation(String cityName) {
-    context.read<WeatherProvider>().fetchWeatherByCity(cityName);
-  }
-
   Future<void> _navigateToLocationAsync(String cityName) async {
     await context.read<WeatherProvider>().fetchWeatherByCity(cityName);
   }
@@ -108,16 +118,6 @@ class _HomeScreenState extends State<HomeScreen> {
         _cachedInitialWeather!,
         _initialLocationCity!,
         _initialLocationCountry ?? '',
-      );
-    }
-  }
-
-  void _goToHome() {
-    if (_currentPage != 0) {
-      _pageController.animateToPage(
-        0,
-        duration: Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
       );
     }
   }
@@ -222,20 +222,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 : Icons.favorite_border),
                             onPressed: _toggleFavorite),
                         IconButton(
-                            icon: const Icon(Icons.list),
-                            onPressed: () async {
-                              await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const FavoritesScreen()));
-                              await _loadFavorites();
-                            }),
-                        IconButton(
-                            icon: const Icon(Icons.home),
-                            tooltip: 'Go to Home',
-                            onPressed: _goToHome),
-                        IconButton(
                             icon: const Icon(Icons.my_location),
                             onPressed: () => provider.fetchWeatherByLocation()),
                       ],
@@ -248,9 +234,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Column(
                               children: [
                                 _buildSearchBar(),
-                                const SizedBox(height: 12),
-                                // 🚨 ALERTS
-                                AlertList(alerts: provider.activeAlerts),
                                 if (provider.usingMetar)
                                   const SizedBox(height: 12),
                                 if (provider.usingMetar)

@@ -145,6 +145,7 @@ class CurrentWeather {
   final bool isDay;
   final double visibility;
   final double uvIndex;
+  final String? customDescription; // NEW: For METAR conditions like "Smoke"
 
   CurrentWeather({
     required this.temperature,
@@ -157,6 +158,7 @@ class CurrentWeather {
     required this.isDay,
     this.visibility = 10.0,
     this.uvIndex = 0.0,
+    this.customDescription, // NEW: Custom description for METAR
   });
 
   factory CurrentWeather.fromJson(Map<String, dynamic> json) {
@@ -208,6 +210,11 @@ class CurrentWeather {
   }
 
   String get weatherDescription {
+    // Use custom description if provided (e.g., from METAR "Smoke")
+    if (customDescription != null && customDescription!.isNotEmpty) {
+      return customDescription!;
+    }
+    
     switch (weatherCode) {
       case 0:
         return 'Clear sky';
@@ -252,49 +259,46 @@ class CurrentWeather {
   }
 
   String get weatherIcon {
-    if (!isDay) {
-      return '🌙';
-    }
     switch (weatherCode) {
       case 0:
-        return '☀️';
+        return isDay ? '☀️' : '🌙';
       case 1:
-        return '🌤️';
+        return isDay ? '🌤️' : '🌙';
       case 2:
-        return '⛅';
+        return isDay ? '⛅' : '🌙';
       case 3:
-        return '☁️';
+        return isDay ? '☁️' : '☁️'; // Clouds visible at night too
       case 45:
       case 48:
-        return '🌫️';
+        return '🌫️'; // Fog visible at night
       case 51:
       case 53:
       case 55:
-        return '🌦️';
+        return '🌦️'; // Drizzle visible at night
       case 61:
       case 63:
       case 65:
-        return '🌧️';
+        return '🌧️'; // Rain visible at night
       case 71:
       case 73:
       case 75:
-        return '❄️';
+        return '❄️'; // Snow visible at night
       case 77:
-        return '🌨️';
+        return '🌨️'; // Snow grains visible at night
       case 80:
       case 81:
       case 82:
-        return '🌧️';
+        return '🌧️'; // Rain showers visible at night
       case 85:
       case 86:
-        return '🌨️';
+        return '🌨️'; // Snow showers visible at night
       case 95:
-        return '⛈️';
+        return '⛈️'; // Thunderstorm visible at night
       case 96:
       case 99:
-        return '⛈️';
+        return '⛈️'; // Thunderstorm with hail visible at night
       default:
-        return '🌤️';
+        return isDay ? '🌤️' : '🌙';
     }
   }
 }

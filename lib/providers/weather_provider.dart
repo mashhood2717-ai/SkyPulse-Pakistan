@@ -22,16 +22,17 @@ class WeatherProvider extends ChangeNotifier {
   MetarData? _metarData;
   List<Map<String, dynamic>> _activeAlerts = [];
   Timer? _alertRefreshTimer;
-  double? _lastLocationLat;
-  double? _lastLocationLon;
+  double _currentLatitude = 33.6699; // Default: Islamabad
+  double _currentLongitude = 73.0794; // Default: Islamabad
+
+  // Cache for instant refresh
+  WeatherData? _cachedWeatherData;
+  String _cachedCityName = '';
+  String _cachedCountryCode = '';
+  bool _cachedUsingMetar = false;
+  MetarData? _cachedMetarData;
 
   WeatherProvider() {
-    // Register callback for FCM alerts
-    PushNotificationService.setOnAlertsReceived((alerts) {
-      print('🔔 [WeatherProvider] Received ${alerts.length} alert(s) from FCM');
-      setActiveAlerts(alerts);
-    });
-
     // Ensure FCM token is refreshed on app launch
     _ensureFCMTokenFresh();
   }
@@ -50,12 +51,23 @@ class WeatherProvider extends ChangeNotifier {
     return _activeAlerts.where((alert) => !(alert['isRead'] ?? false)).length;
   }
 
-  // Fetch weather by current location
+  // Fetch weather by current location (URGENT - blocks on this)
   Future<void> fetchWeatherByLocation() async {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
-    notifyListeners();
+
+    // 🚀 SHOW CACHE FIRST (instant)
+    if (_cachedWeatherData != null) {
+      print('💾 Showing cached weather data...');
+      _weatherData = _cachedWeatherData;
+      _cityName = _cachedCityName;
+      _countryCode = _cachedCountryCode;
+      _usingMetar = _cachedUsingMetar;
+      _metarData = _cachedMetarData;
+      _error = null;
+      notifyListeners();
+    }
 
     try {
       LocationPermission permission = await Geolocator.checkPermission();
@@ -70,42 +82,71 @@ class WeatherProvider extends ChangeNotifier {
         throw Exception('Location permission permanently denied');
       }
 
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.low,
-      );
+      // ⏱️ Get location with 10 second timeout (avoid slow GPS)
+      late Position position;
+      try {
+        position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.low,
+        ).timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            print(
+                '⚠️ Location timeout - will use cached location if available');
+            throw TimeoutException('Location request timeout');
+          },
+        );
+      } catch (locErr) {
+        print('⚠️ Location fetch failed during refresh: $locErr');
+        // If we have cached location data, just refresh from API without location change
+        if (_cachedWeatherData != null && _cityName.isNotEmpty) {
+          print('✅ Using cached location for refresh: $_cityName');
+          // Just fetch fresh data for the same location
+          final lat = _currentLatitude;
+          final lon = _currentLongitude;
+          await _fetchWeatherWithMetarAttempt(_cityName, lat, lon);
+          _isLoading = false;
+          notifyListeners();
+          await Future.delayed(const Duration(milliseconds: 300));
+          _doBackgroundTasks(lat, lon);
+          return;
+        }
+        rethrow;
+      }
 
-      // Try to fetch METAR for current location
-      await _fetchWeatherWithMetarAttempt(
-        'Current Location',
+      // 🌐 URGENT: Get city name from coordinates first
+      final location = await _weatherService.getCityFromCoordinates(
         position.latitude,
         position.longitude,
       );
 
-      // Fetch alerts
-      try {
-        final alerts = await _alertService.checkAlertsForLocation(
-          position.latitude,
-          position.longitude,
-        );
-        setActiveAlerts(alerts);
-
-        // Store location for auto-refresh
-        _lastLocationLat = position.latitude;
-        _lastLocationLon = position.longitude;
-
-        // Start alert refresh timer
-        _startAlertRefreshTimer();
-      } catch (e) {
-        print('⚠️ Error fetching alerts: $e');
+      // 🌐 URGENT: Fetch fresh weather data and cache it
+      await _fetchWeatherWithMetarAttempt(
+        location['name'] ?? 'Current Location',
+        position.latitude,
+        position.longitude,
+      );
+      
+      // Update country code from reverse geocoding
+      if (location['country'] != null && location['country'].isNotEmpty) {
+        _countryCode = location['country'];
       }
 
-      // Subscribe to Firebase topics
-      await _subscribeToTopics();
+      // 💾 Update cache with fresh data
+      _cachedWeatherData = _weatherData;
+      _cachedCityName = _cityName;
+      _cachedCountryCode = _countryCode;
+      _cachedUsingMetar = _usingMetar;
+      _cachedMetarData = _metarData;
 
       _isLoading = false;
       notifyListeners();
+
+      // Small delay to ensure UI updates before refresh completes
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // NOW do background tasks without blocking UI
+      _doBackgroundTasks(position.latitude, position.longitude);
     } catch (e) {
-      // If location fetch fails, try a lightweight fallback to a default city
       print('⚠️ [WeatherProvider] fetchWeatherByLocation failed: $e');
       try {
         if (_cityName.isEmpty) {
@@ -123,18 +164,54 @@ class WeatherProvider extends ChangeNotifier {
     }
   }
 
-  // Fetch weather by city name
+  /// Background tasks that don't block UI
+  void _doBackgroundTasks(double latitude, double longitude) {
+    Future.microtask(() async {
+      try {
+        // Fetch alerts
+        final alerts = await _alertService.checkAlertsForLocation(
+          latitude,
+          longitude,
+        );
+        setActiveAlerts(alerts);
+        print('✅ Background: Alerts fetched');
+      } catch (e) {
+        print('⚠️ Background: Error fetching alerts: $e');
+      }
+
+      try {
+        // Subscribe to Firebase topics
+        await _subscribeToTopics();
+        print('✅ Background: Firebase topics subscribed');
+      } catch (e) {
+        print('⚠️ Background: Error subscribing to topics: $e');
+      }
+    });
+  }
+
+  // Fetch weather by city name (URGENT - blocks on this)
   Future<void> fetchWeatherByCity(String cityName) async {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
-    notifyListeners();
+
+    // 🗑️ SHOW CACHE FIRST (instant)
+    if (_cachedWeatherData != null) {
+      print('💾 Showing cached weather data...');
+      _weatherData = _cachedWeatherData;
+      _cityName = _cachedCityName;
+      _countryCode = _cachedCountryCode;
+      _usingMetar = _cachedUsingMetar;
+      _metarData = _cachedMetarData;
+      _error = null;
+      notifyListeners();
+    }
 
     try {
       // Get coordinates first
       final location = await _weatherService.getCoordinatesFromCity(cityName);
 
-      // Always try METAR first for any city
+      // URGENT: Fetch weather with METAR
       await _fetchWeatherWithMetarAttempt(
         cityName,
         location['latitude'],
@@ -144,29 +221,24 @@ class WeatherProvider extends ChangeNotifier {
       _cityName = location['name'];
       _countryCode = location['country'];
 
-      // Fetch alerts
-      try {
-        final alerts = await _alertService.checkAlertsForLocation(
-          location['latitude'],
-          location['longitude'],
-        );
-        setActiveAlerts(alerts);
-
-        // Store location for auto-refresh
-        _lastLocationLat = location['latitude'];
-        _lastLocationLon = location['longitude'];
-
-        // Start alert refresh timer
-        _startAlertRefreshTimer();
-      } catch (e) {
-        print('⚠️ Error fetching alerts: $e');
-      }
-
-      // Subscribe to Firebase topics
-      await _subscribeToTopics();
+      // 💾 Update cache with fresh data
+      _cachedWeatherData = _weatherData;
+      _cachedCityName = _cityName;
+      _cachedCountryCode = _countryCode;
+      _cachedUsingMetar = _usingMetar;
+      _cachedMetarData = _metarData;
 
       _isLoading = false;
       notifyListeners();
+
+      // Small delay to ensure UI updates before refresh completes
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Background tasks
+      _doBackgroundTasks(
+        location['latitude'],
+        location['longitude'],
+      );
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
@@ -228,76 +300,112 @@ class WeatherProvider extends ChangeNotifier {
     double latitude,
     double longitude,
   ) async {
-    // Fetch API data first
-    final apiData = await _weatherService.getWeatherByCoordinates(
-      latitude,
-      longitude,
-    );
-
-    // Try to get METAR data
-    final metarData = await _metarService.getMetarDataForCity(
-      cityName,
-      latitude,
-      longitude,
-    );
-
-    if (metarData != null) {
-      // ✅ METAR AVAILABLE - Use it for current weather
-      _metarData = metarData;
-
-      // Get sunrise/sunset from API forecast (today's data)
-      final sunrise =
-          apiData.forecast.isNotEmpty ? apiData.forecast[0].sunrise : null;
-      final sunset =
-          apiData.forecast.isNotEmpty ? apiData.forecast[0].sunset : null;
-
-      // Convert METAR to CurrentWeather WITH sunrise/sunset for correct day/night detection
-      final metarCurrent = metarData.toCurrentWeather(
-        sunrise: sunrise,
-        sunset: sunset,
+    try {
+      // 🚀 URGENT: Fetch API data FIRST with timeout
+      final apiData = await _weatherService
+          .getWeatherByCoordinates(
+        latitude,
+        longitude,
+      )
+          .timeout(
+        const Duration(seconds: 8),
+        onTimeout: () {
+          print('⏱️ [API Timeout] Weather API took too long');
+          throw TimeoutException('Weather API request timeout');
+        },
       );
 
-      // Create enhanced current weather combining METAR + API UV
-      final enhancedCurrent = CurrentWeather(
-        temperature: metarCurrent.temperature,
-        humidity: metarCurrent.humidity,
-        windSpeed: metarCurrent.windSpeed,
-        weatherCode: metarCurrent.weatherCode,
-        pressure: metarCurrent.pressure,
-        cloudCover: metarCurrent.cloudCover,
-        isDay: metarCurrent
-            .isDay, // Now correctly calculated using location's sunrise/sunset
-        visibility: metarCurrent.visibility,
-        uvIndex: apiData.current.uvIndex, // UV from API
-      );
-
-      _weatherData = WeatherData(
-        current: enhancedCurrent,
-        forecast: apiData.forecast,
-        hourlyTemperatures: apiData.hourlyTemperatures,
-        hourlyWeatherCodes: apiData.hourlyWeatherCodes,
-        hourlyPrecipitation: apiData.hourlyPrecipitation,
-      );
-      _usingMetar = true;
-      _cityName = cityName;
-
-      print('✈️ Using METAR data for $cityName');
-      print('   Airport: ${metarData.icaoCode}');
-      print('   Temp: ${metarData.temperature}°C');
-      print(
-          '   Wind: ${metarData.windDirection}° at ${metarData.windSpeed} kt');
-      print('   Visibility: ${metarData.visibility} km');
-      print('   Weather: ${metarData.weatherCondition}');
-      print('   Clouds: ${metarData.clouds}');
-      print('   Is Day: ${metarCurrent.isDay}');
-    } else {
-      // ❌ NO METAR - Use API data only
+      // Display API data right away (don't wait for METAR)
       _weatherData = apiData;
       _usingMetar = false;
       _metarData = null;
       _cityName = cityName;
-      print('🌐 Using API data for $cityName (no METAR available)');
+      _error = null;
+      notifyListeners();
+      print('🌐 Weather API data loaded for $cityName');
+
+      // 📡 BACKGROUND: Fetch METAR in background without blocking UI
+      // This runs asynchronously and won't block the UI
+      _fetchMetarInBackground(cityName, latitude, longitude, apiData);
+    } catch (e) {
+      print('❌ [_fetchWeatherWithMetarAttempt] Failed: $e');
+      _error = 'Failed to fetch weather: $e';
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
     }
+  }
+
+  /// Fetch METAR in background and update UI if it arrives
+  void _fetchMetarInBackground(
+    String cityName,
+    double latitude,
+    double longitude,
+    WeatherData apiData,
+  ) {
+    // Don't await this - let it run in background
+    _metarService
+        .getMetarDataForCity(cityName, latitude, longitude)
+        .timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => null,
+        )
+        .then((metarData) {
+      // Only update if METAR was successfully fetched
+      if (metarData != null) {
+        print('✈️ METAR arrived! Updating weather data...');
+        _metarData = metarData;
+
+        // Get sunrise/sunset from API forecast
+        final sunrise =
+            apiData.forecast.isNotEmpty ? apiData.forecast[0].sunrise : null;
+        final sunset =
+            apiData.forecast.isNotEmpty ? apiData.forecast[0].sunset : null;
+
+        // Convert METAR to CurrentWeather
+        final metarCurrent = metarData.toCurrentWeather(
+          sunrise: sunrise,
+          sunset: sunset,
+        );
+
+        // Create enhanced current weather combining METAR + API UV
+        final enhancedCurrent = CurrentWeather(
+          temperature: metarCurrent.temperature,
+          humidity: metarCurrent.humidity,
+          windSpeed: metarCurrent.windSpeed,
+          weatherCode: metarCurrent.weatherCode,
+          pressure: metarCurrent.pressure,
+          cloudCover: metarCurrent.cloudCover,
+          isDay: metarCurrent.isDay,
+          visibility: metarCurrent.visibility,
+          uvIndex: apiData.current.uvIndex,
+          customDescription: metarCurrent.customDescription, // Pass METAR condition
+        );
+
+        _weatherData = WeatherData(
+          current: enhancedCurrent,
+          forecast: apiData.forecast,
+          hourlyTemperatures: apiData.hourlyTemperatures,
+          hourlyWeatherCodes: apiData.hourlyWeatherCodes,
+          hourlyPrecipitation: apiData.hourlyPrecipitation,
+        );
+        _usingMetar = true;
+
+        print('✈️ Using METAR data for $cityName');
+        print('   Airport: ${metarData.icaoCode}');
+        print('   Temp: ${metarData.temperature}°C');
+        print(
+            '   Wind: ${metarData.windDirection}° at ${metarData.windSpeed} kt');
+        print('   Visibility: ${metarData.visibility} km');
+        print('   Is Day: ${metarCurrent.isDay}');
+
+        // Notify listeners only if METAR was successful
+        notifyListeners();
+      }
+    }).catchError((e) {
+      // Silently ignore METAR errors - API data is already displayed
+      print('⏭️ METAR unavailable, keeping API data');
+    });
   }
 
   /// Subscribe to Firebase topics based on current location
@@ -309,9 +417,26 @@ class WeatherProvider extends ChangeNotifier {
 
       // Subscribe to city-specific topic
       if (_cityName.isNotEmpty && _cityName != 'Current Location') {
-        String cityTopic = _cityName.toLowerCase().replaceAll(' ', '_');
-        await PushNotificationService.subscribeToTopic('${cityTopic}_alerts');
-        print('✅ Subscribed to topic: ${cityTopic}_alerts');
+        // Sanitize city name: transliterate accents to ASCII, keep only valid Firebase topic chars
+        // Firebase topics allow: [a-zA-Z0-9-_]
+        String cityTopic = _sanitizeTopicName(_cityName);
+
+        print(
+            '📝 [Topic Sanitization] Original: "${_cityName}" → Sanitized: "$cityTopic"');
+
+        if (cityTopic.isNotEmpty) {
+          try {
+            await PushNotificationService.subscribeToTopic(
+                '${cityTopic}_alerts');
+            print('✅ Subscribed to topic: ${cityTopic}_alerts');
+          } catch (topicErr) {
+            print('⚠️ Error subscribing to ${cityTopic}_alerts: $topicErr');
+            // Don't rethrow - continue with other subscriptions
+          }
+        } else {
+          print(
+              '⚠️ City name "$_cityName" sanitized to empty string, skipping topic subscription');
+        }
       }
     } catch (e) {
       print('⚠️ Error subscribing to topics: $e');
@@ -393,32 +518,6 @@ class WeatherProvider extends ChangeNotifier {
     }
   }
 
-  /// Start auto-refresh timer for alerts
-  void _startAlertRefreshTimer() {
-    // Cancel existing timer
-    _alertRefreshTimer?.cancel();
-
-    print('🔄 [AlertRefresh] Starting auto-refresh timer...');
-
-    // Start new timer - refresh every 30 seconds
-    _alertRefreshTimer = Timer.periodic(Duration(seconds: 30), (_) async {
-      if (_lastLocationLat != null && _lastLocationLon != null) {
-        print('🔄 [AlertRefresh] Auto-refreshing alerts at ${DateTime.now()}');
-        try {
-          final alerts = await _alertService.checkAlertsForLocation(
-            _lastLocationLat!,
-            _lastLocationLon!,
-          );
-          setActiveAlerts(alerts);
-        } catch (e) {
-          print('❌ [AlertRefresh] Error: $e');
-        }
-      }
-    });
-
-    print('✅ [AlertRefresh] Timer started - will check every 30 seconds');
-  }
-
   /// Ensure FCM token is fresh (called on app startup)
   Future<void> _ensureFCMTokenFresh() async {
     try {
@@ -434,8 +533,7 @@ class WeatherProvider extends ChangeNotifier {
         print('⚠️ [FCMToken] No token available, requesting new one...');
         final newToken = await PushNotificationService.getFCMToken();
         if (newToken != null) {
-          print(
-              '✅ [FCMToken] Token obtained: ${newToken.substring(0, 20)}...');
+          print('✅ [FCMToken] Token obtained: ${newToken.substring(0, 20)}...');
         }
       }
 
@@ -463,10 +561,80 @@ class WeatherProvider extends ChangeNotifier {
 
   /// Get data source badge text
   String getDataSource() {
-    if (_usingMetar) {
+    if (_metarData != null) {
       return '✈️ METAR (${_metarData?.icaoCode ?? 'Airport'})';
     }
     return '🌐 Open-Meteo API';
+  }
+
+  /// Sanitize city name for Firebase topics: transliterate accents to ASCII
+  /// Firebase topics only allow: [a-zA-Z0-9_-]
+  String _sanitizeTopicName(String cityName) {
+    // Map of accented characters to ASCII equivalents
+    const accentMap = {
+      'á': 'a',
+      'à': 'a',
+      'ā': 'a',
+      'ä': 'a',
+      'â': 'a',
+      'é': 'e',
+      'è': 'e',
+      'ē': 'e',
+      'ë': 'e',
+      'ê': 'e',
+      'í': 'i',
+      'ì': 'i',
+      'ī': 'i',
+      'ï': 'i',
+      'î': 'i',
+      'ó': 'o',
+      'ò': 'o',
+      'ō': 'o',
+      'ö': 'o',
+      'ô': 'o',
+      'ú': 'u',
+      'ù': 'u',
+      'ū': 'u',
+      'ü': 'u',
+      'û': 'u',
+      'ç': 'c',
+      'ć': 'c',
+      'ñ': 'n',
+      'ń': 'n',
+      'ý': 'y',
+      'ỹ': 'y',
+      'š': 's',
+      'ś': 's',
+      'ž': 'z',
+      'ź': 'z',
+      'ł': 'l',
+      'đ': 'd',
+      'ð': 'd',
+      'þ': 'th',
+      'ø': 'o',
+      'æ': 'ae',
+    };
+
+    String result = cityName.toLowerCase().replaceAll(' ', '_');
+
+    // Replace accented characters
+    accentMap.forEach((accented, ascii) {
+      result = result.replaceAll(accented, ascii);
+    });
+
+    // Keep only valid Firebase topic chars: a-z, 0-9, _, -
+    result = result
+        .split('')
+        .map((char) => (char.codeUnitAt(0) >= 97 &&
+                    char.codeUnitAt(0) <= 122) || // a-z
+                (char.codeUnitAt(0) >= 48 && char.codeUnitAt(0) <= 57) || // 0-9
+                char == '_' ||
+                char == '-'
+            ? char
+            : '')
+        .join('');
+
+    return result;
   }
 
   @override

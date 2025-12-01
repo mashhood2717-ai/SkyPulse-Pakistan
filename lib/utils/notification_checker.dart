@@ -189,8 +189,7 @@ class NotificationChecker {
       issues.add('⚠️ No stored token (token may be lost on app restart)');
     }
 
-    summary['overall_health'] =
-        isHealthy ? '✅ HEALTHY' : '❌ ISSUES FOUND';
+    summary['overall_health'] = isHealthy ? '✅ HEALTHY' : '❌ ISSUES FOUND';
     summary['issue_count'] = issues.length;
     summary['issues'] = issues;
 

@@ -17,7 +17,8 @@ class FirebaseDiagnostic {
 
     try {
       // 2. Check notification permission status
-      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      final settings =
+          await FirebaseMessaging.instance.getNotificationSettings();
       diagnostics['notificationPermissionStatus'] =
           settings.authorizationStatus.toString();
       diagnostics['alertPermission'] = settings.alert.toString();
@@ -90,7 +91,8 @@ class FirebaseDiagnostic {
     buffer.writeln('');
 
     buffer.writeln('--- STORED TOKEN (SharedPreferences) ---');
-    buffer.writeln('Stored Token Exists: ${diag['storedTokenExists'] ?? false}');
+    buffer
+        .writeln('Stored Token Exists: ${diag['storedTokenExists'] ?? false}');
     if (diag['storedFcmToken'] != null) {
       final token = diag['storedFcmToken'] as String;
       if (token.length > 50) {

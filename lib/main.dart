@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'providers/weather_provider.dart';
+import 'services/favorites_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
@@ -19,52 +20,51 @@ void main() async {
   final firebaseInit = Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   ).timeout(
-    const Duration(seconds: 15),
+    const Duration(seconds: 10),
   );
 
   // Request notification permissions (Android 13+) - with timeout
   print('📱 Requesting notification permissions...');
   final permissionRequest = Permission.notification.request().timeout(
-    const Duration(seconds: 10),
+    const Duration(seconds: 5),
     onTimeout: () {
       print('⚠️ Permission request timeout');
       return PermissionStatus.denied;
     },
   ).then((status) {
-    print('📱 Permission status: ${status.isDenied ? "DENIED" : status.isGranted ? "GRANTED" : "OTHER"}');
-    if (status.isDenied) {
-      print('⚠️ Notification permission denied! Alerts may not work.');
-    } else if (status.isGranted) {
+    if (status.isGranted) {
       print('✅ Notification permission granted!');
-    } else if (status.isPermanentlyDenied) {
-      print('⚠️ Notification permission permanently denied! User must enable in settings.');
+    } else {
+      print(
+          '⚠️ Notification permission: ${status.isDenied ? "DENIED" : status.isPermanentlyDenied ? "PERMANENTLY DENIED" : "OTHER"}');
     }
+  }).catchError((e) {
+    print('⚠️ Permission error: $e');
   });
 
-  // Wait for Firebase to initialize first
+  // Initialize push notifications in parallel (NO TIMEOUT)
+  print('🔔 Initializing push notifications...');
+  final pushInit = PushNotificationService.initializePushNotifications();
+
+  // Wait for Firebase first (critical)
   try {
     await firebaseInit;
     print('✅ Firebase initialized successfully!');
   } catch (e) {
-    print('❌ Firebase initialization failed (continuing anyway): $e');
+    print('⚠️ Firebase init issue (app will continue)');
   }
 
-  // Now initialize push notifications - NO TIMEOUT (let it complete fully)
-  print('🔔 Initializing push notifications...');
-  final pushInit = PushNotificationService.initializePushNotifications();
-
-  // Wait for both permission and push notifications in parallel
-  try {
-    await Future.wait([
-      permissionRequest,
-      pushInit,
-    ]);
-    print('✅ All initializations complete!');
-  } catch (e) {
-    print('⚠️ Some initializations had issues (app will continue): $e');
-  }
-
+  // Then run UI (don't wait for permissions or push init to complete)
+  // These will complete in background while app is loading
+  print('✅ Starting app...');
   runApp(const MyApp());
+
+  // Let permissions and push init happen in background without blocking UI
+  Future.wait([permissionRequest, pushInit]).then((_) {
+    print('✅ All background initializations complete!');
+  }).catchError((e) {
+    print('⚠️ Background init issue: $e');
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -75,6 +75,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => WeatherProvider()),
+        ChangeNotifierProvider(create: (_) => FavoritesService()),
       ],
       child: MaterialApp(
         title: 'Skypulse',
@@ -116,10 +117,33 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    // Fetch weather on app start
+    // Fetch weather on app start (urgent, high priority)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<WeatherProvider>(context, listen: false)
-          .fetchWeatherByLocation();
+      final provider = Provider.of<WeatherProvider>(context, listen: false);
+      // Fetch weather ONLY - will show loading spinner
+      provider.fetchWeatherByLocation();
+
+      // Then do background tasks after weather is loaded
+      provider.weatherData != null
+          ? _startBackgroundTasks(provider)
+          : Future.delayed(const Duration(milliseconds: 500), () {
+              if (provider.weatherData != null) {
+                _startBackgroundTasks(provider);
+              }
+            });
+    });
+  }
+
+  /// Start background tasks after weather is loaded
+  void _startBackgroundTasks(WeatherProvider provider) {
+    // Fetch alerts in background
+    Future.delayed(const Duration(milliseconds: 300), () async {
+      try {
+        // This will update alerts without blocking UI
+        await provider.refresh();
+      } catch (e) {
+        print('Background task error: $e');
+      }
     });
   }
 

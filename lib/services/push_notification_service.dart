@@ -9,10 +9,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class PushNotificationService {
-  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  static final FirebaseMessaging _firebaseMessaging =
+      FirebaseMessaging.instance;
   static final List<RemoteMessage> _messages = [];
   static bool _initialized = false;
-  static Function(List<Map<String, dynamic>>)? _onAlertsReceived;
 
   /// Initialize push notifications
   static Future<void> initializePushNotifications() async {
@@ -25,10 +25,12 @@ class PushNotificationService {
       print('✅ [PushNotifications] Starting initialization...');
 
       // Set background handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(
+          _firebaseMessagingBackgroundHandler);
 
       // Request permission
-      NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      NotificationSettings settings =
+          await _firebaseMessaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
@@ -52,11 +54,12 @@ class PushNotificationService {
       // Subscribe to topics
       await _subscribeToAllTopics();
 
-      // Foreground messages
+      // Foreground messages - OPTIMIZED: Only log, don't notify UI
+      // Firebase notifications are handled natively
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         print('📨 [Foreground] ${message.notification?.title}');
         _messages.add(message);
-        _notifyListeners(message);
+        // Removed: _notifyListeners(message); - causes extra UI refreshes
       });
 
       // Token refresh
@@ -67,16 +70,18 @@ class PushNotificationService {
         });
       });
 
-      // Notification tap
+      // Notification tap - OPTIMIZED: Just log, no UI refresh needed
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         print('📩 [Tapped] ${message.notification?.title}');
-        _notifyListeners(message);
+        // Removed: _notifyListeners(message); - Firebase handles the UI natively
       });
 
       // App launched from notification
       final initialMessage = await _firebaseMessaging.getInitialMessage();
       if (initialMessage != null) {
-        _notifyListeners(initialMessage);
+        print(
+            '📩 [App Opened from Notification] ${initialMessage.notification?.title}');
+        // Removed: _notifyListeners(initialMessage);
       }
 
       _initialized = true;
@@ -103,7 +108,7 @@ class PushNotificationService {
     ];
 
     print('📢 [PushNotifications] Subscribing to ${topics.length} topics...');
-    
+
     for (String topic in topics) {
       try {
         await _firebaseMessaging.subscribeToTopic(topic);
@@ -111,19 +116,6 @@ class PushNotificationService {
       } catch (e) {
         print('   ⚠️ Failed: $topic');
       }
-    }
-  }
-
-  /// Notify listeners
-  static void _notifyListeners(RemoteMessage message) {
-    if (_onAlertsReceived != null) {
-      final alert = {
-        'title': message.notification?.title ?? 'Weather Alert',
-        'message': message.notification?.body ?? '',
-        'severity': message.data['severity'] ?? 'medium',
-        'timestamp': DateTime.now(),
-      };
-      _onAlertsReceived!([alert]);
     }
   }
 
@@ -172,11 +164,6 @@ class PushNotificationService {
 
   /// Clear messages
   static void clearMessages() => _messages.clear();
-
-  /// Set callback
-  static void setOnAlertsReceived(Function(List<Map<String, dynamic>>) callback) {
-    _onAlertsReceived = callback;
-  }
 
   /// Reinitialize
   static Future<void> reinitialize() async {

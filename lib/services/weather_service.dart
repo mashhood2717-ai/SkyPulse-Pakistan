@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:geocoding/geocoding.dart' as geocoding;
 import '../models/weather_model.dart';
 
 class WeatherService {
@@ -87,6 +88,46 @@ class WeatherService {
       );
     } catch (e) {
       throw Exception('Error fetching weather for city: $e');
+    }
+  }
+
+  // Reverse geocoding: Get city name from coordinates using geocoding package
+  Future<Map<String, dynamic>> getCityFromCoordinates(
+      double latitude, double longitude) async {
+    try {
+      print('🔍 Reverse geocoding: $latitude, $longitude');
+      
+      // Use the geocoding package for reverse geocoding
+      final placemarks = await geocoding.placemarkFromCoordinates(
+        latitude,
+        longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final placemark = placemarks[0];
+        final cityName = placemark.locality ?? placemark.administrativeArea ?? 'Current Location';
+        final countryCode = placemark.isoCountryCode ?? '';
+        
+        print('✅ Location found: $cityName, $countryCode');
+        return {
+          'name': cityName,
+          'country': countryCode,
+          'latitude': latitude,
+          'longitude': longitude,
+        };
+      } else {
+        print('⚠️ No placemarks found');
+        return {
+          'name': 'Current Location',
+          'country': '',
+        };
+      }
+    } catch (e) {
+      print('❌ Error reverse geocoding: $e');
+      return {
+        'name': 'Current Location',
+        'country': '',
+      };
     }
   }
 }

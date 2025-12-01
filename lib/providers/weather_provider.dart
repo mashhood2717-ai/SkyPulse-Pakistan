@@ -125,7 +125,7 @@ class WeatherProvider extends ChangeNotifier {
         position.latitude,
         position.longitude,
       );
-      
+
       // Update country code from reverse geocoding
       if (location['country'] != null && location['country'].isNotEmpty) {
         _countryCode = location['country'];
@@ -379,7 +379,8 @@ class WeatherProvider extends ChangeNotifier {
           isDay: metarCurrent.isDay,
           visibility: metarCurrent.visibility,
           uvIndex: apiData.current.uvIndex,
-          customDescription: metarCurrent.customDescription, // Pass METAR condition
+          customDescription:
+              metarCurrent.customDescription, // Pass METAR condition
         );
 
         _weatherData = WeatherData(

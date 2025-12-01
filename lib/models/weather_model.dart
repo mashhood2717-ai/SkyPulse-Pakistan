@@ -214,7 +214,7 @@ class CurrentWeather {
     if (customDescription != null && customDescription!.isNotEmpty) {
       return customDescription!;
     }
-    
+
     switch (weatherCode) {
       case 0:
         return 'Clear sky';

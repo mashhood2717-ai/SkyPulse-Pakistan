@@ -179,31 +179,35 @@ class MetarData {
       if (part == 'DR') condition = 'DR'; // Low Drifting
       if (part == 'BL') condition = 'BL'; // Blowing
       if (part == 'FZ') condition = 'FZ'; // Freezing
-      
+
       // Precipitation
-      if (part == 'RA' || part == '-RA' || part == '+RA') condition = 'RA'; // Rain
-      if (part == 'DZ' || part == '-DZ' || part == '+DZ') condition = 'DZ'; // Drizzle
-      if (part == 'SN' || part == '-SN' || part == '+SN') condition = 'SN'; // Snow
+      if (part == 'RA' || part == '-RA' || part == '+RA')
+        condition = 'RA'; // Rain
+      if (part == 'DZ' || part == '-DZ' || part == '+DZ')
+        condition = 'DZ'; // Drizzle
+      if (part == 'SN' || part == '-SN' || part == '+SN')
+        condition = 'SN'; // Snow
       if (part == 'SG') condition = 'SG'; // Snow Grains
       if (part == 'IC') condition = 'IC'; // Ice Crystals
       if (part == 'PL') condition = 'PL'; // Ice Pellets/Sleet
       if (part == 'GR') condition = 'GR'; // Hail
       if (part == 'GS') condition = 'GS'; // Small Hail and/or Snow Pellets
       if (part == 'UP') condition = 'UP'; // Unknown Precipitation
-      
+
       // Shower/Storm
       if (part == 'SHRA') condition = 'SHRA'; // Rain Showers
       if (part == 'SHSN') condition = 'SHSN'; // Snow Showers
       if (part == 'SHGS') condition = 'SHGS'; // Hail Showers
       if (part == 'SHPL') condition = 'SHPL'; // Ice Pellet Showers
       if (part == 'SHIC') condition = 'SHIC'; // Ice Crystal Showers
-      if (part == 'TS' || part == 'THUNDERSTORM') condition = 'TS'; // Thunderstorm
+      if (part == 'TS' || part == 'THUNDERSTORM')
+        condition = 'TS'; // Thunderstorm
       if (part == 'TSRA') condition = 'TSRA'; // Thunderstorm with Rain
       if (part == 'TSGR') condition = 'TSGR'; // Thunderstorm with Hail
       if (part == 'TSSN') condition = 'TSSN'; // Thunderstorm with Snow
       if (part == 'TSPL') condition = 'TSPL'; // Thunderstorm with Ice Pellets
       if (part == 'RASN') condition = 'RASN'; // Rain and Snow
-      
+
       // Obscuration (Visibility Reduction)
       if (part == 'BR' || part == 'MIST') condition = 'BR'; // Mist
       if (part == 'FG' || part == 'FOG') condition = 'FG'; // Fog
@@ -213,7 +217,7 @@ class MetarData {
       if (part == 'SA') condition = 'SA'; // Sand
       if (part == 'HZ' || part == 'HAZE') condition = 'HZ'; // Haze
       if (part == 'PY') condition = 'PY'; // Spray
-      
+
       // Other phenomena
       if (part == 'PO') condition = 'PO'; // Well-Developed Dust/Sand Whirls
       if (part == 'SQ') condition = 'SQ'; // Squalls
@@ -292,7 +296,8 @@ class MetarData {
     // Thunderstorms (highest priority)
     if (condition.contains('TS')) return 95;
     if (condition.contains('THUNDER')) return 95;
-    if (condition.contains('FC')) return 95; // Funnel cloud/Tornado - use thunderstorm
+    if (condition.contains('FC'))
+      return 95; // Funnel cloud/Tornado - use thunderstorm
 
     // Severe precipitation with hail
     if (condition.contains('GR')) return 96; // Hail - thunderstorm with hail
@@ -304,7 +309,8 @@ class MetarData {
     if (condition.contains('SNOW')) return 71;
     if (condition.contains('SG')) return 77; // Snow grains
     if (condition.contains('IC')) return 71; // Ice crystals - treat as snow
-    if (condition.contains('PL')) return 71; // Ice pellets/Sleet - treat as snow
+    if (condition.contains('PL'))
+      return 71; // Ice pellets/Sleet - treat as snow
     if (condition.contains('GS')) return 71; // Small hail - treat as snow
     if (condition.contains('TSSN')) return 71; // Thunderstorm with snow
     if (condition.contains('SHSN')) return 71; // Snow showers
@@ -313,7 +319,8 @@ class MetarData {
     // Rain and showers
     if (condition.contains('TSRA')) return 95; // Thunderstorm with rain
     if (condition.contains('SHRA')) return 80; // Rain showers
-    if (condition.contains('SHPL')) return 61; // Ice pellet showers - treat as rain
+    if (condition.contains('SHPL'))
+      return 61; // Ice pellet showers - treat as rain
     if (condition.contains('RASN')) return 61; // Rain and snow
     if (condition.contains('RA')) return 61; // Rain
     if (condition.contains('RAIN')) return 61;
@@ -322,7 +329,8 @@ class MetarData {
     // Drizzle and light precipitation
     if (condition.contains('DZ')) return 51; // Drizzle
     if (condition.contains('DRIZZLE')) return 51;
-    if (condition.contains('UP')) return 51; // Unknown precipitation - treat as drizzle
+    if (condition.contains('UP'))
+      return 51; // Unknown precipitation - treat as drizzle
 
     // Fog (severe visibility reduction)
     if (condition.contains('FG')) return 45;
@@ -338,7 +346,8 @@ class MetarData {
     if (condition.contains('VA')) return 45; // Volcanic ash - use fog icon
 
     // Haze (lighter visibility reduction)
-    if (condition.contains('HZ')) return 1; // Haze - mostly clear but with haze layer
+    if (condition.contains('HZ'))
+      return 1; // Haze - mostly clear but with haze layer
     if (condition.contains('HAZE')) return 1;
 
     // Dust, Sand, and Storms
@@ -394,9 +403,9 @@ class MetarData {
   /// Get custom description text from METAR condition (e.g., "Smoke")
   String? _getCustomDescription() {
     final condition = weatherCondition.toUpperCase().trim();
-    
+
     if (condition.isEmpty || condition == 'CLEAR') return null;
-    
+
     // Map METAR codes to readable descriptions
     // Descriptors
     if (condition.contains('VC')) return 'Vicinity';
@@ -406,7 +415,7 @@ class MetarData {
     if (condition.contains('DR')) return 'Low Drifting';
     if (condition.contains('BL')) return 'Blowing';
     if (condition.contains('FZ')) return 'Freezing';
-    
+
     // Thunderstorms and severe weather
     if (condition.contains('FC')) return 'Funnel Cloud';
     if (condition.contains('+FC')) return 'Tornado';
@@ -416,7 +425,7 @@ class MetarData {
     if (condition.contains('TSRA')) return 'Thunderstorm with Rain';
     if (condition.contains('TS')) return 'Thunderstorm';
     if (condition.contains('SQ')) return 'Squalls';
-    
+
     // Hail and ice
     if (condition.contains('SHGS')) return 'Hail Showers';
     if (condition.contains('GR')) return 'Hail';
@@ -425,20 +434,20 @@ class MetarData {
     if (condition.contains('SHPL')) return 'Ice Pellet Showers';
     if (condition.contains('IC')) return 'Ice Crystals';
     if (condition.contains('SHIC')) return 'Ice Crystal Showers';
-    
+
     // Snow
     if (condition.contains('SHSN')) return 'Snow Showers';
     if (condition.contains('SN')) return 'Snow';
     if (condition.contains('SG')) return 'Snow Grains';
-    
+
     // Rain
     if (condition.contains('SHRA')) return 'Rain Showers';
     if (condition.contains('RASN')) return 'Rain and Snow';
     if (condition.contains('RA')) return 'Rain';
-    
+
     // Drizzle
     if (condition.contains('DZ')) return 'Drizzle';
-    
+
     // Obscuration phenomena
     if (condition.contains('FU')) return 'Smoke';
     if (condition.contains('VA')) return 'Volcanic Ash';
@@ -448,15 +457,15 @@ class MetarData {
     if (condition.contains('FG')) return 'Fog';
     if (condition.contains('BR')) return 'Mist';
     if (condition.contains('HZ')) return 'Haze';
-    
+
     // Other phenomena
     if (condition.contains('PO')) return 'Dust/Sand Whirls';
     if (condition.contains('SS')) return 'Sandstorm';
     if (condition.contains('DS')) return 'Duststorm';
-    
+
     // Unknown
     if (condition.contains('UP')) return 'Unknown Precipitation';
-    
+
     // Return the condition as-is if no mapping found
     return condition.isNotEmpty ? condition : null;
   }

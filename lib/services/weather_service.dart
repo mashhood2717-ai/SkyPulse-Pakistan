@@ -96,7 +96,7 @@ class WeatherService {
       double latitude, double longitude) async {
     try {
       print('🔍 Reverse geocoding: $latitude, $longitude');
-      
+
       // Use the geocoding package for reverse geocoding
       final placemarks = await geocoding.placemarkFromCoordinates(
         latitude,
@@ -105,9 +105,11 @@ class WeatherService {
 
       if (placemarks.isNotEmpty) {
         final placemark = placemarks[0];
-        final cityName = placemark.locality ?? placemark.administrativeArea ?? 'Current Location';
+        final cityName = placemark.locality ??
+            placemark.administrativeArea ??
+            'Current Location';
         final countryCode = placemark.isoCountryCode ?? '';
-        
+
         print('✅ Location found: $cityName, $countryCode');
         return {
           'name': cityName,

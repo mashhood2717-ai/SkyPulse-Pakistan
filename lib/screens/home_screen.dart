@@ -185,17 +185,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Go to the first page (current location)
   void _goToFirstPage() {
-    // Immediately restore initial location data
     final provider = context.read<WeatherProvider>();
+    
+    // Immediately restore cached data for instant UI response
     _restoreInitialLocation(provider);
 
-    // Then animate to page 0
+    // Animate to page 0
     if (_currentPage != 0 && _pageController.hasClients) {
       _pageController.animateToPage(
         0,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
+    }
+    
+    // Fetch fresh data in background (includes AQI)
+    _fetchFreshCurrentLocation(provider);
+  }
+  
+  /// Fetch fresh data for current location
+  Future<void> _fetchFreshCurrentLocation(WeatherProvider provider) async {
+    if (_initialLocationCity != null) {
+      print('🔄 [HomeScreen] Fetching fresh data for current location: $_initialLocationCity');
+      await provider.fetchWeatherByCity(_initialLocationCity!);
+      
+      // Update cached data with fresh data
+      if (mounted && provider.weatherData != null) {
+        setState(() {
+          _cachedInitialWeather = provider.weatherData;
+        });
+      }
     }
   }
 
@@ -744,8 +763,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 }
               } else if (index == 0 && previousPage > 0) {
                 // Swiped back to current location (index 0)
-                print('📱 [HomeScreen] Restoring initial location');
+                print('📱 [HomeScreen] Swiped back to current location');
                 _restoreInitialLocation(provider);
+                // Fetch fresh data in background
+                _fetchFreshCurrentLocation(provider);
               }
             },
             itemCount: _favorites.length + 1,

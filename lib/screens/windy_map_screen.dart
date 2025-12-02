@@ -34,7 +34,8 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF0A0E27))
-      ..loadRequest(Uri.parse(_buildWindyUrl(33.6584, 73.0532, _selectedLayer)));
+      ..loadRequest(
+          Uri.parse(_buildWindyUrl(33.6584, 73.0532, _selectedLayer)));
   }
 
   String _buildWindyUrl(double lat, double lon, String overlay) {
@@ -174,22 +175,21 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
                                           ? Colors.white
                                           : Colors.white.withOpacity(0.7),
                                       fontSize: 12,
-                                      fontWeight: _selectedLayer ==
-                                              layer['overlay']
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
+                                      fontWeight:
+                                          _selectedLayer == layer['overlay']
+                                              ? FontWeight.bold
+                                              : FontWeight.normal,
                                     ),
                                   ),
-                                  selected:
-                                      _selectedLayer == layer['overlay'],
+                                  selected: _selectedLayer == layer['overlay'],
                                   onSelected: (selected) {
                                     if (selected) {
                                       _changeLayer(layer['overlay']!);
                                     }
                                   },
                                   backgroundColor: Colors.transparent,
-                                  selectedColor: Color(0xFF667EEA)
-                                      .withOpacity(0.7),
+                                  selectedColor:
+                                      Color(0xFF667EEA).withOpacity(0.7),
                                   side: BorderSide(
                                     color: _selectedLayer == layer['overlay']
                                         ? Color(0xFF667EEA)

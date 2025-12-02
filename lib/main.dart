@@ -4,12 +4,14 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'providers/weather_provider.dart';
+import 'providers/theme_provider.dart';
 import 'services/favorites_service.dart';
 import 'services/favorites_cache_service.dart' show FavoritesCacheService;
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
 import 'screens/windy_map_screen.dart';
+import 'screens/settings_screen.dart';
 import 'services/push_notification_service.dart';
 
 void main() async {
@@ -76,30 +78,23 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => WeatherProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesService()),
         ChangeNotifierProvider(create: (_) => FavoritesCacheService()),
       ],
-      child: MaterialApp(
-        title: 'Skypulse',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: Color(0xFF0A0E27),
-          appBarTheme: AppBarTheme(
-            backgroundColor: Color(0xFF1A1F3A),
-            elevation: 0,
-          ),
-          colorScheme: ColorScheme.dark(
-            primary: Color(0xFF667EEA),
-            secondary: Color(0xFF764BA2),
-            surface: Color(0xFF1A1F3A),
-          ),
-        ),
-        home: const HomePage(),
-        routes: {
-          '/favorites': (context) => const FavoritesScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) {
+          return MaterialApp(
+            title: 'Skypulse',
+            debugShowCheckedModeBanner: false,
+            theme: themeProvider.getTheme(),
+            home: const HomePage(),
+            routes: {
+              '/favorites': (context) => const FavoritesScreen(),
+              '/settings': (context) => const SettingsScreen(),
+            },
+          );
         },
       ),
     );

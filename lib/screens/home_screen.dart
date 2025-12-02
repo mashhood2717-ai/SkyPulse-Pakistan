@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
+import '../providers/theme_provider.dart';
 import '../models/weather_model.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/forecast_card.dart';
@@ -9,6 +10,7 @@ import '../widgets/sun_arc_widget.dart';
 import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/weather_background_animation.dart';
 import '../services/favorites_service.dart';
 import '../services/favorites_cache_service.dart' show FavoritesCacheService;
 
@@ -272,23 +274,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF1e3c72),
-              const Color(0xFF2a5298),
-              const Color(0xFF1e3c72).withOpacity(0.9),
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Consumer2<WeatherProvider, FavoritesService>(
-            builder: (context, provider, favoritesService, child) {
+    return Consumer2<WeatherProvider, ThemeProvider>(
+      builder: (context, provider, themeProvider, _) {
+        // Determine weather condition for animation
+        String weatherCondition = 'sunny';
+        if (provider.weatherData?.current != null) {
+          final weatherCode = provider.weatherData!.current.weatherCode;
+          if (weatherCode >= 50 && weatherCode <= 67) {
+            weatherCondition = 'rain';
+          } else if (weatherCode >= 70 && weatherCode <= 86) {
+            weatherCondition = 'snow';
+          } else if (weatherCode >= 80 && weatherCode <= 82) {
+            weatherCondition = 'rain';
+          } else if (weatherCode >= 1 && weatherCode <= 48) {
+            weatherCondition = 'cloudy';
+          } else {
+            weatherCondition = 'sunny';
+          }
+        }
+
+        return WeatherBackgroundAnimation(
+          weatherCondition: weatherCondition,
+          isDarkMode: themeProvider.isDarkMode,
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: SafeArea(
+              child: Consumer<WeatherProvider>(
+                builder: (context, provider, child) {
               // Update favorites from the service whenever it changes
               if (favoritesService.favorites.length != _favorites.length) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -489,10 +501,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                 ),
               );
-            },
+                },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -622,6 +636,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         IconButton(
           icon: const Icon(Icons.my_location, color: Colors.white),
           onPressed: () => provider.fetchWeatherByLocation(),
+        ),
+        // Settings button
+        IconButton(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onPressed: () {
+            Navigator.of(context).pushNamed('/settings');
+          },
         ),
         const SizedBox(width: 8),
       ],

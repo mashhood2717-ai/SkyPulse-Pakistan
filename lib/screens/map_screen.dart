@@ -14,17 +14,22 @@ class _MapScreenState extends State<MapScreen> {
   late Timer _satelliteRefreshTimer;
   int _currentSatelliteIndex = 0;
 
-  // EUMETSAT satellite image URLs (public endpoints)
+  // EUMETSAT satellite image URLs with multiple fallbacks
   final List<Map<String, String>> _satelliteImages = [
     {
-      'name': 'RGB Natural Color',
+      'name': 'EUMETSAT RGB',
       'url':
-          'https://view.eumetsat.int/static-images/latestImages/EUMETSAT_MSGIODC_RGBNatColour_EastAfrica_LowRes.jpg',
+          'https://eutils.eumetsat.int/images/latest/msg/RGBNatColor.jpg',
     },
     {
-      'name': 'Infrared',
+      'name': 'EUMETSAT IR',
       'url':
-          'https://view.eumetsat.int/static-images/latestImages/EUMETSAT_MSGIODC_IR_EastAfrica_LowRes.jpg',
+          'https://eutils.eumetsat.int/images/latest/msg/IR_108.jpg',
+    },
+    {
+      'name': 'EUMETSAT WV',
+      'url':
+          'https://eutils.eumetsat.int/images/latest/msg/WaterVapor_062.jpg',
     },
   ];
 
@@ -75,11 +80,19 @@ class _MapScreenState extends State<MapScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Satellite Image
+                      // Satellite Image with Caching
                       Image.network(
                         _satelliteImages[_currentSatelliteIndex]['url']!,
                         fit: BoxFit.cover,
+                        cacheHeight: 2000,
+                        cacheWidth: 2000,
+                        headers: {
+                          'User-Agent':
+                              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        },
                         errorBuilder: (context, error, stackTrace) {
+                          print(
+                              '🛰️ Satellite image load failed: $error'); // Debug output
                           return Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -111,10 +124,26 @@ class _MapScreenState extends State<MapScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Unable to load satellite image',
+                                    '${_satelliteImages[_currentSatelliteIndex]['name']}',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.5),
+                                      color: Colors.white.withOpacity(0.6),
                                       fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      setState(() {
+                                        _currentSatelliteIndex =
+                                            (_currentSatelliteIndex + 1) %
+                                                _satelliteImages.length;
+                                      });
+                                    },
+                                    icon: const Icon(Icons.refresh),
+                                    label: const Text('Try Another'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.cyan
+                                          .withOpacity(0.3),
                                     ),
                                   ),
                                 ],
@@ -144,12 +173,14 @@ class _MapScreenState extends State<MapScreen> {
                                     width: 60,
                                     height: 60,
                                     child: CircularProgressIndicator(
-                                      value: loadingProgress.expectedTotalBytes !=
-                                              null
-                                          ? loadingProgress
-                                                  .cumulativeBytesLoaded /
-                                              loadingProgress.expectedTotalBytes!
-                                          : null,
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
                                       valueColor: AlwaysStoppedAnimation<Color>(
                                         Colors.cyan.withOpacity(0.7),
                                       ),
@@ -158,7 +189,7 @@ class _MapScreenState extends State<MapScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Loading EUMETSAT...',
+                                    'Loading ${_satelliteImages[_currentSatelliteIndex]['name']}...',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.7),
                                       fontSize: 14,

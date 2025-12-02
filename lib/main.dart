@@ -113,7 +113,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 1; // Start with Weather (home screen)
+  int _selectedIndex = 2; // Start with Weather (home screen)
 
   @override
   void initState() {
@@ -150,7 +150,7 @@ class _HomePageState extends State<HomePage> {
 
   void switchToWeatherTab() {
     setState(() {
-      _selectedIndex = 1;
+      _selectedIndex = 2;
     });
   }
 
@@ -160,11 +160,12 @@ class _HomePageState extends State<HomePage> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          const AlertsScreen(), // Index 0 - Alerts
-          const HomeScreen(), // Index 1 - Weather/Home
+          const HomeScreen(), // Index 0 - Home
+          const AlertsScreen(), // Index 1 - Alerts
+          const HomeScreen(), // Index 2 - Weather/Home
           _FavoritesScreenWrapper(
             onFavoriteSelected: switchToWeatherTab,
-          ), // Index 2 - Favorites
+          ), // Index 3 - Favorites
         ],
       ),
       bottomNavigationBar: Container(
@@ -194,6 +195,10 @@ class _HomePageState extends State<HomePage> {
                 });
               },
               items: [
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.home_rounded),
+                  label: 'Home',
+                ),
                 BottomNavigationBarItem(
                   icon: Stack(
                     clipBehavior: Clip.none,

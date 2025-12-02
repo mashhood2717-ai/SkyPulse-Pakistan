@@ -29,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCity;
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
+  String? _lastNavigatedCity; // Track last auto-swiped city to prevent loops
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -187,6 +188,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// Navigate to a favorite location and auto-swipe to its card
+  Future<void> navigateToFavorite(String cityName) async {
+    final provider = context.read<WeatherProvider>();
+    final cacheService = context.read<FavoritesCacheService>();
+
+    // Find the index of this favorite in the list
+    int favoriteIndex = -1;
+    for (int i = 0; i < _favorites.length; i++) {
+      if ((_favorites[i]['city'] as String).toLowerCase() == cityName.toLowerCase()) {
+        favoriteIndex = i;
+        break;
+      }
+    }
+
+    if (favoriteIndex >= 0) {
+      // Load the weather data
+      if (cacheService.hasCachedWeather(cityName)) {
+        final cachedWeather = cacheService.getWeatherForCity(cityName);
+        if (cachedWeather != null) {
+          print('📱 [HomeScreen] Loading $cityName from cache');
+          provider.restoreCachedWeather(
+            cachedWeather,
+            cityName,
+            cacheService.getMetadata(cityName)?['countryCode'] as String? ?? '',
+          );
+        }
+      } else {
+        await provider.fetchWeatherByCity(cityName);
+      }
+
+      // Auto-swipe to the favorite card (index + 1 because index 0 is current location)
+      if (mounted) {
+        print('📱 [HomeScreen] Auto-swiping to favorite at index ${favoriteIndex + 1}');
+        await _pageController.animateToPage(
+          favoriteIndex + 1,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -217,8 +260,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 });
               }
 
+              // Auto-swipe to favorite if it was selected from FavoritesScreen
               if (provider.weatherData != null && !provider.isLoading) {
                 _checkFavorite();
+                
+                // Check if the current city is a favorite (not the initial location)
+                final currentCity = provider.cityName;
+                final isCurrentLocationOnly = currentCity == _initialLocationCity;
+                
+                if (!isCurrentLocationOnly && _lastNavigatedCity != currentCity) {
+                  _lastNavigatedCity = currentCity;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      navigateToFavorite(currentCity);
+                    }
+                  });
+                }
               }
 
               if (provider.isLoading && provider.weatherData == null) {
@@ -329,8 +386,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           ],
                         ),
                       ),
-                      // Show loading overlay during page transitions
-                      if (provider.isLoading && _currentPage > 0)
+                      // Show loading overlay only during actual fetch (not when data is cached/loaded)
+                      if (provider.isLoading && _currentPage > 0 && provider.weatherData == null)
                         Container(
                           color: Colors.black.withOpacity(0.3),
                           child: Center(

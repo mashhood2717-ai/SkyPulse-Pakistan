@@ -4,14 +4,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'providers/weather_provider.dart';
-import 'providers/theme_provider.dart';
 import 'services/favorites_service.dart';
 import 'services/favorites_cache_service.dart' show FavoritesCacheService;
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
-import 'screens/windy_map_screen.dart';
-import 'screens/settings_screen.dart';
 import 'services/push_notification_service.dart';
 
 void main() async {
@@ -78,23 +75,30 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => WeatherProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesService()),
         ChangeNotifierProvider(create: (_) => FavoritesCacheService()),
       ],
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
-          return MaterialApp(
-            title: 'Skypulse',
-            debugShowCheckedModeBanner: false,
-            theme: themeProvider.getTheme(),
-            home: const HomePage(),
-            routes: {
-              '/favorites': (context) => const FavoritesScreen(),
-              '/settings': (context) => const SettingsScreen(),
-            },
-          );
+      child: MaterialApp(
+        title: 'Skypulse',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          scaffoldBackgroundColor: Color(0xFF0A0E27),
+          appBarTheme: AppBarTheme(
+            backgroundColor: Color(0xFF1A1F3A),
+            elevation: 0,
+          ),
+          colorScheme: ColorScheme.dark(
+            primary: Color(0xFF667EEA),
+            secondary: Color(0xFF764BA2),
+            surface: Color(0xFF1A1F3A),
+          ),
+        ),
+        home: const HomePage(),
+        routes: {
+          '/favorites': (context) => const FavoritesScreen(),
         },
       ),
     );
@@ -109,7 +113,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 2; // Start with Windy Map (satellite) as default
+  int _selectedIndex = 1; // Start with Weather (home screen)
 
   @override
   void initState() {
@@ -169,10 +173,9 @@ class _HomePageState extends State<HomePage> {
         children: [
           const AlertsScreen(), // Index 0 - Alerts
           const HomeScreen(), // Index 1 - Weather/Home
-          const WindyMapScreen(), // Index 2 - Windy Satellite
           _FavoritesScreenWrapper(
             onFavoriteSelected: switchToWeatherTab,
-          ), // Index 3 - Favorites
+          ), // Index 2 - Favorites
         ],
       ),
       bottomNavigationBar: Container(
@@ -191,13 +194,11 @@ class _HomePageState extends State<HomePage> {
             final unreadCount = weatherProvider.unreadAlertCount;
 
             return BottomNavigationBar(
-              currentIndex:
-                  _selectedIndex + 1, // Adjust for Home button (add 1)
+              currentIndex: _selectedIndex + 1, // Adjust for Home button (add 1)
               backgroundColor: Colors.transparent,
               elevation: 0,
               selectedItemColor: Color(0xFF667EEA),
               unselectedItemColor: Colors.white54,
-              type: BottomNavigationBarType.fixed,
               onTap: (index) {
                 if (index == 0) {
                   // Home button - navigate to home and go to first page
@@ -251,10 +252,6 @@ class _HomePageState extends State<HomePage> {
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.cloud),
                   label: 'Weather',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.satellite_alt),
-                  label: 'Windy',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.favorite),

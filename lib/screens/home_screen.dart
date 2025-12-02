@@ -2,7 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
-import '../providers/theme_provider.dart';
 import '../models/weather_model.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/forecast_card.dart';
@@ -10,7 +9,6 @@ import '../widgets/sun_arc_widget.dart';
 import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
-import '../widgets/weather_background_animation.dart';
 import '../services/favorites_service.dart';
 import '../services/favorites_cache_service.dart' show FavoritesCacheService;
 
@@ -38,8 +36,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
   String? _lastNavigatedCity; // Track last auto-swiped city to prevent loops
-  bool _isReturningHome =
-      false; // Flag to prevent auto-swipe when returning home
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -191,40 +187,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _restoreInitialLocation(WeatherProvider provider) {
     if (_cachedInitialWeather != null && _initialLocationCity != null) {
-      print(
-          '📋 [HomeScreen] Restoring initial weather for $_initialLocationCity');
       provider.restoreCachedWeather(
         _cachedInitialWeather!,
         _initialLocationCity!,
         _initialLocationCountry ?? '',
       );
-      // Refresh METAR and AQI data for initial location
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          provider.refresh();
-        }
-      });
     }
   }
 
   /// Go to the first page (current location)
   void _goToFirstPage() {
     if (_currentPage != 0 && _pageController.hasClients) {
-      _isReturningHome = true; // Set flag before animating
-      _pageController
-          .animateToPage(
+      _pageController.animateToPage(
         0,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-      )
-          .then((_) {
-        // Clear flag after animation completes
-        Future.delayed(const Duration(milliseconds: 600), () {
-          if (mounted) {
-            setState(() => _isReturningHome = false);
-          }
-        });
-      });
+      );
     }
   }
 
@@ -274,245 +252,227 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<WeatherProvider, ThemeProvider, FavoritesService>(
-      builder: (context, provider, themeProvider, favoritesService, _) {
-        // Determine weather condition for animation
-        String weatherCondition = 'sunny';
-        if (provider.weatherData?.current != null) {
-          final weatherCode = provider.weatherData!.current.weatherCode;
-          if (weatherCode >= 50 && weatherCode <= 67) {
-            weatherCondition = 'rain';
-          } else if (weatherCode >= 70 && weatherCode <= 86) {
-            weatherCondition = 'snow';
-          } else if (weatherCode >= 80 && weatherCode <= 82) {
-            weatherCondition = 'rain';
-          } else if (weatherCode >= 1 && weatherCode <= 48) {
-            weatherCondition = 'cloudy';
-          } else {
-            weatherCondition = 'sunny';
-          }
-        }
-
-        return WeatherBackgroundAnimation(
-          weatherCondition: weatherCondition,
-          isDarkMode: themeProvider.isDarkMode,
-          child: Scaffold(
-            backgroundColor: Colors.transparent,
-            body: SafeArea(
-              child: Consumer<WeatherProvider>(
-                builder: (context, provider, child) {
-                  // Update favorites from the service whenever it changes
-                  if (favoritesService.favorites.length != _favorites.length) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() {
-                          _favorites = favoritesService.favorites;
-                        });
-                      }
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF1e3c72),
+              const Color(0xFF2a5298),
+              const Color(0xFF1e3c72).withOpacity(0.9),
+            ],
+            stops: const [0.0, 0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Consumer2<WeatherProvider, FavoritesService>(
+            builder: (context, provider, favoritesService, child) {
+              // Update favorites from the service whenever it changes
+              if (favoritesService.favorites.length != _favorites.length) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    setState(() {
+                      _favorites = favoritesService.favorites;
                     });
                   }
+                });
+              }
 
-                  // Auto-swipe to favorite if it was selected from FavoritesScreen
-                  if (provider.weatherData != null && !provider.isLoading) {
-                    _checkFavorite();
+              // Auto-swipe to favorite if it was selected from FavoritesScreen
+              if (provider.weatherData != null && !provider.isLoading) {
+                _checkFavorite();
 
-                    // Check if the current city is a favorite (not the initial location)
-                    final currentCity = provider.cityName;
-                    final isCurrentLocationOnly =
-                        currentCity == _initialLocationCity;
+                // Check if the current city is a favorite (not the initial location)
+                final currentCity = provider.cityName;
+                final isCurrentLocationOnly =
+                    currentCity == _initialLocationCity;
 
-                    if (!isCurrentLocationOnly &&
-                        _lastNavigatedCity != currentCity) {
-                      _lastNavigatedCity = currentCity;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          navigateToFavorite(currentCity);
-                        }
-                      });
+                if (!isCurrentLocationOnly &&
+                    _lastNavigatedCity != currentCity) {
+                  _lastNavigatedCity = currentCity;
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      navigateToFavorite(currentCity);
                     }
-                  }
+                  });
+                }
+              }
 
-                  if (provider.isLoading && provider.weatherData == null) {
-                    return _buildLoadingState();
-                  }
+              if (provider.isLoading && provider.weatherData == null) {
+                return _buildLoadingState();
+              }
 
-                  if (provider.error != null) {
-                    return _buildErrorState(provider);
-                  }
+              if (provider.error != null) {
+                return _buildErrorState(provider);
+              }
 
-                  if (provider.weatherData == null) {
-                    return SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 80),
-                            WeatherSkeletonCard(),
-                            const SizedBox(height: 24),
-                            SkeletonLoader(
-                              height: 100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            const SizedBox(height: 24),
-                            SkeletonLoader(
-                              height: 200,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ],
+              if (provider.weatherData == null) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 80),
+                        WeatherSkeletonCard(),
+                        const SizedBox(height: 24),
+                        SkeletonLoader(
+                          height: 100,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                    );
-                  }
+                        const SizedBox(height: 24),
+                        SkeletonLoader(
+                          height: 200,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
 
-                  final weather = provider.weatherData!;
-                  final current = weather.current;
+              final weather = provider.weatherData!;
+              final current = weather.current;
 
-                  // Check if we're loading a favorite location (showing stale data while fetching)
-                  final isLoadingFavorite =
-                      provider.isLoading && _currentPage > 0;
+              // Check if we're loading a favorite location (showing stale data while fetching)
+              final isLoadingFavorite = provider.isLoading && _currentPage > 0;
 
-                  return FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: Stack(
-                        children: [
-                          // Fade out content when loading a new favorite
-                          Opacity(
-                            opacity: isLoadingFavorite ? 0.4 : 1.0,
-                            child: RefreshIndicator(
-                              onRefresh: () async {
-                                if (_currentPage == 0) {
-                                  await provider.fetchWeatherByLocation();
-                                  if (mounted) {
-                                    setState(() {
-                                      _initialLocationCity = provider.cityName;
-                                      _initialLocationCountry =
-                                          provider.countryCode;
-                                      _cachedInitialWeather =
-                                          provider.weatherData;
-                                    });
-                                  }
-                                } else {
-                                  await provider.refresh();
-                                }
-                              },
-                              color: Colors.white,
-                              backgroundColor: const Color(0xFF1e3c72),
-                              child: CustomScrollView(
-                                physics: const BouncingScrollPhysics(),
-                                slivers: [
-                                  _buildGlassAppBar(provider),
-                                  SliverToBoxAdapter(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 20),
-                                      child: Column(
-                                        children: [
-                                          const SizedBox(height: 16),
-                                          _buildGlassSearchBar(),
-                                          const SizedBox(height: 24),
-                                          _buildWeatherCardsSection(
-                                              provider, current, weather),
-                                          const SizedBox(height: 24),
-                                          if (provider.usingMetar) ...[
-                                            _buildGlassMetarBadge(provider),
-                                            const SizedBox(height: 24),
-                                          ],
-                                          if (weather.aqiIndex != null)
-                                            _buildAQICard(weather.aqiIndex!),
-                                          const SizedBox(height: 24),
-                                          HourlyForecast(
-                                            weatherData: weather,
-                                          ),
-                                          const SizedBox(height: 24),
-                                          if (weather.forecast.isNotEmpty)
-                                            SunArcWidget(
-                                              sunrise:
-                                                  weather.forecast[0].sunrise,
-                                              sunset:
-                                                  weather.forecast[0].sunset,
-                                            ),
-                                          const SizedBox(height: 24),
-                                          WeatherDetails(current: current),
-                                          const SizedBox(height: 24),
-                                          ...weather.forecast
-                                              .map((day) => Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            bottom: 12),
-                                                    child: ForecastCard(
-                                                        forecast: day),
-                                                  ))
-                                              .toList(),
-                                          const SizedBox(height: 40),
-                                        ],
+              return FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: Stack(
+                    children: [
+                      // Fade out content when loading a new favorite
+                      Opacity(
+                        opacity: isLoadingFavorite ? 0.4 : 1.0,
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            if (_currentPage == 0) {
+                              await provider.fetchWeatherByLocation();
+                              if (mounted) {
+                                setState(() {
+                                  _initialLocationCity = provider.cityName;
+                                  _initialLocationCountry =
+                                      provider.countryCode;
+                                  _cachedInitialWeather = provider.weatherData;
+                                });
+                              }
+                            } else {
+                              await provider.refresh();
+                            }
+                          },
+                          color: Colors.white,
+                          backgroundColor: const Color(0xFF1e3c72),
+                          child: CustomScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            slivers: [
+                              _buildGlassAppBar(provider),
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20),
+                                  child: Column(
+                                    children: [
+                                      const SizedBox(height: 16),
+                                      _buildGlassSearchBar(),
+                                      const SizedBox(height: 24),
+                                      _buildWeatherCardsSection(
+                                          provider, current, weather),
+                                      const SizedBox(height: 24),
+                                      if (provider.usingMetar) ...[
+                                        _buildGlassMetarBadge(provider),
+                                        const SizedBox(height: 24),
+                                      ],
+                                      if (weather.aqiIndex != null)
+                                        _buildAQICard(weather.aqiIndex!),
+                                      const SizedBox(height: 24),
+                                      HourlyForecast(
+                                        weatherData: weather,
                                       ),
-                                    ),
+                                      const SizedBox(height: 24),
+                                      if (weather.forecast.isNotEmpty)
+                                        SunArcWidget(
+                                          sunrise: weather.forecast[0].sunrise,
+                                          sunset: weather.forecast[0].sunset,
+                                        ),
+                                      const SizedBox(height: 24),
+                                      WeatherDetails(current: current),
+                                      const SizedBox(height: 24),
+                                      ...weather.forecast
+                                          .map((day) => Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 12),
+                                                child:
+                                                    ForecastCard(forecast: day),
+                                              ))
+                                          .toList(),
+                                      const SizedBox(height: 40),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Show loading overlay when fetching favorite location data
-                          if (isLoadingFavorite)
-                            Container(
-                              color: Colors.black.withOpacity(0.5),
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    TweenAnimationBuilder<double>(
-                                      tween: Tween(begin: 0.0, end: 1.0),
-                                      duration:
-                                          const Duration(milliseconds: 1500),
-                                      builder: (context, value, child) {
-                                        return Transform.scale(
-                                          scale: 0.8 + (value * 0.2),
-                                          child: Container(
-                                            width: 60,
-                                            height: 60,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              gradient: LinearGradient(
-                                                colors: [
-                                                  Colors.white.withOpacity(0.3),
-                                                  Colors.blue.withOpacity(0.5),
-                                                ],
-                                              ),
-                                            ),
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 3,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'Loading weather data...',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.8),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
                                 ),
                               ),
-                            ),
-                        ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ),
+                      // Show loading overlay when fetching favorite location data
+                      if (isLoadingFavorite)
+                        Container(
+                          color: Colors.black.withOpacity(0.5),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: 0.0, end: 1.0),
+                                  duration: const Duration(milliseconds: 1500),
+                                  builder: (context, value, child) {
+                                    return Transform.scale(
+                                      scale: 0.8 + (value * 0.2),
+                                      child: Container(
+                                        width: 60,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.white.withOpacity(0.3),
+                                              Colors.blue.withOpacity(0.5),
+                                            ],
+                                          ),
+                                        ),
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 3,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Loading weather data...',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -643,13 +603,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           icon: const Icon(Icons.my_location, color: Colors.white),
           onPressed: () => provider.fetchWeatherByLocation(),
         ),
-        // Settings button
-        IconButton(
-          icon: const Icon(Icons.settings, color: Colors.white),
-          onPressed: () {
-            Navigator.of(context).pushNamed('/settings');
-          },
-        ),
         const SizedBox(width: 8),
       ],
     );
@@ -737,15 +690,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               final previousPage = _currentPage;
               setState(() => _currentPage = index);
 
-              // Skip navigation if we're just returning home via button
-              if (_isReturningHome) {
-                print('📱 [HomeScreen] Returning home - skipping auto-swipe');
-                if (index == 0 && previousPage > 0) {
-                  _restoreInitialLocation(provider);
-                }
-                return;
-              }
-
               // Only navigate to favorite if swiping to a favorite card (index > 0)
               if (index > 0 && index - 1 < _favorites.length) {
                 final favorite = _favorites[index - 1];
@@ -803,85 +747,84 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildGlassFavoriteCard(String cityName, String countryCode,
       {bool isActive = false}) {
-    // Always wrap with Consumer to listen for updates - both active and inactive
-    return Consumer<WeatherProvider>(
-      builder: (context, provider, _) {
-        // Show temp and details if data loaded and not currently loading
-        final current = provider.weatherData?.current;
-        if (current != null && !provider.isLoading && isActive) {
-          final temp = current.temperature;
-          // Show data-loaded state with full details
-          return _buildFavoriteCachedCard(
-              cityName, countryCode, temp.toString());
-        }
-
-        // Show loading state
-        if (isActive) {
+    // When active, wrap with Consumer to listen for updates
+    if (isActive) {
+      return Consumer<WeatherProvider>(
+        builder: (context, provider, _) {
+          // Show temp if data loaded and not currently loading
+          final current = provider.weatherData?.current;
+          if (current != null && !provider.isLoading) {
+            final temp = current.temperature;
+            // Show data-loaded state
+            return _buildFavoriteCachedCard(
+                cityName, countryCode, temp.toString());
+          }
+          // Show loading state
           return _buildFavoriteLoadingCard(cityName, countryCode);
-        }
+        },
+      );
+    }
 
-        // When inactive, show glass card with city name
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.blue.withOpacity(0.3),
-                    Colors.purple.withOpacity(0.2),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1.5,
-                ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation(Colors.white),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    cityName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (countryCode.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      countryCode,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+    // When inactive, just show glass card with city name
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.blue.withOpacity(0.3),
+                Colors.purple.withOpacity(0.2),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
             ),
           ),
-        );
-      },
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                cityName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (countryCode.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  countryCode,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 

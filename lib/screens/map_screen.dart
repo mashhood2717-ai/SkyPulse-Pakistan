@@ -1,112 +1,96 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
 
-class MapScreen extends StatefulWidget {
+class MapScreen extends StatelessWidget {
   const MapScreen({Key? key}) : super(key: key);
-
-  @override
-  State<MapScreen> createState() => _MapScreenState();
-}
-
-class _MapScreenState extends State<MapScreen> {
-  late GoogleMapController _mapController;
-  bool _isMapReady = false;
-  Marker? _currentLocationMarker;
-  double _lastLat = 0;
-  double _lastLon = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    // Listen to provider changes after first frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<WeatherProvider>();
-      _lastLat = provider.latitude;
-      _lastLon = provider.longitude;
-    });
-  }
-
-  @override
-  void dispose() {
-    _mapController.dispose();
-    super.dispose();
-  }
-
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
-    setState(() {
-      _isMapReady = true;
-    });
-    _updateMapLocation();
-  }
-
-  void _updateMapLocation() {
-    final provider = context.read<WeatherProvider>();
-
-    final lat = provider.latitude;
-    final lon = provider.longitude;
-    final cityName = provider.cityName;
-
-    print('📍 [MapScreen] Updating map to $cityName ($lat, $lon)');
-
-    // Create marker for current location
-    final marker = Marker(
-      markerId: const MarkerId('current_location'),
-      position: LatLng(lat, lon),
-      infoWindow: InfoWindow(
-        title: cityName,
-        snippet:
-            '${provider.countryCode}\nLat: ${lat.toStringAsFixed(4)}, Lon: ${lon.toStringAsFixed(4)}',
-      ),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-    );
-
-    setState(() {
-      _currentLocationMarker = marker;
-      _lastLat = lat;
-      _lastLon = lon;
-    });
-
-    // Animate camera to location
-    if (_isMapReady) {
-      _mapController.animateCamera(
-        CameraUpdate.newLatLngZoom(LatLng(lat, lon), 10),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Consumer<WeatherProvider>(
         builder: (context, provider, _) {
-          // Only update if location actually changed (prevents infinite loop)
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_isMapReady &&
-                (_lastLat != provider.latitude || _lastLon != provider.longitude)) {
-              _updateMapLocation();
-            }
-          });
-
           return Stack(
             children: [
-              GoogleMap(
-                onMapCreated: _onMapCreated,
-                initialCameraPosition: CameraPosition(
-                  target: LatLng(provider.latitude, provider.longitude),
-                  zoom: 10,
+              // Gradient background simulating satellite view
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF1a3a3a),
+                      const Color(0xFF0d1f1f),
+                      const Color(0xFF2a4a4a),
+                    ],
+                  ),
                 ),
-                mapType: MapType.satellite,
-                markers: _currentLocationMarker != null
-                    ? {_currentLocationMarker!}
-                    : const {},
-                zoomControlsEnabled: true,
-                myLocationButtonEnabled: false,
-                compassEnabled: true,
-                trafficEnabled: false,
-                buildingsEnabled: true,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 80,
+                        color: const Color(0xFF667EEA).withOpacity(0.6),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Location: ${provider.cityName}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Coordinates',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF667EEA).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF667EEA).withOpacity(0.4),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Lat: ${provider.latitude.toStringAsFixed(4)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Lon: ${provider.longitude.toStringAsFixed(4)}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               // Header with location info
               Positioned(
@@ -177,35 +161,12 @@ class _MapScreenState extends State<MapScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF667EEA).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: const Color(0xFF667EEA).withOpacity(0.4),
-                              width: 1,
-                            ),
-                          ),
-                          child: Text(
-                            '📍 Lat: ${provider.latitude.toStringAsFixed(4)}, Lon: ${provider.longitude.toStringAsFixed(4)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
                 ),
               ),
-              // Cloud cover info card at bottom
+              // Weather info card at bottom
               Positioned(
                 bottom: 20,
                 left: 16,
@@ -241,7 +202,7 @@ class _MapScreenState extends State<MapScreen> {
                       Row(
                         children: [
                           const Icon(
-                            Icons.satellite_alt,
+                            Icons.cloud,
                             color: Colors.white,
                             size: 20,
                           ),
@@ -251,7 +212,7 @@ class _MapScreenState extends State<MapScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Satellite View',
+                                  'Weather Overview',
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium
@@ -308,7 +269,7 @@ class _MapScreenState extends State<MapScreen> {
                                     ),
                                     const SizedBox(width: 4),
                                     Text(
-                                      'Visibility: ${(provider.weatherData?.current.visibility ?? 10).toStringAsFixed(1)}km',
+                                      'Vis: ${(provider.weatherData?.current.visibility ?? 10).toStringAsFixed(1)}km',
                                       style: TextStyle(
                                         color: Colors.white.withOpacity(0.9),
                                         fontSize: 12,
@@ -362,11 +323,10 @@ class _MapScreenState extends State<MapScreen> {
                         )
                       else
                         Text(
-                          'Interactive satellite map of ${provider.cityName}. Use pinch to zoom, swipe to pan.',
+                          'Loading weather data...',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.8),
                             fontSize: 12,
-                            height: 1.4,
                           ),
                         ),
                     ],

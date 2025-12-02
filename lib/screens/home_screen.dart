@@ -455,7 +455,94 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
     );
+  }
+
+  /// Build bottom navigation bar with home button
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _goToHomeLocation(),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _currentPage == 0
+                            ? Colors.white.withOpacity(0.2)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _currentPage == 0
+                              ? Colors.white.withOpacity(0.5)
+                              : Colors.white.withOpacity(0.2),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.home_rounded,
+                            color: _currentPage == 0
+                                ? Colors.white
+                                : Colors.white.withOpacity(0.7),
+                            size: 24,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Home',
+                            style: TextStyle(
+                              color: _currentPage == 0
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.7),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Navigate back to home/current location (first card in PageView)
+  void _goToHomeLocation() {
+    if (_currentPage != 0) {
+      _pageController.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Widget _buildLoadingState() {

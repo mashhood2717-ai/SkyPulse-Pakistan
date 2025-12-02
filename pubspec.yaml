@@ -37,6 +37,9 @@ dependencies:
   # Maps
   google_maps_flutter: ^2.5.0
   
+  # WebView for embedded Windy
+  webview_flutter: ^4.4.0
+  
   # Firebase - Push Notifications
   firebase_core: ^2.24.0
   firebase_messaging: ^14.7.10

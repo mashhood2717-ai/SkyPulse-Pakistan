@@ -39,6 +39,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCity;
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
+  bool _isAnimatingToPage = false; // Flag to prevent intermediate fetches during animation
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -192,11 +193,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // Animate to page 0
     if (_currentPage != 0 && _pageController.hasClients) {
+      // Set flag to prevent intermediate page fetches
+      _isAnimatingToPage = true;
+      
       _pageController.animateToPage(
         0,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-      );
+      ).then((_) {
+        _isAnimatingToPage = false;
+      });
     }
     
     // Fetch fresh data in background (includes AQI)
@@ -235,6 +241,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       print(
           '🎯 [HomeScreen] Navigating to favorite card: $cityName at index $targetPage');
 
+      // Set flag to prevent onPageChanged from fetching during animation
+      _isAnimatingToPage = true;
+      
       // Update current page BEFORE animation to prevent duplicate fetches
       setState(() => _currentPage = targetPage);
 
@@ -243,7 +252,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         targetPage,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-      );
+      ).then((_) {
+        // Clear flag after animation completes
+        _isAnimatingToPage = false;
+      });
     } else {
       print(
           '⚠️ [HomeScreen] Could not find favorite: $cityName in $_favorites');
@@ -744,6 +756,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 print('📱 [HomeScreen] Already on page $index, skipping fetch');
                 return;
               }
+              
+              // Skip fetching during programmatic animation (intermediate pages)
+              if (_isAnimatingToPage) {
+                print('📱 [HomeScreen] Skipping intermediate page $index during animation');
+                return;
+              }
 
               final previousPage = _currentPage;
               setState(() => _currentPage = index);
@@ -818,15 +836,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (isActive) {
       return Consumer<WeatherProvider>(
         builder: (context, provider, _) {
-          // Show temp if data loaded and not currently loading
+          // Show temp ONLY if data loaded AND it matches this city
           final current = provider.weatherData?.current;
-          if (current != null && !provider.isLoading) {
+          final isCorrectCity = provider.cityName.toLowerCase() == cityName.toLowerCase();
+          
+          if (current != null && !provider.isLoading && isCorrectCity) {
             final temp = current.temperature;
             // Show data-loaded state
             return _buildFavoriteCachedCard(
                 cityName, countryCode, temp.toString());
           }
-          // Show loading state
+          // Show loading state if still loading or data is for wrong city
           return _buildFavoriteLoadingCard(cityName, countryCode);
         },
       );

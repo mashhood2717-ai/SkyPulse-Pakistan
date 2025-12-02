@@ -17,7 +17,7 @@ class WeatherService {
       final url = Uri.parse('$baseUrl?latitude=$latitude&longitude=$longitude'
           '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max'
           '&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,visibility,weather_code,pressure_msl,cloud_cover_low,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day'
-          '&current=temperature_2m,relative_humidity_2m,dew_point_2m,is_day,precipitation,weather_code,pressure_msl,wind_direction_10m,cloud_cover,wind_gusts_10m,wind_speed_10m'
+          '&current=temperature_2m,relative_humidity_2m,dew_point_2m,is_day,precipitation,weather_code,pressure_msl,wind_direction_10m,cloud_cover,wind_gusts_10m,wind_speed_10m,visibility'
           '&timezone=auto'
           '&forecast_days=15');
 

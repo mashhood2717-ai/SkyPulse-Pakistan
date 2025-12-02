@@ -89,49 +89,30 @@ class WeatherDetails extends StatelessWidget {
         ),
         SizedBox(height: 12),
 
-        // Row 3: UV Index and Visibility (hide visibility if 0 or invalid)
-        if (current.visibility > 0)
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailTile(
-                  icon: Icons.wb_sunny,
-                  iconColor: _getUVColor(current.uvIndex),
-                  label: 'UV Index',
-                  value: '${current.uvIndex.round()}\n${current.uvIndexCategory}',
-                  backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
-                ),
+        // Row 3: UV Index and Visibility
+        Row(
+          children: [
+            Expanded(
+              child: _buildDetailTile(
+                icon: Icons.wb_sunny,
+                iconColor: _getUVColor(current.uvIndex),
+                label: 'UV Index',
+                value: '${current.uvIndex.round()}\n${current.uvIndexCategory}',
+                backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
               ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildDetailTile(
-                  icon: Icons.visibility,
-                  iconColor: Color(0xFF9C27B0),
-                  label: 'Visibility',
-                  value: '${current.visibility.toStringAsFixed(1)} km',
-                  backgroundColor: Color(0xFF9C27B0).withOpacity(0.1),
-                ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildDetailTile(
+                icon: Icons.visibility,
+                iconColor: Color(0xFF9C27B0),
+                label: 'Visibility',
+                value: '${current.visibility.toStringAsFixed(1)} km',
+                backgroundColor: Color(0xFF9C27B0).withOpacity(0.1),
               ),
-            ],
-          )
-        else
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailTile(
-                  icon: Icons.wb_sunny,
-                  iconColor: _getUVColor(current.uvIndex),
-                  label: 'UV Index',
-                  value: '${current.uvIndex.round()}\n${current.uvIndexCategory}',
-                  backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: SizedBox.shrink(),
-              ),
-            ],
-          ),
+            ),
+          ],
+        ),
         SizedBox(height: 12),
 
         // Row 4: Pressure and Cloud Cover

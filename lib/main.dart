@@ -196,7 +196,8 @@ class _HomePageState extends State<HomePage> {
             final unreadCount = weatherProvider.unreadAlertCount;
 
             return BottomNavigationBar(
-              currentIndex: _selectedIndex + 1, // Adjust for Home button (add 1)
+              currentIndex:
+                  _selectedIndex + 1, // Adjust for Home button (add 1)
               backgroundColor: Colors.transparent,
               elevation: 0,
               selectedItemColor: Color(0xFF667EEA),

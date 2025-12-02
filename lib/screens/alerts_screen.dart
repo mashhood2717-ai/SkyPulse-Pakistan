@@ -352,13 +352,15 @@ class _AlertsScreenState extends State<AlertsScreen>
                                         Container(
                                           width: 10,
                                           height: 10,
-                                          margin: const EdgeInsets.only(left: 10),
+                                          margin:
+                                              const EdgeInsets.only(left: 10),
                                           decoration: BoxDecoration(
                                             color: Colors.redAccent,
                                             shape: BoxShape.circle,
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.red.withOpacity(0.5),
+                                                color:
+                                                    Colors.red.withOpacity(0.5),
                                                 blurRadius: 6,
                                                 spreadRadius: 1,
                                               ),

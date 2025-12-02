@@ -36,7 +36,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
   String? _lastNavigatedCity; // Track last auto-swiped city to prevent loops
-  bool _isReturningHome = false; // Flag to prevent auto-swipe when returning home
+  bool _isReturningHome =
+      false; // Flag to prevent auto-swipe when returning home
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -188,7 +189,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _restoreInitialLocation(WeatherProvider provider) {
     if (_cachedInitialWeather != null && _initialLocationCity != null) {
-      print('📋 [HomeScreen] Restoring initial weather for $_initialLocationCity');
+      print(
+          '📋 [HomeScreen] Restoring initial weather for $_initialLocationCity');
       provider.restoreCachedWeather(
         _cachedInitialWeather!,
         _initialLocationCity!,
@@ -207,11 +209,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _goToFirstPage() {
     if (_currentPage != 0 && _pageController.hasClients) {
       _isReturningHome = true; // Set flag before animating
-      _pageController.animateToPage(
+      _pageController
+          .animateToPage(
         0,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-      ).then((_) {
+      )
+          .then((_) {
         // Clear flag after animation completes
         Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted) {
@@ -783,7 +787,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return _buildFavoriteCachedCard(
               cityName, countryCode, temp.toString());
         }
-        
+
         // Show loading state
         if (isActive) {
           return _buildFavoriteLoadingCard(cityName, countryCode);

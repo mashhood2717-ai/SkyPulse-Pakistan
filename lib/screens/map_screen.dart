@@ -14,6 +14,19 @@ class _MapScreenState extends State<MapScreen> {
   late GoogleMapController _mapController;
   bool _isMapReady = false;
   Marker? _currentLocationMarker;
+  double _lastLat = 0;
+  double _lastLon = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to provider changes after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final provider = context.read<WeatherProvider>();
+      _lastLat = provider.latitude;
+      _lastLon = provider.longitude;
+    });
+  }
 
   @override
   void dispose() {
@@ -44,25 +57,22 @@ class _MapScreenState extends State<MapScreen> {
       position: LatLng(lat, lon),
       infoWindow: InfoWindow(
         title: cityName,
-        snippet: '${provider.countryCode}\nLat: ${lat.toStringAsFixed(4)}, Lon: ${lon.toStringAsFixed(4)}',
+        snippet:
+            '${provider.countryCode}\nLat: ${lat.toStringAsFixed(4)}, Lon: ${lon.toStringAsFixed(4)}',
       ),
       icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
     );
 
     setState(() {
       _currentLocationMarker = marker;
+      _lastLat = lat;
+      _lastLon = lon;
     });
 
     // Animate camera to location
     if (_isMapReady) {
       _mapController.animateCamera(
-        CameraUpdate.newLatLngBounds(
-          LatLngBounds(
-            southwest: LatLng(lat - 0.05, lon - 0.05),
-            northeast: LatLng(lat + 0.05, lon + 0.05),
-          ),
-          100,
-        ),
+        CameraUpdate.newLatLngZoom(LatLng(lat, lon), 10),
       );
     }
   }
@@ -72,15 +82,13 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       body: Consumer<WeatherProvider>(
         builder: (context, provider, _) {
-          // Update map when location changes
-          if (_isMapReady) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (_currentLocationMarker?.position.latitude !=
-                  provider.latitude) {
-                _updateMapLocation();
-              }
-            });
-          }
+          // Only update if location actually changed (prevents infinite loop)
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_isMapReady &&
+                (_lastLat != provider.latitude || _lastLon != provider.longitude)) {
+              _updateMapLocation();
+            }
+          });
 
           return Stack(
             children: [
@@ -88,7 +96,7 @@ class _MapScreenState extends State<MapScreen> {
                 onMapCreated: _onMapCreated,
                 initialCameraPosition: CameraPosition(
                   target: LatLng(provider.latitude, provider.longitude),
-                  zoom: 12,
+                  zoom: 10,
                 ),
                 mapType: MapType.satellite,
                 markers: _currentLocationMarker != null
@@ -197,7 +205,7 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ),
               ),
-              // Info card at bottom
+              // Cloud cover info card at bottom
               Positioned(
                 bottom: 20,
                 left: 16,
@@ -238,27 +246,129 @@ class _MapScreenState extends State<MapScreen> {
                             size: 20,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            'Satellite View',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Satellite View',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                 ),
+                                if (provider.weatherData != null)
+                                  Text(
+                                    '☁️ Cloud Cover: ${provider.weatherData?.current.cloudCover ?? 0}%',
+                                    style: TextStyle(
+                                      color: Colors.cyan,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text(
-                        'Interactive satellite map of ${provider.cityName}. Use pinch to zoom, swipe to pan.',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
-                          fontSize: 12,
-                          height: 1.4,
+                      if (provider.weatherData != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.cloud,
+                                      color: Colors.lightBlue,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Cloud: ${provider.weatherData?.current.cloudCover ?? 0}%',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.visibility,
+                                      color: Colors.orange,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Visibility: ${(provider.weatherData?.current.visibility ?? 10).toStringAsFixed(1)}km',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.wind_power,
+                                      color: Colors.greenAccent,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Wind: ${provider.weatherData?.current.windSpeed.toStringAsFixed(1)}km/h',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.water_drop,
+                                      color: Colors.blue,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Humidity: ${provider.weatherData?.current.humidity ?? 0}%',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        )
+                      else
+                        Text(
+                          'Interactive satellite map of ${provider.cityName}. Use pinch to zoom, swipe to pan.',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),

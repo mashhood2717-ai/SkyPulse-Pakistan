@@ -372,9 +372,9 @@ class WeatherProvider extends ChangeNotifier {
           }
 
           print('✅ [AQI] AQI Index: $aqiInt - Updating weather data');
-          // Update weather data with AQI
+          // Update weather data with AQI - preserve current data if METAR is active
           _weatherData = WeatherData(
-            current: apiData.current,
+            current: _usingMetar ? _weatherData!.current : apiData.current,
             forecast: apiData.forecast,
             hourlyTemperatures: apiData.hourlyTemperatures,
             hourlyWeatherCodes: apiData.hourlyWeatherCodes,

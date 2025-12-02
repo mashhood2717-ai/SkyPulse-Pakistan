@@ -219,6 +219,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Go to the first page (current location)
   void _goToFirstPage() {
+    // Immediately restore initial location data
+    final provider = context.read<WeatherProvider>();
+    _restoreInitialLocation(provider);
+    
+    // Then animate to page 0
     if (_currentPage != 0 && _pageController.hasClients) {
       _pageController.animateToPage(
         0,

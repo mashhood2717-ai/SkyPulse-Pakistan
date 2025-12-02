@@ -263,10 +263,17 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             children: [
               Row(
                 children: [
-                  // Back button with glass effect
+                  // Back button - navigate to home
                   _buildGlassIconButton(
                     icon: Icons.arrow_back_rounded,
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () {
+                      // Try to pop navigation stack, or inform user to use bottom nav
+                      try {
+                        Navigator.of(context).pop();
+                      } catch (e) {
+                        print('ℹ️ [Favorites] Cannot pop - use bottom navigation instead');
+                      }
+                    },
                   ),
                   const SizedBox(width: 16),
                   Expanded(

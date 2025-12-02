@@ -568,27 +568,64 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildErrorState(WeatherProvider provider) {
-    // Instead of showing error screen, show a small rotating circle
+    // Show actual error message instead of misleading "Retrying..."
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Small rotating circle
-          SizedBox(
-            width: 50,
-            height: 50,
-            child: CircularProgressIndicator(
-              color: Colors.white.withOpacity(0.8),
-              strokeWidth: 2.5,
+          // Error icon
+          Icon(
+            Icons.location_off_rounded,
+            size: 60,
+            color: Colors.white.withOpacity(0.6),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Unable to find location',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Retrying...',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              provider.error ?? 'Please check the spelling and try again',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 14,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Try again button
+          ElevatedButton.icon(
+            onPressed: () {
+              // Clear search field to reset UI
+              _searchController.clear();
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Try Another City'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.2),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
             ),
           ),
         ],

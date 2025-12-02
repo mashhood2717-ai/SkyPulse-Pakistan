@@ -196,18 +196,7 @@ class WeatherProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
-
-    // 🗑️ SHOW CACHE FIRST (instant)
-    if (_cachedWeatherData != null) {
-      print('💾 Showing cached weather data...');
-      _weatherData = _cachedWeatherData;
-      _cityName = _cachedCityName;
-      _countryCode = _cachedCountryCode;
-      _usingMetar = _cachedUsingMetar;
-      _metarData = _cachedMetarData;
-      _error = null;
-      notifyListeners();
-    }
+    notifyListeners();
 
     try {
       // Get coordinates first
@@ -242,7 +231,22 @@ class WeatherProvider extends ChangeNotifier {
         location['longitude'],
       );
     } catch (e) {
-      _error = e.toString();
+      print('⚠️ [fetchWeatherByCity] Error: $e');
+
+      // 🔄 Fallback: Use cached data if available
+      if (_cachedWeatherData != null) {
+        print(
+            '💾 [fetchWeatherByCity] Using cached data for $_cachedCityName due to network error');
+        _weatherData = _cachedWeatherData;
+        _cityName = _cachedCityName;
+        _countryCode = _cachedCountryCode;
+        _usingMetar = _cachedUsingMetar;
+        _metarData = _cachedMetarData;
+        _error = 'Using cached data - network unavailable';
+      } else {
+        _error = e.toString();
+      }
+
       _isLoading = false;
       notifyListeners();
     }
@@ -267,7 +271,20 @@ class WeatherProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      _error = e.toString();
+      print('⚠️ [fetchWeatherByCoordinates] Error: $e');
+
+      // 🔄 Fallback: Use cached data if available
+      if (_cachedWeatherData != null) {
+        print(
+            '💾 [fetchWeatherByCoordinates] Using cached data due to network error');
+        _weatherData = _cachedWeatherData;
+        _cityName = _cachedCityName;
+        _countryCode = _cachedCountryCode;
+        _error = 'Using cached data - network unavailable';
+      } else {
+        _error = e.toString();
+      }
+
       _isLoading = false;
       notifyListeners();
     }
@@ -327,8 +344,9 @@ class WeatherProvider extends ChangeNotifier {
       print('🌐 Weather API data loaded for $cityName');
 
       // 📡 BACKGROUND: Fetch METAR and AQI in background without blocking UI
+      // Pass cityName to ensure background tasks validate against the correct city
       _fetchMetarInBackground(cityName, latitude, longitude, apiData);
-      _fetchAQIInBackground(latitude, longitude, apiData);
+      _fetchAQIInBackground(cityName, latitude, longitude, apiData);
     } catch (e) {
       print('❌ [_fetchWeatherWithMetarAttempt] Failed: $e');
       _error = 'Failed to fetch weather: $e';
@@ -340,6 +358,7 @@ class WeatherProvider extends ChangeNotifier {
 
   /// Fetch AQI data in background
   void _fetchAQIInBackground(
+    String targetCity,
     double latitude,
     double longitude,
     WeatherData apiData,
@@ -353,6 +372,12 @@ class WeatherProvider extends ChangeNotifier {
         return {'current': {}};
       },
     ).then((aqiData) {
+      // ⚠️ CRITICAL: Check if we're STILL viewing the same city
+      if (_cityName != targetCity) {
+        print('⏭️ [AQI] Ignoring AQI for $targetCity - now viewing $_cityName');
+        return;
+      }
+
       print('🌍 [AQI] Response received: ${aqiData.keys.toList()}');
       print('🌍 [AQI] Full response: $aqiData');
 
@@ -400,22 +425,30 @@ class WeatherProvider extends ChangeNotifier {
 
   /// Fetch METAR in background and update UI if it arrives
   void _fetchMetarInBackground(
-    String cityName,
+    String targetCity,
     double latitude,
     double longitude,
     WeatherData apiData,
   ) {
     // Don't await this - let it run in background
     _metarService
-        .getMetarDataForCity(cityName, latitude, longitude)
+        .getMetarDataForCity(targetCity, latitude, longitude)
         .timeout(
           const Duration(seconds: 3),
           onTimeout: () => null,
         )
         .then((metarData) {
+      // ⚠️ CRITICAL: Check if we're STILL viewing the same city
+      // If user swiped to a different location, ignore this METAR
+      if (_cityName != targetCity) {
+        print(
+            '⏭️ [METAR] Ignoring METAR for $targetCity - now viewing $_cityName');
+        return;
+      }
+
       // Only update if METAR was successfully fetched
       if (metarData != null) {
-        print('✈️ METAR arrived! Updating weather data...');
+        print('✈️ METAR arrived! Updating weather data for $targetCity...');
         _metarData = metarData;
 
         // Get sunrise/sunset from API forecast

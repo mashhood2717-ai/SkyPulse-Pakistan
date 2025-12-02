@@ -18,9 +18,7 @@ class _MapScreenState extends State<MapScreen> {
   // OpenWeatherMap API Key
   static const String _owmApiKey = '785e637a1ddc31df39e0e2f6858209c6';
   
-  // Zoom level and coordinates (will be updated based on current location)
-  late double _mapLat;
-  late double _mapLon;
+  // Zoom level for tile mapping
   int _zoomLevel = 6;
 
   // OpenWeatherMap satellite imagery URLs with multiple layers

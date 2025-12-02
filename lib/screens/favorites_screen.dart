@@ -8,7 +8,7 @@ import '../services/weather_service.dart';
 import '../models/weather_model.dart';
 
 class FavoritesScreen extends StatefulWidget {
-  final VoidCallback? onLocationSelected;
+  final Function(String)? onLocationSelected;
 
   const FavoritesScreen({
     Key? key,
@@ -201,7 +201,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       provider.fetchWeatherByCity(city);
     }
 
-    widget.onLocationSelected?.call();
+    widget.onLocationSelected?.call(city);
   }
 
   @override
@@ -266,7 +266,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   // Back button with glass effect
                   _buildGlassIconButton(
                     icon: Icons.arrow_back_rounded,
-                    onPressed: () => widget.onLocationSelected?.call(),
+                    onPressed: () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 16),
                   Expanded(

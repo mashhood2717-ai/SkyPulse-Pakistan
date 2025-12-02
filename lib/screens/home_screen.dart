@@ -23,6 +23,11 @@ class HomeScreen extends StatefulWidget {
   static void goToHome() {
     _instance?._goToFirstPage();
   }
+
+  /// Navigate to a specific favorite by city name
+  static void goToFavorite(String cityName) {
+    _instance?._navigateToFavoriteCard(cityName);
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
@@ -217,6 +222,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_currentPage != 0 && _pageController.hasClients) {
       _pageController.animateToPage(
         0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// Navigate to a specific favorite card by city name
+  void _navigateToFavoriteCard(String cityName) {
+    // Find the index of this favorite
+    int favoriteIndex = -1;
+    for (int i = 0; i < _favorites.length; i++) {
+      if ((_favorites[i]['city'] as String).toLowerCase() ==
+          cityName.toLowerCase()) {
+        favoriteIndex = i;
+        break;
+      }
+    }
+
+    if (favoriteIndex >= 0 && _pageController.hasClients) {
+      print(
+          '🎯 [HomeScreen] Navigating to favorite card: $cityName at index ${favoriteIndex + 1}');
+      // Animate to the favorite card (index + 1 because 0 is current location)
+      _pageController.animateToPage(
+        favoriteIndex + 1,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );

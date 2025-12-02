@@ -154,6 +154,16 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void switchToWeatherTabWithFavorite(String cityName) {
+    setState(() {
+      _selectedIndex = 1;
+    });
+    // Call after frame to ensure HomeScreen is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      HomeScreen.goToFavorite(cityName);
+    });
+  }
+
   void goToHome() {
     // Navigate to weather tab and trigger going to first page
     setState(() {
@@ -174,7 +184,7 @@ class _HomePageState extends State<HomePage> {
           const AlertsScreen(), // Index 0 - Alerts
           const HomeScreen(), // Index 1 - Weather/Home
           _FavoritesScreenWrapper(
-            onFavoriteSelected: switchToWeatherTab,
+            onFavoriteSelected: switchToWeatherTabWithFavorite,
           ), // Index 2 - Favorites
         ],
       ),
@@ -194,7 +204,8 @@ class _HomePageState extends State<HomePage> {
             final unreadCount = weatherProvider.unreadAlertCount;
 
             return BottomNavigationBar(
-              currentIndex: _selectedIndex + 1, // Adjust for Home button (add 1)
+              currentIndex:
+                  _selectedIndex + 1, // Adjust for Home button (add 1)
               backgroundColor: Colors.transparent,
               elevation: 0,
               selectedItemColor: Color(0xFF667EEA),
@@ -267,7 +278,7 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _FavoritesScreenWrapper extends StatelessWidget {
-  final VoidCallback onFavoriteSelected;
+  final Function(String) onFavoriteSelected;
 
   const _FavoritesScreenWrapper({
     required this.onFavoriteSelected,

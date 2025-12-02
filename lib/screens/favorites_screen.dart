@@ -28,6 +28,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   final Map<String, CurrentWeather?> _weatherCache = {};
   bool _isLoading = true;
   bool _isSearching = false;
+  String? _loadingCity; // City being loaded (null = not loading)
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -180,14 +181,24 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   }
 
   Future<void> _selectLocation(String city) async {
-    final provider = context.read<WeatherProvider>();
+    // Show loading indicator
+    setState(() => _loadingCity = city);
+    
+    try {
+      final provider = context.read<WeatherProvider>();
 
-    // Always fetch fresh data when selecting a favorite
-    print('🔄 [FavoritesScreen] Fetching fresh data for $city');
-    await provider.fetchWeatherByCity(city);
+      // Always fetch fresh data when selecting a favorite
+      print('🔄 [FavoritesScreen] Fetching fresh data for $city');
+      await provider.fetchWeatherByCity(city);
 
-    // Navigate to favorite card AFTER data is loaded
-    widget.onLocationSelected?.call(city);
+      // Navigate to favorite card AFTER data is loaded
+      widget.onLocationSelected?.call(city);
+    } finally {
+      // Hide loading indicator
+      if (mounted) {
+        setState(() => _loadingCity = null);
+      }
+    }
   }
 
   @override
@@ -547,59 +558,83 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: () => _selectLocation(cityName),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      // Drag handle
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.drag_indicator_rounded,
-                          color: Colors.white.withOpacity(0.5),
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
+                onTap: _loadingCity == null ? () => _selectLocation(cityName) : null,
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // Drag handle
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.drag_indicator_rounded,
+                              color: Colors.white.withOpacity(0.5),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
 
-                      // City info and weather
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              cityName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                          // City info and weather
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  cityName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (countryCode.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    countryCode,
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.6),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 10),
+                                _buildWeatherInfo(weather),
+                              ],
+                            ),
+                          ),
+
+                          // Delete button
+                          _buildDeleteButton(cityName, countryCode),
+                        ],
+                      ),
+                    ),
+                    // Loading overlay for this specific card
+                    if (_loadingCity == cityName)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Center(
+                            child: SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             ),
-                            if (countryCode.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                countryCode,
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.6),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 10),
-                            _buildWeatherInfo(weather),
-                          ],
+                          ),
                         ),
                       ),
-
-                      // Delete button
-                      _buildDeleteButton(cityName, countryCode),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ),

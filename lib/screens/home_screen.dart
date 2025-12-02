@@ -246,14 +246,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     if (favoriteIndex >= 0 && _pageController.hasClients) {
+      final targetPage = favoriteIndex + 1;
       print(
-          '🎯 [HomeScreen] Navigating to favorite card: $cityName at index ${favoriteIndex + 1}');
+          '🎯 [HomeScreen] Navigating to favorite card: $cityName at index $targetPage');
+      
+      // Update current page BEFORE animation to prevent duplicate fetches
+      setState(() => _currentPage = targetPage);
+      
       // Animate to the favorite card (index + 1 because 0 is current location)
       _pageController.animateToPage(
-        favoriteIndex + 1,
+        targetPage,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
       );
+    } else {
+      print('⚠️ [HomeScreen] Could not find favorite: $cityName in $_favorites');
     }
   }
 
@@ -758,17 +765,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             controller: _pageController,
             physics: const BouncingScrollPhysics(),
             onPageChanged: (index) async {
-              if (index == _currentPage) return;
+              // Skip if already on this page (happens when programmatically navigating)
+              if (index == _currentPage) {
+                print('📱 [HomeScreen] Already on page $index, skipping fetch');
+                return;
+              }
 
               final previousPage = _currentPage;
               setState(() => _currentPage = index);
 
-              // Only navigate to favorite if swiping to a favorite card (index > 0)
+              // Only fetch data when SWIPING to a favorite card (index > 0)
+              // This handles manual swipe gestures
               if (index > 0 && index - 1 < _favorites.length) {
                 final favorite = _favorites[index - 1];
-                print(
-                    '📱 [HomeScreen] Navigating to favorite: ${favorite['city']}');
-                await _navigateToLocationAsync(favorite['city'] as String);
+                final cityName = favorite['city'] as String;
+                
+                // Only fetch if we're not already showing this city's data
+                if (provider.cityName.toLowerCase() != cityName.toLowerCase()) {
+                  print('📱 [HomeScreen] Swiped to favorite: $cityName');
+                  await _navigateToLocationAsync(cityName);
+                } else {
+                  print('📱 [HomeScreen] Already showing $cityName data');
+                }
               } else if (index == 0 && previousPage > 0) {
                 // Swiped back to current location (index 0)
                 print('📱 [HomeScreen] Restoring initial location');

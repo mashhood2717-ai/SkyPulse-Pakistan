@@ -179,7 +179,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     await favoritesService.reorderFavorites(_favorites);
   }
 
-  void _selectLocation(String city) {
+  Future<void> _selectLocation(String city) async {
     final provider = context.read<WeatherProvider>();
     final cacheService = context.read<FavoritesCacheService>();
 
@@ -196,11 +196,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         );
       }
     } else {
-      // Fetch fresh data if not cached
+      // Fetch fresh data if not cached - AWAIT to ensure data is loaded
       print('📱 [FavoritesScreen] Fetching $city data (network)');
-      provider.fetchWeatherByCity(city);
+      await provider.fetchWeatherByCity(city);
     }
 
+    // Navigate to favorite card AFTER data is loaded
     widget.onLocationSelected?.call(city);
   }
 

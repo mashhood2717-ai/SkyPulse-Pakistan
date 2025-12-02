@@ -314,86 +314,129 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               final weather = provider.weatherData!;
               final current = weather.current;
 
+              // Check if we're loading a favorite location (showing stale data while fetching)
+              final isLoadingFavorite = provider.isLoading && _currentPage > 0;
+
               return FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
                   position: _slideAnimation,
                   child: Stack(
                     children: [
-                      RefreshIndicator(
-                        onRefresh: () async {
-                          if (_currentPage == 0) {
-                            await provider.fetchWeatherByLocation();
-                            if (mounted) {
-                              setState(() {
-                                _initialLocationCity = provider.cityName;
-                                _initialLocationCountry = provider.countryCode;
-                                _cachedInitialWeather = provider.weatherData;
-                              });
+                      // Fade out content when loading a new favorite
+                      Opacity(
+                        opacity: isLoadingFavorite ? 0.4 : 1.0,
+                        child: RefreshIndicator(
+                          onRefresh: () async {
+                            if (_currentPage == 0) {
+                              await provider.fetchWeatherByLocation();
+                              if (mounted) {
+                                setState(() {
+                                  _initialLocationCity = provider.cityName;
+                                  _initialLocationCountry = provider.countryCode;
+                                  _cachedInitialWeather = provider.weatherData;
+                                });
+                              }
+                            } else {
+                              await provider.refresh();
                             }
-                          } else {
-                            await provider.refresh();
-                          }
-                        },
-                        color: Colors.white,
-                        backgroundColor: const Color(0xFF1e3c72),
-                        child: CustomScrollView(
-                          physics: const BouncingScrollPhysics(),
-                          slivers: [
-                            _buildGlassAppBar(provider),
-                            SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Column(
-                                  children: [
-                                    const SizedBox(height: 16),
-                                    _buildGlassSearchBar(),
-                                    const SizedBox(height: 24),
-                                    _buildWeatherCardsSection(
-                                        provider, current, weather),
-                                    const SizedBox(height: 24),
-                                    if (provider.usingMetar) ...[
-                                      _buildGlassMetarBadge(provider),
+                          },
+                          color: Colors.white,
+                          backgroundColor: const Color(0xFF1e3c72),
+                          child: CustomScrollView(
+                            physics: const BouncingScrollPhysics(),
+                            slivers: [
+                              _buildGlassAppBar(provider),
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  child: Column(
+                                    children: [
+                                      const SizedBox(height: 16),
+                                      _buildGlassSearchBar(),
                                       const SizedBox(height: 24),
-                                    ],
-                                    if (weather.aqiIndex != null)
-                                      _buildAQICard(weather.aqiIndex!),
-                                    const SizedBox(height: 24),
-                                    HourlyForecast(
-                                      weatherData: weather,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    if (weather.forecast.isNotEmpty)
-                                      SunArcWidget(
-                                        sunrise: weather.forecast[0].sunrise,
-                                        sunset: weather.forecast[0].sunset,
+                                      _buildWeatherCardsSection(
+                                          provider, current, weather),
+                                      const SizedBox(height: 24),
+                                      if (provider.usingMetar) ...[
+                                        _buildGlassMetarBadge(provider),
+                                        const SizedBox(height: 24),
+                                      ],
+                                      if (weather.aqiIndex != null)
+                                        _buildAQICard(weather.aqiIndex!),
+                                      const SizedBox(height: 24),
+                                      HourlyForecast(
+                                        weatherData: weather,
                                       ),
-                                    const SizedBox(height: 24),
-                                    WeatherDetails(current: current),
-                                    const SizedBox(height: 24),
-                                    ...weather.forecast
-                                        .map((day) => Padding(
-                                              padding:
-                                                  const EdgeInsets.only(bottom: 12),
-                                              child: ForecastCard(forecast: day),
-                                            ))
-                                        .toList(),
-                                    const SizedBox(height: 40),
-                                  ],
+                                      const SizedBox(height: 24),
+                                      if (weather.forecast.isNotEmpty)
+                                        SunArcWidget(
+                                          sunrise: weather.forecast[0].sunrise,
+                                          sunset: weather.forecast[0].sunset,
+                                        ),
+                                      const SizedBox(height: 24),
+                                      WeatherDetails(current: current),
+                                      const SizedBox(height: 24),
+                                      ...weather.forecast
+                                          .map((day) => Padding(
+                                                padding:
+                                                    const EdgeInsets.only(bottom: 12),
+                                                child: ForecastCard(forecast: day),
+                                              ))
+                                          .toList(),
+                                      const SizedBox(height: 40),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                      // Show loading overlay only during actual fetch (not when data is cached/loaded)
-                      if (provider.isLoading && _currentPage > 0 && provider.weatherData == null)
+                      // Show loading overlay when fetching favorite location data
+                      if (isLoadingFavorite)
                         Container(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withOpacity(0.5),
                           child: Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 3,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: 0.0, end: 1.0),
+                                  duration: const Duration(milliseconds: 1500),
+                                  builder: (context, value, child) {
+                                    return Transform.scale(
+                                      scale: 0.8 + (value * 0.2),
+                                      child: Container(
+                                        width: 60,
+                                        height: 60,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.white.withOpacity(0.3),
+                                              Colors.blue.withOpacity(0.5),
+                                            ],
+                                          ),
+                                        ),
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 3,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Loading weather data...',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.8),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),

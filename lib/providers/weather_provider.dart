@@ -45,6 +45,8 @@ class WeatherProvider extends ChangeNotifier {
   bool get usingMetar => _usingMetar;
   MetarData? get metarData => _metarData;
   List<Map<String, dynamic>> get activeAlerts => _activeAlerts;
+  double get latitude => _currentLatitude;
+  double get longitude => _currentLongitude;
 
   /// Get count of unread alerts
   int get unreadAlertCount {

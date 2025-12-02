@@ -32,13 +32,8 @@ class _MapScreenState extends State<MapScreen> {
   void _updateMapLocation() {
     final provider = context.read<WeatherProvider>();
 
-    if (provider.latitude == null || provider.longitude == null) {
-      print('📍 [MapScreen] No coordinates available');
-      return;
-    }
-
-    final lat = provider.latitude!;
-    final lon = provider.longitude!;
+    final lat = provider.latitude;
+    final lon = provider.longitude;
     final cityName = provider.cityName;
 
     print('📍 [MapScreen] Updating map to $cityName ($lat, $lon)');
@@ -61,12 +56,12 @@ class _MapScreenState extends State<MapScreen> {
     // Animate camera to location
     if (_isMapReady) {
       _mapController.animateCamera(
-        CameraUpdateOptions(
-          bounds: LatLngBounds(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
             southwest: LatLng(lat - 0.05, lon - 0.05),
             northeast: LatLng(lat + 0.05, lon + 0.05),
           ),
-          padding: const EdgeInsets.all(100),
+          100,
         ),
       );
     }
@@ -78,8 +73,7 @@ class _MapScreenState extends State<MapScreen> {
       body: Consumer<WeatherProvider>(
         builder: (context, provider, _) {
           // Update map when location changes
-          if (_isMapReady &&
-              (provider.latitude != null && provider.longitude != null)) {
+          if (_isMapReady) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (_currentLocationMarker?.position.latitude !=
                   provider.latitude) {
@@ -88,31 +82,12 @@ class _MapScreenState extends State<MapScreen> {
             });
           }
 
-          if (provider.latitude == null || provider.longitude == null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Color(0xFF667EEA)),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Loading map...',
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                ],
-              ),
-            );
-          }
-
           return Stack(
             children: [
               GoogleMap(
                 onMapCreated: _onMapCreated,
                 initialCameraPosition: CameraPosition(
-                  target: LatLng(provider.latitude!, provider.longitude!),
+                  target: LatLng(provider.latitude, provider.longitude),
                   zoom: 12,
                 ),
                 mapType: MapType.satellite,
@@ -201,15 +176,15 @@ class _MapScreenState extends State<MapScreen> {
                             vertical: 8,
                           ),
                           decoration: BoxDecoration(
-                            color: Color(0xFF667EEA).withOpacity(0.2),
+                            color: const Color(0xFF667EEA).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: Color(0xFF667EEA).withOpacity(0.4),
+                              color: const Color(0xFF667EEA).withOpacity(0.4),
                               width: 1,
                             ),
                           ),
                           child: Text(
-                            '📍 Lat: ${provider.latitude?.toStringAsFixed(4)}, Lon: ${provider.longitude?.toStringAsFixed(4)}',
+                            '📍 Lat: ${provider.latitude.toStringAsFixed(4)}, Lon: ${provider.longitude.toStringAsFixed(4)}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,

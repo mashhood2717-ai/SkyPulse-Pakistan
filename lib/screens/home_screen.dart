@@ -154,12 +154,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _navigateToLocationAsync(String cityName) async {
-    await context.read<WeatherProvider>().fetchWeatherByCity(cityName);
-    
-    // 💾 Cache the loaded weather data for this favorite
+    // 💾 Get context references before async gap
     final provider = context.read<WeatherProvider>();
     final cacheService = context.read<FavoritesCacheService>();
     
+    // Show loading indicator for this transition
+    if (mounted) {
+      setState(() {
+        // We'll keep showing current data while fetching
+      });
+    }
+    
+    await provider.fetchWeatherByCity(cityName);
+
     if (provider.weatherData != null) {
       cacheService.cacheWeather(
         cityName,
@@ -254,71 +261,86 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 opacity: _fadeAnimation,
                 child: SlideTransition(
                   position: _slideAnimation,
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      if (_currentPage == 0) {
-                        await provider.fetchWeatherByLocation();
-                        if (mounted) {
-                          setState(() {
-                            _initialLocationCity = provider.cityName;
-                            _initialLocationCountry = provider.countryCode;
-                            _cachedInitialWeather = provider.weatherData;
-                          });
-                        }
-                      } else {
-                        await provider.refresh();
-                      }
-                    },
-                    color: Colors.white,
-                    backgroundColor: const Color(0xFF1e3c72),
-                    child: CustomScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      slivers: [
-                        _buildGlassAppBar(provider),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 16),
-                                _buildGlassSearchBar(),
-                                const SizedBox(height: 24),
-                                _buildWeatherCardsSection(
-                                    provider, current, weather),
-                                const SizedBox(height: 24),
-                                if (provider.usingMetar) ...[
-                                  _buildGlassMetarBadge(provider),
-                                  const SizedBox(height: 24),
-                                ],
-                                if (weather.aqiIndex != null)
-                                  _buildAQICard(weather.aqiIndex!),
-                                const SizedBox(height: 24),
-                                HourlyForecast(
-                                  weatherData: weather,
+                  child: Stack(
+                    children: [
+                      RefreshIndicator(
+                        onRefresh: () async {
+                          if (_currentPage == 0) {
+                            await provider.fetchWeatherByLocation();
+                            if (mounted) {
+                              setState(() {
+                                _initialLocationCity = provider.cityName;
+                                _initialLocationCountry = provider.countryCode;
+                                _cachedInitialWeather = provider.weatherData;
+                              });
+                            }
+                          } else {
+                            await provider.refresh();
+                          }
+                        },
+                        color: Colors.white,
+                        backgroundColor: const Color(0xFF1e3c72),
+                        child: CustomScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          slivers: [
+                            _buildGlassAppBar(provider),
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Column(
+                                  children: [
+                                    const SizedBox(height: 16),
+                                    _buildGlassSearchBar(),
+                                    const SizedBox(height: 24),
+                                    _buildWeatherCardsSection(
+                                        provider, current, weather),
+                                    const SizedBox(height: 24),
+                                    if (provider.usingMetar) ...[
+                                      _buildGlassMetarBadge(provider),
+                                      const SizedBox(height: 24),
+                                    ],
+                                    if (weather.aqiIndex != null)
+                                      _buildAQICard(weather.aqiIndex!),
+                                    const SizedBox(height: 24),
+                                    HourlyForecast(
+                                      weatherData: weather,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    if (weather.forecast.isNotEmpty)
+                                      SunArcWidget(
+                                        sunrise: weather.forecast[0].sunrise,
+                                        sunset: weather.forecast[0].sunset,
+                                      ),
+                                    const SizedBox(height: 24),
+                                    WeatherDetails(current: current),
+                                    const SizedBox(height: 24),
+                                    ...weather.forecast
+                                        .map((day) => Padding(
+                                              padding:
+                                                  const EdgeInsets.only(bottom: 12),
+                                              child: ForecastCard(forecast: day),
+                                            ))
+                                        .toList(),
+                                    const SizedBox(height: 40),
+                                  ],
                                 ),
-                                const SizedBox(height: 24),
-                                if (weather.forecast.isNotEmpty)
-                                  SunArcWidget(
-                                    sunrise: weather.forecast[0].sunrise,
-                                    sunset: weather.forecast[0].sunset,
-                                  ),
-                                const SizedBox(height: 24),
-                                WeatherDetails(current: current),
-                                const SizedBox(height: 24),
-                                ...weather.forecast
-                                    .map((day) => Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 12),
-                                          child: ForecastCard(forecast: day),
-                                        ))
-                                    .toList(),
-                                const SizedBox(height: 40),
-                              ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Show loading overlay during page transitions
+                      if (provider.isLoading && _currentPage > 0)
+                        Container(
+                          color: Colors.black.withOpacity(0.3),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               );
@@ -570,21 +592,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   duration: const Duration(milliseconds: 300),
                   opacity: isActive ? 1.0 : 0.6,
                   child: index == 0
-                      ? WeatherCard(
+                      ? // Current location card
+                      WeatherCard(
                           cityName: provider.cityName,
                           countryCode: provider.countryCode,
                           current: currentWeather,
                         )
-                      : isActive
-                          ? WeatherCard(
-                              cityName: provider.cityName,
-                              countryCode: provider.countryCode,
-                              current: currentWeather,
-                            )
-                          : _buildGlassFavoriteCard(
-                              _favorites[index - 1]['city'] as String,
-                              _favorites[index - 1]['country'] as String,
-                            ),
+                      : // Favorite location cards
+                      _buildGlassFavoriteCard(
+                          _favorites[index - 1]['city'] as String,
+                          _favorites[index - 1]['country'] as String,
+                          isActive: isActive,
+                        ),
                 ),
               );
             },
@@ -601,7 +620,73 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildGlassFavoriteCard(String cityName, String countryCode) {
+  Widget _buildGlassFavoriteCard(String cityName, String countryCode,
+      {bool isActive = false}) {
+    // When active, show a minimal preview while data loads
+    if (isActive) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.blue.withOpacity(0.3),
+                  Colors.purple.withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.3),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  cityName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (countryCode.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    countryCode,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Inactive: just show glass card with city name
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -630,14 +715,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Icon(
                 Icons.location_city_rounded,
                 color: Colors.white.withOpacity(0.8),
-                size: 32,
+                size: 28,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 cityName,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
                 textAlign: TextAlign.center,
@@ -645,12 +730,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 overflow: TextOverflow.ellipsis,
               ),
               if (countryCode.isNotEmpty) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   countryCode,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.7),
-                    fontSize: 12,
+                    fontSize: 10,
                   ),
                 ),
               ],

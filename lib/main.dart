@@ -94,7 +94,6 @@ class MyApp extends StatelessWidget {
             primary: Color(0xFF667EEA),
             secondary: Color(0xFF764BA2),
             surface: Color(0xFF1A1F3A),
-            background: Color(0xFF0A0E27),
           ),
         ),
         home: const HomePage(),

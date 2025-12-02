@@ -25,7 +25,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   final TextEditingController _searchController = TextEditingController();
   List<Map<String, dynamic>> _favorites = [];
   List<Map<String, dynamic>> _filteredFavorites = [];
-  Map<String, CurrentWeather?> _weatherCache = {};
+  final Map<String, CurrentWeather?> _weatherCache = {};
   bool _isLoading = true;
   bool _isSearching = false;
 
@@ -109,7 +109,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         setState(() {
           _weatherCache[cityName] = weatherData.current;
         });
-        
+
         // 💾 Also cache to the global favorites cache for instant access later
         final cacheService = context.read<FavoritesCacheService>();
         cacheService.cacheWeather(
@@ -182,7 +182,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   void _selectLocation(String city) {
     final provider = context.read<WeatherProvider>();
     final cacheService = context.read<FavoritesCacheService>();
-    
+
     // 💾 Check if we have cached weather for this favorite
     if (cacheService.hasCachedWeather(city)) {
       final cachedWeather = cacheService.getWeatherForCity(city);
@@ -200,7 +200,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       print('📱 [FavoritesScreen] Fetching $city data (network)');
       provider.fetchWeatherByCity(city);
     }
-    
+
     widget.onLocationSelected?.call();
   }
 

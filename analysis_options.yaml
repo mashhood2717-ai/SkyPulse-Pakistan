@@ -1,0 +1,12 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Disabled rules for weather app
+    - avoid_print  # Debug logging is essential for weather data tracking
+    - prefer_const_constructors  # Some dynamic construction is necessary
+
+analyzer:
+  errors:
+    # Suppress deprecated_member_use for withOpacity (Flutter 3.18 migration)
+    deprecated_member_use: ignore

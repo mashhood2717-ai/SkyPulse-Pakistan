@@ -254,7 +254,7 @@ class _MapScreenState extends State<MapScreen> {
               ),
               // Satellite Info Badge
               Positioned(
-                top: SafeArea.of(context).top + 100,
+                top: MediaQuery.of(context).padding.top + 100,
                 right: 16,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -306,7 +306,7 @@ class _MapScreenState extends State<MapScreen> {
               ),
               // Coordinates Display
               Positioned(
-                top: SafeArea.of(context).top + 160,
+                top: MediaQuery.of(context).padding.top + 160,
                 left: 16,
                 child: Container(
                   padding: const EdgeInsets.all(12),

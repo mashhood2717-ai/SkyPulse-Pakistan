@@ -35,8 +35,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCity;
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
-  String? _lastNavigatedCity; // Track last auto-swiped city to prevent loops
-  bool _isManualNavigation = false; // Prevent auto-swipe when user manually navigates
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -167,10 +165,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final provider = context.read<WeatherProvider>();
     final cacheService = context.read<FavoritesCacheService>();
 
-    // Show loading indicator for this transition
+    // Check if we're already showing this city - if so, don't re-fetch
+    if (provider.cityName.toLowerCase() == cityName.toLowerCase() &&
+        !provider.isLoading) {
+      print('✅ [HomeScreen] Already showing $cityName, skipping fetch');
+      return;
+    }
+
+    // Try to load from cache first (faster, no network)
+    if (cacheService.hasCachedWeather(cityName)) {
+      final cachedWeather = cacheService.getWeatherForCity(cityName);
+      if (cachedWeather != null) {
+        print('📦 [HomeScreen] Restoring $cityName from cache');
+        provider.restoreCachedWeather(
+          cachedWeather,
+          cityName,
+          cacheService.getMetadata(cityName)?['countryCode'] as String? ?? '',
+        );
+        return; // Don't fetch if cache is good
+      }
+    }
+
+    // Show loading indicator and fetch fresh data
     if (mounted) {
       setState(() {
-        // We'll keep showing current data while fetching
+        // Show loading state
       });
     }
 
@@ -198,8 +217,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Go to the first page (current location)
   void _goToFirstPage() {
-    _isManualNavigation = true; // Set flag to prevent auto-swipe
-    _lastNavigatedCity = _initialLocationCity; // Mark this as navigated to prevent re-triggering
     if (_currentPage != 0 && _pageController.hasClients) {
       _pageController.animateToPage(
         0,
@@ -284,26 +301,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               }
 
               // Auto-swipe to favorite if it was selected from FavoritesScreen
-              if (provider.weatherData != null && !provider.isLoading && !_isManualNavigation) {
+              if (provider.weatherData != null && !provider.isLoading) {
                 _checkFavorite();
-
-                // Check if the current city is a favorite (not the initial location)
-                final currentCity = provider.cityName;
-                final isCurrentLocationOnly =
-                    currentCity == _initialLocationCity;
-
-                if (!isCurrentLocationOnly &&
-                    _lastNavigatedCity != currentCity) {
-                  _lastNavigatedCity = currentCity;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      navigateToFavorite(currentCity);
-                    }
-                  });
-                }
-              } else if (_isManualNavigation && _currentPage == 0) {
-                // Reset the flag once we're back on the home page
-                _isManualNavigation = false;
               }
 
               if (provider.isLoading && provider.weatherData == null) {

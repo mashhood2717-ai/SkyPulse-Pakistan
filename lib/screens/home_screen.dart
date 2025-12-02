@@ -1132,14 +1132,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
-              ),
+              // Skeleton temperature placeholder with shimmer effect
+              _buildSkeletonLoader(width: 32, height: 28),
               const SizedBox(height: 6),
               Text(
                 cityName,
@@ -1164,6 +1158,34 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonLoader({required double width, required double height}) {
+    return ShaderMask(
+      shaderCallback: (bounds) {
+        return LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Colors.white.withOpacity(0.1),
+            Colors.white.withOpacity(0.4),
+            Colors.white.withOpacity(0.1),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+          transform: GradientRotation(
+            DateTime.now().millisecondsSinceEpoch / 1000.0 * 2.0,
+          ),
+        ).createShader(bounds);
+      },
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(4),
         ),
       ),
     );

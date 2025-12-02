@@ -324,9 +324,9 @@ class WeatherProvider extends ChangeNotifier {
       notifyListeners();
       print('🌐 Weather API data loaded for $cityName');
 
-      // 📡 BACKGROUND: Fetch METAR in background without blocking UI
-      // This runs asynchronously and won't block the UI
+      // 📡 BACKGROUND: Fetch METAR and AQI in background without blocking UI
       _fetchMetarInBackground(cityName, latitude, longitude, apiData);
+      _fetchAQIInBackground(latitude, longitude, apiData);
     } catch (e) {
       print('❌ [_fetchWeatherWithMetarAttempt] Failed: $e');
       _error = 'Failed to fetch weather: $e';
@@ -334,6 +334,40 @@ class WeatherProvider extends ChangeNotifier {
       notifyListeners();
       rethrow;
     }
+  }
+
+  /// Fetch AQI data in background
+  void _fetchAQIInBackground(
+    double latitude,
+    double longitude,
+    WeatherData apiData,
+  ) {
+    _weatherService
+        .getAQIByCoordinates(latitude, longitude)
+        .timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => {'current': {}},
+        )
+        .then((aqiData) {
+      if (aqiData['current'] != null) {
+        final aqi = aqiData['current']['us_aqi'];
+        if (aqi != null) {
+          print('🌍 AQI Index: $aqi');
+          // Update weather data with AQI
+          _weatherData = WeatherData(
+            current: apiData.current,
+            forecast: apiData.forecast,
+            hourlyTemperatures: apiData.hourlyTemperatures,
+            hourlyWeatherCodes: apiData.hourlyWeatherCodes,
+            hourlyPrecipitation: apiData.hourlyPrecipitation,
+            aqiIndex: aqi.toInt(),
+          );
+          notifyListeners();
+        }
+      }
+    }).catchError((e) {
+      print('⚠️ Error fetching AQI: $e');
+    });
   }
 
   /// Fetch METAR in background and update UI if it arrives

@@ -8,6 +8,7 @@ import '../widgets/forecast_card.dart';
 import '../widgets/sun_arc_widget.dart';
 import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
+import '../widgets/skeleton_loader.dart';
 import '../services/favorites_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -208,9 +209,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               }
 
               if (provider.weatherData == null) {
-                return const Center(
-                    child: Text('No weather data available',
-                        style: TextStyle(color: Colors.white, fontSize: 18)));
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 80),
+                        WeatherSkeletonCard(),
+                        const SizedBox(height: 24),
+                        SkeletonLoader(
+                          height: 100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        const SizedBox(height: 24),
+                        SkeletonLoader(
+                          height: 200,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
               }
 
               final weather = provider.weatherData!;
@@ -249,12 +269,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 const SizedBox(height: 16),
                                 _buildGlassSearchBar(),
                                 const SizedBox(height: 24),
-                                _buildWeatherCardsSection(provider, current),
+                                _buildWeatherCardsSection(provider, current, weather),
                                 const SizedBox(height: 24),
                                 if (provider.usingMetar) ...[
                                   _buildGlassMetarBadge(provider),
                                   const SizedBox(height: 24),
                                 ],
+                                if (weather.aqiIndex != null)
+                                  _buildAQICard(weather.aqiIndex!),
+                                const SizedBox(height: 24),
                                 HourlyForecast(
                                   weatherData: weather,
                                 ),
@@ -483,7 +506,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildWeatherCardsSection(
-      WeatherProvider provider, CurrentWeather currentWeather) {
+      WeatherProvider provider, CurrentWeather currentWeather, WeatherData weather) {
     if (_favorites.isEmpty) {
       return WeatherCard(
         cityName: provider.cityName,
@@ -732,6 +755,100 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Build AQI (Air Quality Index) card
+  Widget _buildAQICard(int aqi) {
+    Color aqiColor;
+    String aqiStatus;
+    
+    if (aqi <= 50) {
+      aqiColor = const Color(0xFF4CAF50); // Good
+      aqiStatus = 'Good';
+    } else if (aqi <= 100) {
+      aqiColor = const Color(0xFFFFC107); // Moderate
+      aqiStatus = 'Moderate';
+    } else if (aqi <= 150) {
+      aqiColor = const Color(0xFFFF9800); // Unhealthy for Sensitive Groups
+      aqiStatus = 'Unhealthy for Sensitive';
+    } else if (aqi <= 200) {
+      aqiColor = const Color(0xFFF44336); // Unhealthy
+      aqiStatus = 'Unhealthy';
+    } else if (aqi <= 300) {
+      aqiColor = const Color(0xFF9C27B0); // Very Unhealthy
+      aqiStatus = 'Very Unhealthy';
+    } else {
+      aqiColor = const Color(0xFF8B0000); // Hazardous
+      aqiStatus = 'Hazardous';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            aqiColor.withOpacity(0.3),
+            aqiColor.withOpacity(0.1),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: aqiColor.withOpacity(0.5),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Air Quality Index',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                aqiStatus,
+                style: TextStyle(
+                  color: aqiColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: aqiColor.withOpacity(0.2),
+              border: Border.all(
+                color: aqiColor,
+                width: 2,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                aqi.toString(),
+                style: TextStyle(
+                  color: aqiColor,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

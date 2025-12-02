@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 class WeatherData {
   final CurrentWeather current;
   final List<DailyForecast> forecast;
-  final List<double> hourlyTemperatures; // NEW: Store hourly temps
-  final List<int> hourlyWeatherCodes; // NEW: Store hourly weather codes
-  final List<int> hourlyPrecipitation; // NEW: Store hourly precipitation
+  final List<double> hourlyTemperatures;
+  final List<int> hourlyWeatherCodes;
+  final List<int> hourlyPrecipitation;
+  final int? aqiIndex; // NEW: AQI index
 
   WeatherData({
     required this.current,
@@ -13,9 +14,10 @@ class WeatherData {
     this.hourlyTemperatures = const [],
     this.hourlyWeatherCodes = const [],
     this.hourlyPrecipitation = const [],
+    this.aqiIndex,
   });
 
-  factory WeatherData.fromJson(Map<String, dynamic> json) {
+  factory WeatherData.fromJson(Map<String, dynamic> json, {int? aqi}) {
     try {
       return WeatherData(
         current: CurrentWeather.fromJson(json['current'] ?? {}),
@@ -23,6 +25,7 @@ class WeatherData {
         hourlyTemperatures: _parseHourlyTemps(json['hourly'] ?? {}),
         hourlyWeatherCodes: _parseHourlyWeatherCodes(json['hourly'] ?? {}),
         hourlyPrecipitation: _parseHourlyPrecipitation(json['hourly'] ?? {}),
+        aqiIndex: aqi,
       );
     } catch (e) {
       print('Error parsing weather data: $e');

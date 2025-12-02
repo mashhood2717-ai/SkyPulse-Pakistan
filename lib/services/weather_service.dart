@@ -7,6 +7,7 @@ class WeatherService {
   static const String baseUrl = 'https://api.open-meteo.com/v1/forecast';
   static const String geocodingUrl =
       'https://geocoding-api.open-meteo.com/v1/search';
+  static const String aqiUrl = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 
   // Fetch weather data by coordinates
   Future<WeatherData> getWeatherByCoordinates(
@@ -14,10 +15,10 @@ class WeatherService {
     try {
       final url = Uri.parse('$baseUrl?latitude=$latitude&longitude=$longitude'
           '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max'
-          '&hourly=temperature_2m,relative_humidity_2m,weather_code,precipitation_probability'
+          '&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,visibility,weather_code,pressure_msl,cloud_cover_low,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day'
           '&current=temperature_2m,relative_humidity_2m,is_day,precipitation,weather_code,pressure_msl,wind_direction_10m,cloud_cover,wind_gusts_10m,wind_speed_10m'
-          '&timezone=auto'
-          '&forecast_days=14');
+          '&timeformat=unixtime'
+          '&forecast_days=15');
 
       print('🌐 [WeatherService] Fetching: $url');
       final response = await http.get(url);
@@ -25,7 +26,6 @@ class WeatherService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        // Debug: Print what we got
         print('✅ [WeatherService] Response received');
         print('📊 [WeatherService] Top-level keys: ${data.keys.toList()}');
         if (data['daily'] != null) {
@@ -42,6 +42,33 @@ class WeatherService {
     } catch (e) {
       print('❌ Error fetching weather: $e');
       throw Exception('Error fetching weather: $e');
+    }
+  }
+
+  // Fetch AQI data by coordinates
+  Future<Map<String, dynamic>> getAQIByCoordinates(
+      double latitude, double longitude) async {
+    try {
+      final url = Uri.parse('$aqiUrl?latitude=$latitude&longitude=$longitude'
+          '&current=us_aqi,aqi,pm10,pm2_5,nitrogen_dioxide,ozone,sulphur_dioxide'
+          '&forecast_days=7'
+          '&timeformat=unixtime');
+
+      print('🌍 [AQIService] Fetching: $url');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        print('✅ [AQIService] Response received');
+        print('📊 [AQIService] Current AQI: ${data['current']?['us_aqi']}');
+        return data;
+      } else {
+        print('⚠️ [AQIService] Failed to fetch AQI: ${response.statusCode}');
+        return {'current': {'us_aqi': null}};
+      }
+    } catch (e) {
+      print('❌ Error fetching AQI: $e');
+      return {'current': {'us_aqi': null}};
     }
   }
 

@@ -172,7 +172,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
 
-    // Try to load from cache first (faster, no network)
+    // Try to load from cache first (faster, no network delay)
+    bool shouldFetchFresh = true;
     if (cacheService.hasCachedWeather(cityName)) {
       final cachedWeather = cacheService.getWeatherForCity(cityName);
       if (cachedWeather != null) {
@@ -182,26 +183,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           cityName,
           cacheService.getMetadata(cityName)?['countryCode'] as String? ?? '',
         );
-        return; // Don't fetch if cache is good
+        shouldFetchFresh = true; // Still fetch fresh data in background
       }
     }
 
-    // Show loading indicator and fetch fresh data
-    if (mounted) {
-      setState(() {
-        // Show loading state
-      });
-    }
+    // Fetch fresh data (either no cache or to update stale cache)
+    if (shouldFetchFresh) {
+      await provider.fetchWeatherByCity(cityName);
 
-    await provider.fetchWeatherByCity(cityName);
-
-    if (provider.weatherData != null) {
-      cacheService.cacheWeather(
-        cityName,
-        provider.weatherData!,
-        country: provider.cityName,
-        countryCode: provider.countryCode,
-      );
+      if (provider.weatherData != null) {
+        cacheService.cacheWeather(
+          cityName,
+          provider.weatherData!,
+          country: provider.cityName,
+          countryCode: provider.countryCode,
+        );
+      }
     }
   }
 

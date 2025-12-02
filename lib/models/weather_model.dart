@@ -141,7 +141,9 @@ class CurrentWeather {
   final double temperature;
   final int humidity;
   final double windSpeed;
+  final double windGust; // NEW: Wind gust speed
   final int windDirection; // NEW: Added wind direction
+  final double dewPoint; // NEW: Dew point temperature
   final int weatherCode;
   final double pressure;
   final int cloudCover;
@@ -154,7 +156,9 @@ class CurrentWeather {
     required this.temperature,
     required this.humidity,
     required this.windSpeed,
+    this.windGust = 0.0, // Default to 0
     this.windDirection = 0, // Default to 0 (North)
+    this.dewPoint = 0.0, // Default to 0
     required this.weatherCode,
     required this.pressure,
     required this.cloudCover,
@@ -169,8 +173,10 @@ class CurrentWeather {
       temperature: _toDouble(json['temperature_2m']),
       humidity: _toInt(json['relative_humidity_2m']),
       windSpeed: _toDouble(json['wind_speed_10m']),
+      windGust: _toDouble(json['wind_gusts_10m']), // NEW: Parse wind gust
       windDirection:
           _toInt(json['wind_direction_10m']), // NEW: Parse wind direction
+      dewPoint: _toDouble(json['dew_point_2m']), // NEW: Parse dew point
       weatherCode: _toInt(json['weather_code']),
       pressure: _toDouble(json['pressure_msl']),
       cloudCover: _toInt(json['cloud_cover']),

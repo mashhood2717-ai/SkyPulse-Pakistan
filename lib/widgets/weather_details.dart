@@ -55,7 +55,33 @@ class WeatherDetails extends StatelessWidget {
         ),
         SizedBox(height: 12),
 
-        // Row 2: UV Index and Visibility
+        // Row 2: Dew Point and Wind Gust
+        Row(
+          children: [
+            Expanded(
+              child: _buildDetailTile(
+                icon: Icons.thermostat,
+                iconColor: Color(0xFF81C784),
+                label: 'Dew Point',
+                value: '${current.dewPoint.toStringAsFixed(1)}°C',
+                backgroundColor: Color(0xFF81C784).withOpacity(0.1),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: _buildDetailTile(
+                icon: Icons.air,
+                iconColor: Color(0xFF64B5F6),
+                label: 'Wind Gust',
+                value: '${current.windGust.round()} km/h',
+                backgroundColor: Color(0xFF64B5F6).withOpacity(0.1),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+
+        // Row 3: UV Index and Visibility
         Row(
           children: [
             Expanded(
@@ -81,7 +107,7 @@ class WeatherDetails extends StatelessWidget {
         ),
         SizedBox(height: 12),
 
-        // Row 3: Pressure and Cloud Cover
+        // Row 4: Pressure and Cloud Cover
         Row(
           children: [
             Expanded(

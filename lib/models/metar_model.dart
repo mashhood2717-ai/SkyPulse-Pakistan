@@ -263,6 +263,8 @@ class MetarData {
       temperature: temperature ?? 20.0,
       humidity: _calculateHumidity(temperature, dewpoint),
       windSpeed: (windSpeed ?? 0) * 1.852, // Convert knots to km/h
+      windGust: 0.0, // METAR doesn't provide wind gust in typical parsing
+      dewPoint: (dewpoint ?? 15.0), // NEW: Use dewpoint from METAR
       weatherCode: weatherCode,
       pressure: pressure ?? 1013.0,
       cloudCover: _getCloudCover(),

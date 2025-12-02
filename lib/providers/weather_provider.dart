@@ -342,17 +342,23 @@ class WeatherProvider extends ChangeNotifier {
     double longitude,
     WeatherData apiData,
   ) {
+    print('🌍 [AQI] Starting background fetch for lat=$latitude, lon=$longitude');
     _weatherService
         .getAQIByCoordinates(latitude, longitude)
         .timeout(
           const Duration(seconds: 3),
-          onTimeout: () => {'current': {}},
+          onTimeout: () {
+            print('⏱️ [AQI] Request timeout');
+            return {'current': {}};
+          },
         )
         .then((aqiData) {
+      print('🌍 [AQI] Response received: $aqiData');
       if (aqiData['current'] != null) {
         final aqi = aqiData['current']['us_aqi'];
+        print('🌍 [AQI] Parsed us_aqi: $aqi');
         if (aqi != null) {
-          print('🌍 AQI Index: $aqi');
+          print('✅ [AQI] AQI Index: $aqi - Updating weather data');
           // Update weather data with AQI
           _weatherData = WeatherData(
             current: apiData.current,
@@ -363,10 +369,14 @@ class WeatherProvider extends ChangeNotifier {
             aqiIndex: aqi.toInt(),
           );
           notifyListeners();
+        } else {
+          print('⚠️ [AQI] us_aqi is null in response');
         }
+      } else {
+        print('⚠️ [AQI] current is null in response');
       }
     }).catchError((e) {
-      print('⚠️ Error fetching AQI: $e');
+      print('❌ [AQI] Error fetching AQI: $e');
     });
   }
 

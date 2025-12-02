@@ -133,18 +133,15 @@ class HourlyForecast extends StatelessWidget {
         return [];
       }
 
-      // Get current time in Pakistan timezone (UTC+5)
-      final utcNow = DateTime.now().toUtc();
-      final pakistanTime = utcNow.add(const Duration(hours: 5));
+      // Get current time (API data is already in local timezone per coordinates)
+      final now = DateTime.now();
+      final currentHour = now.hour;
 
-      // Get current hour (0-23)
-      final currentHour = pakistanTime.hour;
-
-      // Start from midnight today in Pakistan time
+      // Start from midnight today
       final startOfDay = DateTime(
-        pakistanTime.year,
-        pakistanTime.month,
-        pakistanTime.day,
+        now.year,
+        now.month,
+        now.day,
       );
 
       // API data starts at 00:00 (midnight), current hour is the starting index

@@ -155,8 +155,7 @@ class HourlyForecast extends StatelessWidget {
         String timeStr = 'N/A';
         if (apiIndex < weatherData.hourlyTimes.length) {
           try {
-            final hourTime =
-                DateTime.parse(weatherData.hourlyTimes[apiIndex]);
+            final hourTime = DateTime.parse(weatherData.hourlyTimes[apiIndex]);
             timeStr = i == 0 ? 'Now' : '${hourTime.hour}:00';
           } catch (e) {
             timeStr = i == 0 ? 'Now' : '${(now.hour + i) % 24}:00';

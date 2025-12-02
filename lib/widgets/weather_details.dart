@@ -55,7 +55,7 @@ class WeatherDetails extends StatelessWidget {
         ),
         SizedBox(height: 12),
 
-        // Row 2: Dew Point and Wind Gust
+        // Row 2: Dew Point and Wind Gust (hide gust if 0, show wind speed instead)
         Row(
           children: [
             Expanded(
@@ -69,42 +69,69 @@ class WeatherDetails extends StatelessWidget {
             ),
             SizedBox(width: 12),
             Expanded(
-              child: _buildDetailTile(
-                icon: Icons.air,
-                iconColor: Color(0xFF64B5F6),
-                label: 'Wind Gust',
-                value: '${current.windGust.round()} km/h',
-                backgroundColor: Color(0xFF64B5F6).withOpacity(0.1),
-              ),
+              child: current.windGust > 0
+                  ? _buildDetailTile(
+                      icon: Icons.air,
+                      iconColor: Color(0xFF64B5F6),
+                      label: 'Wind Gust',
+                      value: '${current.windGust.round()} km/h',
+                      backgroundColor: Color(0xFF64B5F6).withOpacity(0.1),
+                    )
+                  : _buildDetailTile(
+                      icon: Icons.air,
+                      iconColor: Color(0xFF64B5F6),
+                      label: 'Wind Speed',
+                      value: '${current.windSpeed.round()} km/h',
+                      backgroundColor: Color(0xFF64B5F6).withOpacity(0.1),
+                    ),
             ),
           ],
         ),
         SizedBox(height: 12),
 
-        // Row 3: UV Index and Visibility
-        Row(
-          children: [
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.wb_sunny,
-                iconColor: _getUVColor(current.uvIndex),
-                label: 'UV Index',
-                value: '${current.uvIndex.round()}\n${current.uvIndexCategory}',
-                backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
+        // Row 3: UV Index and Visibility (hide visibility if 0 or invalid)
+        if (current.visibility > 0)
+          Row(
+            children: [
+              Expanded(
+                child: _buildDetailTile(
+                  icon: Icons.wb_sunny,
+                  iconColor: _getUVColor(current.uvIndex),
+                  label: 'UV Index',
+                  value: '${current.uvIndex.round()}\n${current.uvIndexCategory}',
+                  backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
+                ),
               ),
-            ),
-            SizedBox(width: 12),
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.visibility,
-                iconColor: Color(0xFF9C27B0),
-                label: 'Visibility',
-                value: '${current.visibility.toStringAsFixed(1)} km',
-                backgroundColor: Color(0xFF9C27B0).withOpacity(0.1),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildDetailTile(
+                  icon: Icons.visibility,
+                  iconColor: Color(0xFF9C27B0),
+                  label: 'Visibility',
+                  value: '${current.visibility.toStringAsFixed(1)} km',
+                  backgroundColor: Color(0xFF9C27B0).withOpacity(0.1),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: _buildDetailTile(
+                  icon: Icons.wb_sunny,
+                  iconColor: _getUVColor(current.uvIndex),
+                  label: 'UV Index',
+                  value: '${current.uvIndex.round()}\n${current.uvIndexCategory}',
+                  backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: SizedBox.shrink(),
+              ),
+            ],
+          ),
         SizedBox(height: 12),
 
         // Row 4: Pressure and Cloud Cover

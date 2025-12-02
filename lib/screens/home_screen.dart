@@ -301,206 +301,212 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             body: SafeArea(
               child: Consumer<WeatherProvider>(
                 builder: (context, provider, child) {
-              // Update favorites from the service whenever it changes
-              if (favoritesService.favorites.length != _favorites.length) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _favorites = favoritesService.favorites;
+                  // Update favorites from the service whenever it changes
+                  if (favoritesService.favorites.length != _favorites.length) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _favorites = favoritesService.favorites;
+                        });
+                      }
                     });
                   }
-                });
-              }
 
-              // Auto-swipe to favorite if it was selected from FavoritesScreen
-              if (provider.weatherData != null && !provider.isLoading) {
-                _checkFavorite();
+                  // Auto-swipe to favorite if it was selected from FavoritesScreen
+                  if (provider.weatherData != null && !provider.isLoading) {
+                    _checkFavorite();
 
-                // Check if the current city is a favorite (not the initial location)
-                final currentCity = provider.cityName;
-                final isCurrentLocationOnly =
-                    currentCity == _initialLocationCity;
+                    // Check if the current city is a favorite (not the initial location)
+                    final currentCity = provider.cityName;
+                    final isCurrentLocationOnly =
+                        currentCity == _initialLocationCity;
 
-                if (!isCurrentLocationOnly &&
-                    _lastNavigatedCity != currentCity) {
-                  _lastNavigatedCity = currentCity;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      navigateToFavorite(currentCity);
+                    if (!isCurrentLocationOnly &&
+                        _lastNavigatedCity != currentCity) {
+                      _lastNavigatedCity = currentCity;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          navigateToFavorite(currentCity);
+                        }
+                      });
                     }
-                  });
-                }
-              }
+                  }
 
-              if (provider.isLoading && provider.weatherData == null) {
-                return _buildLoadingState();
-              }
+                  if (provider.isLoading && provider.weatherData == null) {
+                    return _buildLoadingState();
+                  }
 
-              if (provider.error != null) {
-                return _buildErrorState(provider);
-              }
+                  if (provider.error != null) {
+                    return _buildErrorState(provider);
+                  }
 
-              if (provider.weatherData == null) {
-                return SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 80),
-                        WeatherSkeletonCard(),
-                        const SizedBox(height: 24),
-                        SkeletonLoader(
-                          height: 100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        const SizedBox(height: 24),
-                        SkeletonLoader(
-                          height: 200,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              final weather = provider.weatherData!;
-              final current = weather.current;
-
-              // Check if we're loading a favorite location (showing stale data while fetching)
-              final isLoadingFavorite = provider.isLoading && _currentPage > 0;
-
-              return FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: Stack(
-                    children: [
-                      // Fade out content when loading a new favorite
-                      Opacity(
-                        opacity: isLoadingFavorite ? 0.4 : 1.0,
-                        child: RefreshIndicator(
-                          onRefresh: () async {
-                            if (_currentPage == 0) {
-                              await provider.fetchWeatherByLocation();
-                              if (mounted) {
-                                setState(() {
-                                  _initialLocationCity = provider.cityName;
-                                  _initialLocationCountry =
-                                      provider.countryCode;
-                                  _cachedInitialWeather = provider.weatherData;
-                                });
-                              }
-                            } else {
-                              await provider.refresh();
-                            }
-                          },
-                          color: Colors.white,
-                          backgroundColor: const Color(0xFF1e3c72),
-                          child: CustomScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            slivers: [
-                              _buildGlassAppBar(provider),
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20),
-                                  child: Column(
-                                    children: [
-                                      const SizedBox(height: 16),
-                                      _buildGlassSearchBar(),
-                                      const SizedBox(height: 24),
-                                      _buildWeatherCardsSection(
-                                          provider, current, weather),
-                                      const SizedBox(height: 24),
-                                      if (provider.usingMetar) ...[
-                                        _buildGlassMetarBadge(provider),
-                                        const SizedBox(height: 24),
-                                      ],
-                                      if (weather.aqiIndex != null)
-                                        _buildAQICard(weather.aqiIndex!),
-                                      const SizedBox(height: 24),
-                                      HourlyForecast(
-                                        weatherData: weather,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      if (weather.forecast.isNotEmpty)
-                                        SunArcWidget(
-                                          sunrise: weather.forecast[0].sunrise,
-                                          sunset: weather.forecast[0].sunset,
-                                        ),
-                                      const SizedBox(height: 24),
-                                      WeatherDetails(current: current),
-                                      const SizedBox(height: 24),
-                                      ...weather.forecast
-                                          .map((day) => Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 12),
-                                                child:
-                                                    ForecastCard(forecast: day),
-                                              ))
-                                          .toList(),
-                                      const SizedBox(height: 40),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                  if (provider.weatherData == null) {
+                    return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 80),
+                            WeatherSkeletonCard(),
+                            const SizedBox(height: 24),
+                            SkeletonLoader(
+                              height: 100,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            const SizedBox(height: 24),
+                            SkeletonLoader(
+                              height: 200,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ],
                         ),
                       ),
-                      // Show loading overlay when fetching favorite location data
-                      if (isLoadingFavorite)
-                        Container(
-                          color: Colors.black.withOpacity(0.5),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 0.0, end: 1.0),
-                                  duration: const Duration(milliseconds: 1500),
-                                  builder: (context, value, child) {
-                                    return Transform.scale(
-                                      scale: 0.8 + (value * 0.2),
-                                      child: Container(
-                                        width: 60,
-                                        height: 60,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Colors.white.withOpacity(0.3),
-                                              Colors.blue.withOpacity(0.5),
-                                            ],
+                    );
+                  }
+
+                  final weather = provider.weatherData!;
+                  final current = weather.current;
+
+                  // Check if we're loading a favorite location (showing stale data while fetching)
+                  final isLoadingFavorite =
+                      provider.isLoading && _currentPage > 0;
+
+                  return FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Stack(
+                        children: [
+                          // Fade out content when loading a new favorite
+                          Opacity(
+                            opacity: isLoadingFavorite ? 0.4 : 1.0,
+                            child: RefreshIndicator(
+                              onRefresh: () async {
+                                if (_currentPage == 0) {
+                                  await provider.fetchWeatherByLocation();
+                                  if (mounted) {
+                                    setState(() {
+                                      _initialLocationCity = provider.cityName;
+                                      _initialLocationCountry =
+                                          provider.countryCode;
+                                      _cachedInitialWeather =
+                                          provider.weatherData;
+                                    });
+                                  }
+                                } else {
+                                  await provider.refresh();
+                                }
+                              },
+                              color: Colors.white,
+                              backgroundColor: const Color(0xFF1e3c72),
+                              child: CustomScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                slivers: [
+                                  _buildGlassAppBar(provider),
+                                  SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20),
+                                      child: Column(
+                                        children: [
+                                          const SizedBox(height: 16),
+                                          _buildGlassSearchBar(),
+                                          const SizedBox(height: 24),
+                                          _buildWeatherCardsSection(
+                                              provider, current, weather),
+                                          const SizedBox(height: 24),
+                                          if (provider.usingMetar) ...[
+                                            _buildGlassMetarBadge(provider),
+                                            const SizedBox(height: 24),
+                                          ],
+                                          if (weather.aqiIndex != null)
+                                            _buildAQICard(weather.aqiIndex!),
+                                          const SizedBox(height: 24),
+                                          HourlyForecast(
+                                            weatherData: weather,
                                           ),
-                                        ),
-                                        child: CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 3,
-                                        ),
+                                          const SizedBox(height: 24),
+                                          if (weather.forecast.isNotEmpty)
+                                            SunArcWidget(
+                                              sunrise:
+                                                  weather.forecast[0].sunrise,
+                                              sunset:
+                                                  weather.forecast[0].sunset,
+                                            ),
+                                          const SizedBox(height: 24),
+                                          WeatherDetails(current: current),
+                                          const SizedBox(height: 24),
+                                          ...weather.forecast
+                                              .map((day) => Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            bottom: 12),
+                                                    child: ForecastCard(
+                                                        forecast: day),
+                                                  ))
+                                              .toList(),
+                                          const SizedBox(height: 40),
+                                        ],
                                       ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Loading weather data...',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
+                          // Show loading overlay when fetching favorite location data
+                          if (isLoadingFavorite)
+                            Container(
+                              color: Colors.black.withOpacity(0.5),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    TweenAnimationBuilder<double>(
+                                      tween: Tween(begin: 0.0, end: 1.0),
+                                      duration:
+                                          const Duration(milliseconds: 1500),
+                                      builder: (context, value, child) {
+                                        return Transform.scale(
+                                          scale: 0.8 + (value * 0.2),
+                                          child: Container(
+                                            width: 60,
+                                            height: 60,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  Colors.white.withOpacity(0.3),
+                                                  Colors.blue.withOpacity(0.5),
+                                                ],
+                                              ),
+                                            ),
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 3,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Loading weather data...',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
                 },
               ),
             ),

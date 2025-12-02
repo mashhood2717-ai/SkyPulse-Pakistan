@@ -133,9 +133,9 @@ class _WeatherBackgroundAnimationState extends State<WeatherBackgroundAnimation>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF5A7C9E),
-                const Color(0xFF7A8FB5),
-                const Color(0xFF9AAFCC),
+                const Color(0xFF3B5998),
+                const Color(0xFF5B7CAA),
+                const Color(0xFF6B8EBC),
               ],
             ),
           ),
@@ -147,9 +147,9 @@ class _WeatherBackgroundAnimationState extends State<WeatherBackgroundAnimation>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFFD4DFF0),
-                const Color(0xFFE8EEF7),
-                const Color(0xFFF0F5FB),
+                const Color(0xFFA8C5E0),
+                const Color(0xFFD0DEEE),
+                const Color(0xFFE5EDF7),
               ],
             ),
           ),
@@ -161,9 +161,9 @@ class _WeatherBackgroundAnimationState extends State<WeatherBackgroundAnimation>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFFE0E8F5),
-                const Color(0xFFF0F4FA),
-                const Color(0xFFE8F0F8),
+                const Color(0xFFC5D9F0),
+                const Color(0xFFE0EBF8),
+                const Color(0xFFF0F6FC),
               ],
             ),
           ),
@@ -175,9 +175,9 @@ class _WeatherBackgroundAnimationState extends State<WeatherBackgroundAnimation>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFF87CEEB),
-                const Color(0xFFFFA500),
-                const Color(0xFFFFD700),
+                const Color(0xFF5DB3E8),
+                const Color(0xFFFFB84D),
+                const Color(0xFFFFC700),
               ],
             ),
           ),
@@ -343,7 +343,7 @@ class RaindropPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDarkMode ? Colors.blue.withOpacity(0.7) : Colors.blue
+      ..color = isDarkMode ? Colors.blue.withOpacity(0.7) : Colors.blue.shade600
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 2;
 
@@ -365,8 +365,8 @@ class SnowflakePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDarkMode ? Colors.white70 : Colors.white
-      ..strokeWidth = 1.5
+      ..color = isDarkMode ? Colors.white70 : Colors.blue.shade300
+      ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
 
     final center = Offset(size.width / 2, size.height / 2);
@@ -402,7 +402,7 @@ class CloudPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = isDarkMode ? Colors.white30 : Colors.white
+      ..color = isDarkMode ? Colors.white30 : Colors.blue.shade200
       ..style = PaintingStyle.fill;
 
     final radius = size.width / 6;
@@ -414,7 +414,7 @@ class CloudPainter extends CustomPainter {
         radius * 0.9, paint);
 
     canvas.drawRect(
-      Rect.fromLTWH(radius, size.height / 2 - radius * 0.5, 
+      Rect.fromLTWH(radius, size.height / 2 - radius * 0.5,
           size.width - 2 * radius, radius),
       paint,
     );

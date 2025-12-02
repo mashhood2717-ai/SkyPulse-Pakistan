@@ -47,7 +47,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              themeProvider.isDarkMode ? 'Dark Mode' : 'Light Mode',
+                              themeProvider.isDarkMode
+                                  ? 'Dark Mode'
+                                  : 'Light Mode',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Theme.of(context)

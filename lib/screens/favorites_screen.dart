@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/favorites_service.dart';
+import '../services/favorites_cache_service.dart';
 import '../providers/weather_provider.dart';
 import '../services/weather_service.dart';
 import '../models/weather_model.dart';
@@ -108,6 +109,15 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         setState(() {
           _weatherCache[cityName] = weatherData.current;
         });
+        
+        // 💾 Also cache to the global favorites cache for instant access later
+        final cacheService = context.read<FavoritesCacheService>();
+        cacheService.cacheWeather(
+          cityName,
+          weatherData,
+          country: cityName,
+          countryCode: '',
+        );
       }
     } catch (e) {
       print('Error loading weather for $cityName: $e');
@@ -171,8 +181,27 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   void _selectLocation(String city) {
     final provider = context.read<WeatherProvider>();
+    final cacheService = context.read<FavoritesCacheService>();
+    
+    // 💾 Check if we have cached weather for this favorite
+    if (cacheService.hasCachedWeather(city)) {
+      final cachedWeather = cacheService.getWeatherForCity(city);
+      if (cachedWeather != null) {
+        // Use cached data - instant load!
+        print('📱 [FavoritesScreen] Loading $city from cache (instant)');
+        provider.restoreCachedWeather(
+          cachedWeather,
+          city,
+          cacheService.getMetadata(city)?['countryCode'] as String? ?? '',
+        );
+      }
+    } else {
+      // Fetch fresh data if not cached
+      print('📱 [FavoritesScreen] Fetching $city data (network)');
+      provider.fetchWeatherByCity(city);
+    }
+    
     widget.onLocationSelected?.call();
-    provider.fetchWeatherByCity(city);
   }
 
   @override

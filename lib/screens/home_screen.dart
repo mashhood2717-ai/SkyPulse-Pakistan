@@ -10,6 +10,7 @@ import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
 import '../services/favorites_service.dart';
+import '../services/favorites_cache_service.dart' show FavoritesCacheService;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -154,6 +155,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Future<void> _navigateToLocationAsync(String cityName) async {
     await context.read<WeatherProvider>().fetchWeatherByCity(cityName);
+    
+    // 💾 Cache the loaded weather data for this favorite
+    final provider = context.read<WeatherProvider>();
+    final cacheService = context.read<FavoritesCacheService>();
+    
+    if (provider.weatherData != null) {
+      cacheService.cacheWeather(
+        cityName,
+        provider.weatherData!,
+        country: provider.cityName,
+        countryCode: provider.countryCode,
+      );
+    }
   }
 
   void _restoreInitialLocation(WeatherProvider provider) {
@@ -529,10 +543,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               final previousPage = _currentPage;
               setState(() => _currentPage = index);
 
+              // Only navigate to favorite if swiping to a favorite card (index > 0)
               if (index > 0 && index - 1 < _favorites.length) {
                 final favorite = _favorites[index - 1];
+                print(
+                    '📱 [HomeScreen] Navigating to favorite: ${favorite['city']}');
                 await _navigateToLocationAsync(favorite['city'] as String);
               } else if (index == 0 && previousPage > 0) {
+                // Swiped back to current location (index 0)
+                print('📱 [HomeScreen] Restoring initial location');
                 _restoreInitialLocation(provider);
               }
             },

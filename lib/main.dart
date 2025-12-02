@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'providers/weather_provider.dart';
 import 'services/favorites_service.dart';
+import 'services/favorites_cache_service.dart' show FavoritesCacheService;
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
@@ -76,6 +77,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => WeatherProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesService()),
+        ChangeNotifierProvider(create: (_) => FavoritesCacheService()),
       ],
       child: MaterialApp(
         title: 'Skypulse',

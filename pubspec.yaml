@@ -34,6 +34,9 @@ dependencies:
   
   cupertino_icons: ^1.0.2
 
+  # Maps
+  google_maps_flutter: ^2.5.0
+  
   # Firebase - Push Notifications
   firebase_core: ^2.24.0
   firebase_messaging: ^14.7.10

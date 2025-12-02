@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:geocoding/geocoding.dart' as geocoding;
 import '../models/weather_model.dart';
@@ -22,7 +23,13 @@ class WeatherService {
           '&forecast_days=15');
 
       print('🌐 [WeatherService] Fetching: $url');
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          print('⏱️ [WeatherService] Request timeout after 15 seconds');
+          throw TimeoutException('Weather API request timeout');
+        },
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -55,7 +62,13 @@ class WeatherService {
           '&forecast_days=7');
 
       print('🌍 [AQIService] Fetching: $url');
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('⏱️ [AQIService] Request timeout after 10 seconds');
+          throw TimeoutException('AQI request timeout');
+        },
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -86,7 +99,13 @@ class WeatherService {
           '$geocodingUrl?name=${Uri.encodeComponent(cityName)}&count=1&language=en&format=json');
 
       print('🔍 Searching for city: $cityName');
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('⏱️ [Geocoding] Request timeout after 10 seconds');
+          throw TimeoutException('Geocoding request timeout');
+        },
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

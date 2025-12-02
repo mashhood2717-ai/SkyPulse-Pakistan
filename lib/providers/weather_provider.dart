@@ -308,7 +308,7 @@ class WeatherProvider extends ChangeNotifier {
         longitude,
       )
           .timeout(
-        const Duration(seconds: 8),
+        const Duration(seconds: 15),
         onTimeout: () {
           print('⏱️ [API Timeout] Weather API took too long');
           throw TimeoutException('Weather API request timeout');

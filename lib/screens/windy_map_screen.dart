@@ -21,6 +21,7 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
     {'name': 'Pressure', 'overlay': 'pressure'},
     {'name': 'Temperature', 'overlay': 'temp'},
     {'name': 'Visibility', 'overlay': 'visibility'},
+    {'name': 'Satellite', 'overlay': 'satellite'},
   ];
 
   @override

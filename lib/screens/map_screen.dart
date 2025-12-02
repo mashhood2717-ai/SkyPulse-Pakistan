@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
 import 'dart:async';
+import 'dart:math';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -13,32 +14,50 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   late Timer _satelliteRefreshTimer;
   int _currentSatelliteIndex = 0;
+  
+  // OpenWeatherMap API Key
+  static const String _owmApiKey = '785e637a1ddc31df39e0e2f6858209c6';
+  
+  // Zoom level and coordinates (will be updated based on current location)
+  late double _mapLat;
+  late double _mapLon;
+  int _zoomLevel = 6;
 
-  // EUMETSAT satellite image URLs with multiple fallbacks
-  final List<Map<String, String>> _satelliteImages = [
-    {
-      'name': 'EUMETSAT RGB',
-      'url':
-          'https://eutils.eumetsat.int/images/latest/msg/RGBNatColor.jpg',
-    },
-    {
-      'name': 'EUMETSAT IR',
-      'url':
-          'https://eutils.eumetsat.int/images/latest/msg/IR_108.jpg',
-    },
-    {
-      'name': 'EUMETSAT WV',
-      'url':
-          'https://eutils.eumetsat.int/images/latest/msg/WaterVapor_062.jpg',
-    },
-  ];
+  // OpenWeatherMap satellite imagery URLs with multiple layers
+  late final List<Map<String, String>> _satelliteImages;
 
   @override
   void initState() {
     super.initState();
-    // Refresh satellite image every 15 minutes
+    
+    // Initialize satellite images with OpenWeatherMap tiles
+    // These will be updated with actual location coordinates
+    _satelliteImages = [
+      {
+        'name': 'Clouds Layer',
+        'url': 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
+      },
+      {
+        'name': 'Precipitation',
+        'url': 'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
+      },
+      {
+        'name': 'Sea Level Pressure',
+        'url': 'https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
+      },
+      {
+        'name': 'Wind Speed',
+        'url': 'https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
+      },
+      {
+        'name': 'Temperature',
+        'url': 'https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
+      },
+    ];
+    
+    // Refresh satellite image every 10 minutes
     _satelliteRefreshTimer = Timer.periodic(
-      const Duration(minutes: 15),
+      const Duration(minutes: 10),
       (_) {
         if (mounted) {
           setState(() {
@@ -54,6 +73,26 @@ class _MapScreenState extends State<MapScreen> {
   void dispose() {
     _satelliteRefreshTimer.cancel();
     super.dispose();
+  }
+
+  /// Convert latitude/longitude to tile coordinates
+  Map<String, int> _latlngToTile(double lat, double lng, int zoom) {
+    int x = ((lng + 180) / 360 * pow(2, zoom).toInt()).toInt();
+    int y = ((1 -
+            log(tan(lat * pi / 180) + 1 / cos(lat * pi / 180)) / pi) /
+        2 *
+        pow(2, zoom).toInt())
+        .toInt();
+    return {'x': x, 'y': y};
+  }
+
+  /// Get the OpenWeatherMap tile URL for current location
+  String _getSatelliteUrl(String baseUrl, double lat, double lng, int zoom) {
+    final tile = _latlngToTile(lat, lng, zoom);
+    return baseUrl
+        .replaceAll('{z}', zoom.toString())
+        .replaceAll('{x}', tile['x'].toString())
+        .replaceAll('{y}', tile['y'].toString());
   }
 
   @override
@@ -80,9 +119,14 @@ class _MapScreenState extends State<MapScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Satellite Image with Caching
+                      // OpenWeatherMap Satellite Tile Layer
                       Image.network(
-                        _satelliteImages[_currentSatelliteIndex]['url']!,
+                        _getSatelliteUrl(
+                          _satelliteImages[_currentSatelliteIndex]['url']!,
+                          provider.latitude,
+                          provider.longitude,
+                          _zoomLevel,
+                        ),
                         fit: BoxFit.cover,
                         cacheHeight: 2000,
                         cacheWidth: 2000,
@@ -92,7 +136,7 @@ class _MapScreenState extends State<MapScreen> {
                         },
                         errorBuilder: (context, error, stackTrace) {
                           print(
-                              '🛰️ Satellite image load failed: $error'); // Debug output
+                              '🛰️ OpenWeatherMap satellite load failed: $error'); // Debug output
                           return Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -116,7 +160,7 @@ class _MapScreenState extends State<MapScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'EUMETSAT Satellite',
+                                    'OpenWeatherMap Satellite',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.7),
                                       fontSize: 16,

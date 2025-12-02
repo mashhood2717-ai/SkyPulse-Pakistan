@@ -158,14 +158,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 💾 Get context references before async gap
     final provider = context.read<WeatherProvider>();
     final cacheService = context.read<FavoritesCacheService>();
-    
+
     // Show loading indicator for this transition
     if (mounted) {
       setState(() {
         // We'll keep showing current data while fetching
       });
     }
-    
+
     await provider.fetchWeatherByCity(cityName);
 
     if (provider.weatherData != null) {
@@ -196,7 +196,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Find the index of this favorite in the list
     int favoriteIndex = -1;
     for (int i = 0; i < _favorites.length; i++) {
-      if ((_favorites[i]['city'] as String).toLowerCase() == cityName.toLowerCase()) {
+      if ((_favorites[i]['city'] as String).toLowerCase() ==
+          cityName.toLowerCase()) {
         favoriteIndex = i;
         break;
       }
@@ -220,7 +221,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Auto-swipe to the favorite card (index + 1 because index 0 is current location)
       if (mounted) {
-        print('📱 [HomeScreen] Auto-swiping to favorite at index ${favoriteIndex + 1}');
+        print(
+            '📱 [HomeScreen] Auto-swiping to favorite at index ${favoriteIndex + 1}');
         await _pageController.animateToPage(
           favoriteIndex + 1,
           duration: const Duration(milliseconds: 500),
@@ -263,12 +265,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               // Auto-swipe to favorite if it was selected from FavoritesScreen
               if (provider.weatherData != null && !provider.isLoading) {
                 _checkFavorite();
-                
+
                 // Check if the current city is a favorite (not the initial location)
                 final currentCity = provider.cityName;
-                final isCurrentLocationOnly = currentCity == _initialLocationCity;
-                
-                if (!isCurrentLocationOnly && _lastNavigatedCity != currentCity) {
+                final isCurrentLocationOnly =
+                    currentCity == _initialLocationCity;
+
+                if (!isCurrentLocationOnly &&
+                    _lastNavigatedCity != currentCity) {
                   _lastNavigatedCity = currentCity;
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (mounted) {
@@ -333,7 +337,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               if (mounted) {
                                 setState(() {
                                   _initialLocationCity = provider.cityName;
-                                  _initialLocationCountry = provider.countryCode;
+                                  _initialLocationCountry =
+                                      provider.countryCode;
                                   _cachedInitialWeather = provider.weatherData;
                                 });
                               }
@@ -349,7 +354,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               _buildGlassAppBar(provider),
                               SliverToBoxAdapter(
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20),
                                   child: Column(
                                     children: [
                                       const SizedBox(height: 16),
@@ -379,9 +385,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       const SizedBox(height: 24),
                                       ...weather.forecast
                                           .map((day) => Padding(
-                                                padding:
-                                                    const EdgeInsets.only(bottom: 12),
-                                                child: ForecastCard(forecast: day),
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 12),
+                                                child:
+                                                    ForecastCard(forecast: day),
                                               ))
                                           .toList(),
                                       const SizedBox(height: 40),
@@ -722,84 +729,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildGlassFavoriteCard(String cityName, String countryCode,
       {bool isActive = false}) {
-    // When active, show a minimal preview while data loads
+    // When active, wrap with Consumer to listen for updates
     if (isActive) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.blue.withOpacity(0.3),
-                  Colors.purple.withOpacity(0.2),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.white.withOpacity(0.3),
-                width: 1.5,
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  cityName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (countryCode.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    countryCode,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
+      return Consumer<WeatherProvider>(
+        builder: (context, provider, _) {
+          // Show temp if data loaded and not currently loading
+          final current = provider.weatherData?.current;
+          if (current != null && !provider.isLoading) {
+            final temp = current.temperature;
+            // Show data-loaded state
+            return _buildFavoriteCachedCard(
+                cityName, countryCode, temp.toString());
+          }
+          // Show loading state
+          return _buildFavoriteLoadingCard(cityName, countryCode);
+        },
       );
     }
 
-    // Inactive: just show glass card with city name
+    // When inactive, just show glass card with city name
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withOpacity(0.2),
-                Colors.white.withOpacity(0.1),
+                Colors.blue.withOpacity(0.3),
+                Colors.purple.withOpacity(0.2),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
@@ -812,10 +773,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.location_city_rounded,
-                color: Colors.white.withOpacity(0.8),
-                size: 28,
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
               ),
               const SizedBox(height: 6),
               Text(
@@ -1054,6 +1018,135 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Build a favorite card showing cached temperature data
+  Widget _buildFavoriteCachedCard(
+      String cityName, String countryCode, String temp) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.blue.withOpacity(0.3),
+                Colors.purple.withOpacity(0.2),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$temp°',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                cityName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (countryCode.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  countryCode,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build a favorite card showing loading spinner
+  Widget _buildFavoriteLoadingCard(String cityName, String countryCode) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.blue.withOpacity(0.3),
+                Colors.purple.withOpacity(0.2),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                cityName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (countryCode.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  countryCode,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -176,8 +176,7 @@ class _WeatherBackgroundAnimationState extends State<WeatherBackgroundAnimation>
               end: Alignment.bottomCenter,
               colors: [
                 const Color(0xFF5DB3E8),
-                const Color(0xFFFFB84D),
-                const Color(0xFFFFC700),
+                const Color(0xFFFFFFFF),
               ],
             ),
           ),

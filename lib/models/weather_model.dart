@@ -19,8 +19,15 @@ class WeatherData {
 
   factory WeatherData.fromJson(Map<String, dynamic> json, {int? aqi}) {
     try {
+      final current = CurrentWeather.fromJson(json['current'] ?? {});
+      print('🌡️ [CurrentWeather] Parsed from API:');
+      print('   Temperature: ${current.temperature}°C');
+      print('   Dew Point: ${current.dewPoint}°C');
+      print('   Wind Speed: ${current.windSpeed} km/h');
+      print('   Wind Gust: ${current.windGust} km/h');
+      
       return WeatherData(
-        current: CurrentWeather.fromJson(json['current'] ?? {}),
+        current: current,
         forecast: _parseDailyForecast(json['daily'] ?? {}),
         hourlyTemperatures: _parseHourlyTemps(json['hourly'] ?? {}),
         hourlyWeatherCodes: _parseHourlyWeatherCodes(json['hourly'] ?? {}),

@@ -353,12 +353,27 @@ class WeatherProvider extends ChangeNotifier {
           },
         )
         .then((aqiData) {
-      print('🌍 [AQI] Response received: $aqiData');
+      print('🌍 [AQI] Response received: ${aqiData.keys.toList()}');
+      print('🌍 [AQI] Full response: $aqiData');
+      
       if (aqiData['current'] != null) {
-        final aqi = aqiData['current']['us_aqi'];
-        print('🌍 [AQI] Parsed us_aqi: $aqi');
+        print('🌍 [AQI] Current object exists: ${aqiData['current']}');
+        
+        // Try different possible keys for AQI
+        var aqi = aqiData['current']['us_aqi'] ?? aqiData['current']['aqi'];
+        print('🌍 [AQI] Parsed aqi value: $aqi (type: ${aqi?.runtimeType})');
+        
         if (aqi != null) {
-          print('✅ [AQI] AQI Index: $aqi - Updating weather data');
+          int aqiInt = 0;
+          if (aqi is int) {
+            aqiInt = aqi;
+          } else if (aqi is double) {
+            aqiInt = aqi.toInt();
+          } else if (aqi is String) {
+            aqiInt = int.tryParse(aqi) ?? 0;
+          }
+          
+          print('✅ [AQI] AQI Index: $aqiInt - Updating weather data');
           // Update weather data with AQI
           _weatherData = WeatherData(
             current: apiData.current,
@@ -366,11 +381,12 @@ class WeatherProvider extends ChangeNotifier {
             hourlyTemperatures: apiData.hourlyTemperatures,
             hourlyWeatherCodes: apiData.hourlyWeatherCodes,
             hourlyPrecipitation: apiData.hourlyPrecipitation,
-            aqiIndex: aqi.toInt(),
+            aqiIndex: aqiInt,
           );
+          print('🌍 [AQI] Weather data updated. aqiIndex = ${_weatherData?.aqiIndex}');
           notifyListeners();
         } else {
-          print('⚠️ [AQI] us_aqi is null in response');
+          print('⚠️ [AQI] us_aqi and aqi both null in response');
         }
       } else {
         print('⚠️ [AQI] current is null in response');

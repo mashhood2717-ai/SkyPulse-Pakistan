@@ -250,6 +250,7 @@ class MetarData {
 
     print('🔄 Converting METAR to CurrentWeather:');
     print('   Temperature: ${temperature ?? 20.0}°C');
+    print('   Dewpoint: ${dewpoint ?? 15.0}°C');
     print(
         '   Wind Speed: ${(windSpeed ?? 0) * 1.852} km/h (from ${windSpeed ?? 0} kt)');
     print('   Wind Direction: ${windDirection ?? 0}°');

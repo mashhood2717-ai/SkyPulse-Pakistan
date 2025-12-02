@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../models/weather_model.dart';
 
 class HourlyForecast extends StatelessWidget {
@@ -133,18 +132,14 @@ class HourlyForecast extends StatelessWidget {
         return [];
       }
 
-      // Get current time (API data is already in local timezone per coordinates)
+      // Get current time - API already returns data in local timezone via &timezone=auto
       final now = DateTime.now();
       final currentHour = now.hour;
 
-      // Start from midnight today
-      final startOfDay = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      );
+      print('🕐 [HourlyForecast] Current hour: $currentHour');
+      print('🕐 [HourlyForecast] Total hourly data points: ${weatherData.hourlyTemperatures.length}');
 
-      // API data starts at 00:00 (midnight), current hour is the starting index
+      // Start from current hour
       int startIndex = currentHour;
 
       // Get next 24 hours from current hour
@@ -153,13 +148,13 @@ class HourlyForecast extends StatelessWidget {
 
         // Check if we have data at this index
         if (apiIndex >= weatherData.hourlyTemperatures.length) {
+          print('🕐 [HourlyForecast] Breaking at index $apiIndex (data length: ${weatherData.hourlyTemperatures.length})');
           break;
         }
 
-        // Calculate the time for this forecast (starting from current hour)
-        final forecastTime = startOfDay.add(Duration(hours: currentHour + i));
-        final timeStr =
-            i == 0 ? 'Now' : DateFormat('HH:mm').format(forecastTime);
+        // Calculate the hour (0-23 with wrapping for next day)
+        int displayHour = (currentHour + i) % 24;
+        final timeStr = i == 0 ? 'Now' : '$displayHour:00';
 
         // Get REAL temperature from API
         double temp = weatherData.hourlyTemperatures[apiIndex];
@@ -170,12 +165,14 @@ class HourlyForecast extends StatelessWidget {
             : 0;
 
         // Get weather icon
-        String icon = _getWeatherIcon(weatherCode, forecastTime.hour);
+        String icon = _getWeatherIcon(weatherCode, displayHour);
 
         // Get precipitation
         int precipitation = apiIndex < weatherData.hourlyPrecipitation.length
             ? weatherData.hourlyPrecipitation[apiIndex]
             : 0;
+
+        print('🕐 [HourlyForecast] Hour $i: index=$apiIndex, time=$timeStr, temp=${temp.round()}°C');
 
         hourly.add({
           'time': timeStr,
@@ -185,7 +182,7 @@ class HourlyForecast extends StatelessWidget {
         });
       }
     } catch (e) {
-      // Silently fail, don't print
+      print('❌ [HourlyForecast] Error: $e');
     }
 
     return hourly;

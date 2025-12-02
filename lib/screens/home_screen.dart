@@ -17,6 +17,12 @@ class HomeScreen extends StatefulWidget {
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
+
+  static _HomeScreenState? _instance;
+
+  static void goToHome() {
+    _instance?._goToFirstPage();
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
@@ -40,6 +46,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    HomeScreen._instance = this;
 
     // Initialize animations
     _fadeController = AnimationController(
@@ -184,6 +191,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _cachedInitialWeather!,
         _initialLocationCity!,
         _initialLocationCountry ?? '',
+      );
+    }
+  }
+
+  /// Go to the first page (current location)
+  void _goToFirstPage() {
+    if (_currentPage != 0 && _pageController.hasClients) {
+      _pageController.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
       );
     }
   }

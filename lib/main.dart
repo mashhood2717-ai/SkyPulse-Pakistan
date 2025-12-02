@@ -113,7 +113,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 2; // Start with Weather (home screen)
+  int _selectedIndex = 1; // Start with Weather (home screen)
 
   @override
   void initState() {
@@ -150,7 +150,18 @@ class _HomePageState extends State<HomePage> {
 
   void switchToWeatherTab() {
     setState(() {
-      _selectedIndex = 2;
+      _selectedIndex = 1;
+    });
+  }
+
+  void goToHome() {
+    // Navigate to weather tab and trigger going to first page
+    setState(() {
+      _selectedIndex = 1;
+    });
+    // Call after frame to ensure HomeScreen is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      HomeScreen.goToHome();
     });
   }
 
@@ -160,12 +171,11 @@ class _HomePageState extends State<HomePage> {
       body: IndexedStack(
         index: _selectedIndex,
         children: [
-          const HomeScreen(), // Index 0 - Home
-          const AlertsScreen(), // Index 1 - Alerts
-          const HomeScreen(), // Index 2 - Weather/Home
+          const AlertsScreen(), // Index 0 - Alerts
+          const HomeScreen(), // Index 1 - Weather/Home
           _FavoritesScreenWrapper(
             onFavoriteSelected: switchToWeatherTab,
-          ), // Index 3 - Favorites
+          ), // Index 2 - Favorites
         ],
       ),
       bottomNavigationBar: Container(
@@ -184,15 +194,21 @@ class _HomePageState extends State<HomePage> {
             final unreadCount = weatherProvider.unreadAlertCount;
 
             return BottomNavigationBar(
-              currentIndex: _selectedIndex,
+              currentIndex: _selectedIndex + 1, // Adjust for Home button (add 1)
               backgroundColor: Colors.transparent,
               elevation: 0,
               selectedItemColor: Color(0xFF667EEA),
               unselectedItemColor: Colors.white54,
               onTap: (index) {
-                setState(() {
-                  _selectedIndex = index;
-                });
+                if (index == 0) {
+                  // Home button - navigate to home and go to first page
+                  goToHome();
+                } else {
+                  // Adjust tab index: remove Home (0) and map to IndexedStack
+                  setState(() {
+                    _selectedIndex = index - 1;
+                  });
+                }
               },
               items: [
                 const BottomNavigationBarItem(

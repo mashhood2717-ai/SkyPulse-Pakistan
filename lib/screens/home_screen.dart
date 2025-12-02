@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
   String? _lastNavigatedCity; // Track last auto-swiped city to prevent loops
+  bool _isManualNavigation = false; // Prevent auto-swipe when user manually navigates
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -197,6 +198,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   /// Go to the first page (current location)
   void _goToFirstPage() {
+    _isManualNavigation = true; // Set flag to prevent auto-swipe
+    _lastNavigatedCity = _initialLocationCity; // Mark this as navigated to prevent re-triggering
     if (_currentPage != 0 && _pageController.hasClients) {
       _pageController.animateToPage(
         0,
@@ -281,7 +284,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               }
 
               // Auto-swipe to favorite if it was selected from FavoritesScreen
-              if (provider.weatherData != null && !provider.isLoading) {
+              if (provider.weatherData != null && !provider.isLoading && !_isManualNavigation) {
                 _checkFavorite();
 
                 // Check if the current city is a favorite (not the initial location)
@@ -298,6 +301,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     }
                   });
                 }
+              } else if (_isManualNavigation && _currentPage == 0) {
+                // Reset the flag once we're back on the home page
+                _isManualNavigation = false;
               }
 
               if (provider.isLoading && provider.weatherData == null) {

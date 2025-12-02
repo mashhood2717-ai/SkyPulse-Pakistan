@@ -7,7 +7,8 @@ class WeatherService {
   static const String baseUrl = 'https://api.open-meteo.com/v1/forecast';
   static const String geocodingUrl =
       'https://geocoding-api.open-meteo.com/v1/search';
-  static const String aqiUrl = 'https://air-quality-api.open-meteo.com/v1/air-quality';
+  static const String aqiUrl =
+      'https://air-quality-api.open-meteo.com/v1/air-quality';
 
   // Fetch weather data by coordinates
   Future<WeatherData> getWeatherByCoordinates(
@@ -50,7 +51,7 @@ class WeatherService {
       double latitude, double longitude) async {
     try {
       final url = Uri.parse('$aqiUrl?latitude=$latitude&longitude=$longitude'
-          '&current=us_aqi,aqi,pm10,pm2_5,nitrogen_dioxide,ozone,sulphur_dioxide'
+          '&current=us_aqi,pm10,pm2_5,nitrogen_dioxide,ozone,sulphur_dioxide'
           '&forecast_days=7');
 
       print('🌍 [AQIService] Fetching: $url');
@@ -66,11 +67,15 @@ class WeatherService {
       } else {
         print('⚠️ [AQIService] Failed to fetch AQI: ${response.statusCode}');
         print('⚠️ [AQIService] Response body: ${response.body}');
-        return {'current': {'us_aqi': null}};
+        return {
+          'current': {'us_aqi': null}
+        };
       }
     } catch (e) {
       print('❌ Error fetching AQI: $e');
-      return {'current': {'us_aqi': null}};
+      return {
+        'current': {'us_aqi': null}
+      };
     }
   }
 

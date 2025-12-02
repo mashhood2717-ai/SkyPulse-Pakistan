@@ -128,33 +128,62 @@ class HourlyForecast extends StatelessWidget {
 
     try {
       // Check if we have hourly data from API
-      if (weatherData.hourlyTemperatures.isEmpty) {
+      if (weatherData.hourlyTemperatures.isEmpty ||
+          weatherData.hourlyTimes.isEmpty) {
         return [];
       }
 
-      // Get current time - API already returns data in local timezone via &timezone=auto
+      // Find current time in the hourly times array
+      // API returns times in ISO format: "2025-01-08T07:00" or similar
       final now = DateTime.now();
-      final currentHour = now.hour;
+      int startIndex = 0;
 
-      print('🕐 [HourlyForecast] Current hour: $currentHour');
-      print('🕐 [HourlyForecast] Total hourly data points: ${weatherData.hourlyTemperatures.length}');
+      // Find the index that matches the current hour
+      if (weatherData.hourlyTimes.isNotEmpty) {
+        for (int i = 0; i < weatherData.hourlyTimes.length; i++) {
+          final timeStr = weatherData.hourlyTimes[i]; // e.g., "2025-01-08T07:00"
+          try {
+            final hourTime = DateTime.parse(timeStr);
+            // Check if this hour is >= current time
+            if (hourTime.hour == now.hour && hourTime.day == now.day) {
+              startIndex = i;
+              print('🕐 [HourlyForecast] Found current hour at index $i: $timeStr');
+              break;
+            }
+            // Also check if we're past this hour and approaching next one
+            if (hourTime.hour > now.hour && hourTime.day == now.day) {
+              // Use the previous hour (closest match)
+              startIndex = i > 0 ? i - 1 : 0;
+              print(
+                  '🕐 [HourlyForecast] No exact match, using nearest index $startIndex');
+              break;
+            }
+          } catch (e) {
+            // Skip parsing errors
+          }
+        }
+      }
 
-      // Start from current hour
-      int startIndex = currentHour;
-
-      // Get next 24 hours from current hour
+      // Get next 24 hours from start index
       for (int i = 0; i < 24; i++) {
         final apiIndex = startIndex + i;
 
         // Check if we have data at this index
         if (apiIndex >= weatherData.hourlyTemperatures.length) {
-          print('🕐 [HourlyForecast] Breaking at index $apiIndex (data length: ${weatherData.hourlyTemperatures.length})');
           break;
         }
 
-        // Calculate the hour (0-23 with wrapping for next day)
-        int displayHour = (currentHour + i) % 24;
-        final timeStr = i == 0 ? 'Now' : '$displayHour:00';
+        // Get time string and format it
+        String timeStr = 'N/A';
+        if (apiIndex < weatherData.hourlyTimes.length) {
+          try {
+            final hourTime =
+                DateTime.parse(weatherData.hourlyTimes[apiIndex]);
+            timeStr = i == 0 ? 'Now' : '${hourTime.hour}:00';
+          } catch (e) {
+            timeStr = i == 0 ? 'Now' : '${(now.hour + i) % 24}:00';
+          }
+        }
 
         // Get REAL temperature from API
         double temp = weatherData.hourlyTemperatures[apiIndex];
@@ -164,15 +193,14 @@ class HourlyForecast extends StatelessWidget {
             ? weatherData.hourlyWeatherCodes[apiIndex]
             : 0;
 
-        // Get weather icon
+        // Get weather icon (using hour from the actual API time)
+        int displayHour = now.hour + i;
         String icon = _getWeatherIcon(weatherCode, displayHour);
 
         // Get precipitation
         int precipitation = apiIndex < weatherData.hourlyPrecipitation.length
             ? weatherData.hourlyPrecipitation[apiIndex]
             : 0;
-
-        print('🕐 [HourlyForecast] Hour $i: index=$apiIndex, time=$timeStr, temp=${temp.round()}°C');
 
         hourly.add({
           'time': timeStr,

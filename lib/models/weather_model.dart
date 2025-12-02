@@ -6,6 +6,7 @@ class WeatherData {
   final List<double> hourlyTemperatures;
   final List<int> hourlyWeatherCodes;
   final List<int> hourlyPrecipitation;
+  final List<String> hourlyTimes; // NEW: Store hourly times from API
   final int? aqiIndex; // NEW: AQI index
 
   WeatherData({
@@ -14,6 +15,7 @@ class WeatherData {
     this.hourlyTemperatures = const [],
     this.hourlyWeatherCodes = const [],
     this.hourlyPrecipitation = const [],
+    this.hourlyTimes = const [],
     this.aqiIndex,
   });
 
@@ -25,13 +27,14 @@ class WeatherData {
       print('   Dew Point: ${current.dewPoint}°C');
       print('   Wind Speed: ${current.windSpeed} km/h');
       print('   Wind Gust: ${current.windGust} km/h');
-      
+
       return WeatherData(
         current: current,
         forecast: _parseDailyForecast(json['daily'] ?? {}),
         hourlyTemperatures: _parseHourlyTemps(json['hourly'] ?? {}),
         hourlyWeatherCodes: _parseHourlyWeatherCodes(json['hourly'] ?? {}),
         hourlyPrecipitation: _parseHourlyPrecipitation(json['hourly'] ?? {}),
+        hourlyTimes: _parseHourlyTimes(json['hourly'] ?? {}),
         aqiIndex: aqi,
       );
     } catch (e) {
@@ -54,6 +57,27 @@ class WeatherData {
       return result;
     } catch (e) {
       print('❌ Error parsing hourly temps: $e');
+      return [];
+    }
+  }
+
+  // Parse hourly times (NEW)
+  static List<String> _parseHourlyTimes(Map<String, dynamic> hourly) {
+    try {
+      final times = hourly['time'] as List?;
+      if (times == null) {
+        print('⚠️ [WeatherData] No time found in hourly data');
+        return [];
+      }
+      final result = times.map((t) => t.toString()).toList();
+      print('✅ [WeatherData] Parsed ${result.length} hourly times');
+      if (result.isNotEmpty) {
+        print('   First time: ${result.first}');
+        print('   Last time: ${result.last}');
+      }
+      return result;
+    } catch (e) {
+      print('❌ Error parsing hourly times: $e');
       return [];
     }
   }
@@ -176,6 +200,11 @@ class CurrentWeather {
   });
 
   factory CurrentWeather.fromJson(Map<String, dynamic> json) {
+    print(
+        '🌡️ [CurrentWeather.fromJson] Input JSON keys: ${json.keys.toList()}');
+    print(
+        '🌡️ [CurrentWeather.fromJson] dew_point_2m value: ${json['dew_point_2m']} (type: ${json['dew_point_2m']?.runtimeType})');
+
     return CurrentWeather(
       temperature: _toDouble(json['temperature_2m']),
       humidity: _toInt(json['relative_humidity_2m']),

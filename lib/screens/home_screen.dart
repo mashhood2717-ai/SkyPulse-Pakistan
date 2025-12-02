@@ -269,7 +269,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                 const SizedBox(height: 16),
                                 _buildGlassSearchBar(),
                                 const SizedBox(height: 24),
-                                _buildWeatherCardsSection(provider, current, weather),
+                                _buildWeatherCardsSection(
+                                    provider, current, weather),
                                 const SizedBox(height: 24),
                                 if (provider.usingMetar) ...[
                                   _buildGlassMetarBadge(provider),
@@ -505,8 +506,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildWeatherCardsSection(
-      WeatherProvider provider, CurrentWeather currentWeather, WeatherData weather) {
+  Widget _buildWeatherCardsSection(WeatherProvider provider,
+      CurrentWeather currentWeather, WeatherData weather) {
     if (_favorites.isEmpty) {
       return WeatherCard(
         cityName: provider.cityName,
@@ -763,7 +764,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildAQICard(int aqi) {
     Color aqiColor;
     String aqiStatus;
-    
+
     if (aqi <= 50) {
       aqiColor = const Color(0xFF4CAF50); // Good
       aqiStatus = 'Good';

@@ -342,27 +342,25 @@ class WeatherProvider extends ChangeNotifier {
     double longitude,
     WeatherData apiData,
   ) {
-    print('🌍 [AQI] Starting background fetch for lat=$latitude, lon=$longitude');
-    _weatherService
-        .getAQIByCoordinates(latitude, longitude)
-        .timeout(
-          const Duration(seconds: 3),
-          onTimeout: () {
-            print('⏱️ [AQI] Request timeout');
-            return {'current': {}};
-          },
-        )
-        .then((aqiData) {
+    print(
+        '🌍 [AQI] Starting background fetch for lat=$latitude, lon=$longitude');
+    _weatherService.getAQIByCoordinates(latitude, longitude).timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {
+        print('⏱️ [AQI] Request timeout');
+        return {'current': {}};
+      },
+    ).then((aqiData) {
       print('🌍 [AQI] Response received: ${aqiData.keys.toList()}');
       print('🌍 [AQI] Full response: $aqiData');
-      
+
       if (aqiData['current'] != null) {
         print('🌍 [AQI] Current object exists: ${aqiData['current']}');
-        
+
         // Try different possible keys for AQI
         var aqi = aqiData['current']['us_aqi'] ?? aqiData['current']['aqi'];
         print('🌍 [AQI] Parsed aqi value: $aqi (type: ${aqi?.runtimeType})');
-        
+
         if (aqi != null) {
           int aqiInt = 0;
           if (aqi is int) {
@@ -372,7 +370,7 @@ class WeatherProvider extends ChangeNotifier {
           } else if (aqi is String) {
             aqiInt = int.tryParse(aqi) ?? 0;
           }
-          
+
           print('✅ [AQI] AQI Index: $aqiInt - Updating weather data');
           // Update weather data with AQI
           _weatherData = WeatherData(
@@ -381,9 +379,11 @@ class WeatherProvider extends ChangeNotifier {
             hourlyTemperatures: apiData.hourlyTemperatures,
             hourlyWeatherCodes: apiData.hourlyWeatherCodes,
             hourlyPrecipitation: apiData.hourlyPrecipitation,
+            hourlyTimes: apiData.hourlyTimes,
             aqiIndex: aqiInt,
           );
-          print('🌍 [AQI] Weather data updated. aqiIndex = ${_weatherData?.aqiIndex}');
+          print(
+              '🌍 [AQI] Weather data updated. aqiIndex = ${_weatherData?.aqiIndex}');
           notifyListeners();
         } else {
           print('⚠️ [AQI] us_aqi and aqi both null in response');
@@ -428,11 +428,14 @@ class WeatherProvider extends ChangeNotifier {
           sunset: sunset,
         );
 
-        // Create enhanced current weather combining METAR + API UV
+        // Create enhanced current weather combining METAR + API UV + API dew point/wind gust
         final enhancedCurrent = CurrentWeather(
           temperature: metarCurrent.temperature,
           humidity: metarCurrent.humidity,
           windSpeed: metarCurrent.windSpeed,
+          windGust: metarCurrent.windGust, // Include wind gust from METAR
+          windDirection: metarCurrent.windDirection, // Include wind direction
+          dewPoint: metarCurrent.dewPoint, // Include dew point from METAR
           weatherCode: metarCurrent.weatherCode,
           pressure: metarCurrent.pressure,
           cloudCover: metarCurrent.cloudCover,
@@ -449,6 +452,8 @@ class WeatherProvider extends ChangeNotifier {
           hourlyTemperatures: apiData.hourlyTemperatures,
           hourlyWeatherCodes: apiData.hourlyWeatherCodes,
           hourlyPrecipitation: apiData.hourlyPrecipitation,
+          hourlyTimes: apiData.hourlyTimes,
+          aqiIndex: _weatherData?.aqiIndex, // PRESERVE AQI INDEX
         );
         _usingMetar = true;
 

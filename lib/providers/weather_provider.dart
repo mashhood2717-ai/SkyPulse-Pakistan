@@ -366,14 +366,14 @@ class WeatherProvider extends ChangeNotifier {
     print(
         '🌍 [AQI] Starting background fetch for lat=$latitude, lon=$longitude');
     _weatherService.getAQIByCoordinates(latitude, longitude).timeout(
-      const Duration(seconds: 3),
+      const Duration(seconds: 8),
       onTimeout: () {
-        print('⏱️ [AQI] Request timeout');
+        print('⏱️ [AQI] Request timeout after 8 seconds');
         return {'current': {}};
       },
     ).then((aqiData) {
-      // ⚠️ CRITICAL: Check if we're STILL viewing the same city
-      if (_cityName != targetCity) {
+      // ⚠️ CRITICAL: Check if we're STILL viewing the same city (case-insensitive)
+      if (_cityName.toLowerCase() != targetCity.toLowerCase()) {
         print('⏭️ [AQI] Ignoring AQI for $targetCity - now viewing $_cityName');
         return;
       }
@@ -438,9 +438,9 @@ class WeatherProvider extends ChangeNotifier {
           onTimeout: () => null,
         )
         .then((metarData) {
-      // ⚠️ CRITICAL: Check if we're STILL viewing the same city
+      // ⚠️ CRITICAL: Check if we're STILL viewing the same city (case-insensitive)
       // If user swiped to a different location, ignore this METAR
-      if (_cityName != targetCity) {
+      if (_cityName.toLowerCase() != targetCity.toLowerCase()) {
         print(
             '⏭️ [METAR] Ignoring METAR for $targetCity - now viewing $_cityName');
         return;

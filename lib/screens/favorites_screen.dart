@@ -181,25 +181,10 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   Future<void> _selectLocation(String city) async {
     final provider = context.read<WeatherProvider>();
-    final cacheService = context.read<FavoritesCacheService>();
 
-    // 💾 Check if we have cached weather for this favorite
-    if (cacheService.hasCachedWeather(city)) {
-      final cachedWeather = cacheService.getWeatherForCity(city);
-      if (cachedWeather != null) {
-        // Use cached data - instant load!
-        print('📱 [FavoritesScreen] Loading $city from cache (instant)');
-        provider.restoreCachedWeather(
-          cachedWeather,
-          city,
-          cacheService.getMetadata(city)?['countryCode'] as String? ?? '',
-        );
-      }
-    } else {
-      // Fetch fresh data if not cached - AWAIT to ensure data is loaded
-      print('📱 [FavoritesScreen] Fetching $city data (network)');
-      await provider.fetchWeatherByCity(city);
-    }
+    // Always fetch fresh data when selecting a favorite
+    print('🔄 [FavoritesScreen] Fetching fresh data for $city');
+    await provider.fetchWeatherByCity(city);
 
     // Navigate to favorite card AFTER data is loaded
     widget.onLocationSelected?.call(city);

@@ -10,7 +10,6 @@ import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
 import '../services/favorites_service.dart';
-import '../services/favorites_cache_service.dart' show FavoritesCacheService;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -168,43 +167,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Future<void> _navigateToLocationAsync(String cityName) async {
     // 💾 Get context references before async gap
     final provider = context.read<WeatherProvider>();
-    final cacheService = context.read<FavoritesCacheService>();
 
-    // Check if we're already showing this city - if so, don't re-fetch
-    if (provider.cityName.toLowerCase() == cityName.toLowerCase() &&
-        !provider.isLoading) {
-      print('✅ [HomeScreen] Already showing $cityName, skipping fetch');
-      return;
-    }
-
-    // Try to load from cache first (faster, no network delay)
-    bool shouldFetchFresh = true;
-    if (cacheService.hasCachedWeather(cityName)) {
-      final cachedWeather = cacheService.getWeatherForCity(cityName);
-      if (cachedWeather != null) {
-        print('📦 [HomeScreen] Restoring $cityName from cache');
-        provider.restoreCachedWeather(
-          cachedWeather,
-          cityName,
-          cacheService.getMetadata(cityName)?['countryCode'] as String? ?? '',
-        );
-        shouldFetchFresh = true; // Still fetch fresh data in background
-      }
-    }
-
-    // Fetch fresh data (either no cache or to update stale cache)
-    if (shouldFetchFresh) {
-      await provider.fetchWeatherByCity(cityName);
-
-      if (provider.weatherData != null) {
-        cacheService.cacheWeather(
-          cityName,
-          provider.weatherData!,
-          country: provider.cityName,
-          countryCode: provider.countryCode,
-        );
-      }
-    }
+    // Always fetch fresh data when swiping to a favorite
+    print('🔄 [HomeScreen] Fetching fresh data for $cityName');
+    await provider.fetchWeatherByCity(cityName);
   }
 
   void _restoreInitialLocation(WeatherProvider provider) {
@@ -222,7 +188,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Immediately restore initial location data
     final provider = context.read<WeatherProvider>();
     _restoreInitialLocation(provider);
-    
+
     // Then animate to page 0
     if (_currentPage != 0 && _pageController.hasClients) {
       _pageController.animateToPage(
@@ -249,10 +215,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       final targetPage = favoriteIndex + 1;
       print(
           '🎯 [HomeScreen] Navigating to favorite card: $cityName at index $targetPage');
-      
+
       // Update current page BEFORE animation to prevent duplicate fetches
       setState(() => _currentPage = targetPage);
-      
+
       // Animate to the favorite card (index + 1 because 0 is current location)
       _pageController.animateToPage(
         targetPage,
@@ -260,14 +226,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         curve: Curves.easeInOut,
       );
     } else {
-      print('⚠️ [HomeScreen] Could not find favorite: $cityName in $_favorites');
+      print(
+          '⚠️ [HomeScreen] Could not find favorite: $cityName in $_favorites');
     }
   }
 
   /// Navigate to a favorite location and auto-swipe to its card
   Future<void> navigateToFavorite(String cityName) async {
     final provider = context.read<WeatherProvider>();
-    final cacheService = context.read<FavoritesCacheService>();
 
     // Find the index of this favorite in the list
     int favoriteIndex = -1;
@@ -280,20 +246,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
 
     if (favoriteIndex >= 0) {
-      // Load the weather data
-      if (cacheService.hasCachedWeather(cityName)) {
-        final cachedWeather = cacheService.getWeatherForCity(cityName);
-        if (cachedWeather != null) {
-          print('📱 [HomeScreen] Loading $cityName from cache');
-          provider.restoreCachedWeather(
-            cachedWeather,
-            cityName,
-            cacheService.getMetadata(cityName)?['countryCode'] as String? ?? '',
-          );
-        }
-      } else {
-        await provider.fetchWeatherByCity(cityName);
-      }
+      // Always fetch fresh weather data
+      print('🔄 [HomeScreen] Fetching fresh data for $cityName');
+      await provider.fetchWeatherByCity(cityName);
 
       // Auto-swipe to the favorite card (index + 1 because index 0 is current location)
       if (mounted) {
@@ -779,7 +734,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               if (index > 0 && index - 1 < _favorites.length) {
                 final favorite = _favorites[index - 1];
                 final cityName = favorite['city'] as String;
-                
+
                 // Only fetch if we're not already showing this city's data
                 if (provider.cityName.toLowerCase() != cityName.toLowerCase()) {
                   print('📱 [HomeScreen] Swiped to favorite: $cityName');

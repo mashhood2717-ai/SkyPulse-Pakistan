@@ -12,6 +12,16 @@ class WindyMapScreen extends StatefulWidget {
 
 class _WindyMapScreenState extends State<WindyMapScreen> {
   late WebViewController _webViewController;
+  String _selectedLayer = 'wind';
+
+  final List<Map<String, String>> _layers = [
+    {'name': 'Wind', 'overlay': 'wind'},
+    {'name': 'Clouds', 'overlay': 'clouds'},
+    {'name': 'Rain', 'overlay': 'rain'},
+    {'name': 'Pressure', 'overlay': 'pressure'},
+    {'name': 'Temperature', 'overlay': 'temp'},
+    {'name': 'Visibility', 'overlay': 'visibility'},
+  ];
 
   @override
   void initState() {
@@ -22,9 +32,37 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
   void _initializeWebView() {
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..loadRequest(Uri.parse(
-        'https://embed.windy.com/embed2.html?lat=33.6584&lon=73.0532&detailLat=33.6584&detailLon=73.0532&zoom=6&overlay=wind&product=gfs&menu=&type=map&location=coordinates&geolocation=disabled&message=&marker=&forecast=12h&calendar=now&pressure&rains=',
-      ));
+      ..loadRequest(Uri.parse(_buildWindyUrl(33.6584, 73.0532, _selectedLayer)));
+  }
+
+  String _buildWindyUrl(double lat, double lon, String overlay) {
+    return 'https://embed.windy.com/embed2.html?'
+        'lat=$lat&'
+        'lon=$lon&'
+        'detailLat=$lat&'
+        'detailLon=$lon&'
+        'zoom=6&'
+        'overlay=$overlay&'
+        'product=gfs&'
+        'menu=&'
+        'type=map&'
+        'location=coordinates&'
+        'geolocation=disabled&'
+        'message=&'
+        'marker=&'
+        'forecast=12h&'
+        'calendar=now&'
+        'pressure&'
+        'rains=';
+  }
+
+  void _changeLayer(String layer) {
+    setState(() {
+      _selectedLayer = layer;
+    });
+    _webViewController.loadRequest(Uri.parse(
+      _buildWindyUrl(33.6584, 73.0532, layer),
+    ));
   }
 
   @override
@@ -59,29 +97,104 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              provider.cityName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                provider.cityName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            Text(
-                              'Lat: ${provider.latitude.toStringAsFixed(4)}, Lon: ${provider.longitude.toStringAsFixed(4)}',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.7),
-                                fontSize: 10,
-                                fontFamily: 'monospace',
+                              Text(
+                                'Lat: ${provider.latitude.toStringAsFixed(4)}, Lon: ${provider.longitude.toStringAsFixed(4)}',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 10,
+                                  fontFamily: 'monospace',
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
+                    ),
+                  ),
+                ),
+              ),
+              // Layer selection below the header
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 110,
+                left: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.2),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _layers
+                          .map((layer) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                child: FilterChip(
+                                  label: Text(
+                                    layer['name']!,
+                                    style: TextStyle(
+                                      color: _selectedLayer == layer['overlay']
+                                          ? Colors.white
+                                          : Colors.white.withOpacity(0.7),
+                                      fontSize: 12,
+                                      fontWeight: _selectedLayer ==
+                                              layer['overlay']
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
+                                    ),
+                                  ),
+                                  selected:
+                                      _selectedLayer == layer['overlay'],
+                                  onSelected: (selected) {
+                                    if (selected) {
+                                      _changeLayer(layer['overlay']!);
+                                    }
+                                  },
+                                  backgroundColor: Colors.transparent,
+                                  selectedColor: Color(0xFF667EEA)
+                                      .withOpacity(0.7),
+                                  side: BorderSide(
+                                    color: _selectedLayer == layer['overlay']
+                                        ? Color(0xFF667EEA)
+                                        : Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ))
+                          .toList(),
                     ),
                   ),
                 ),

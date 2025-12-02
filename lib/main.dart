@@ -114,7 +114,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 1; // Start with Weather (home screen)
+  int _selectedIndex = 2; // Start with Windy Map (satellite) as default
 
   @override
   void initState() {
@@ -259,7 +259,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.satellite_alt),
-                  label: 'Map',
+                  label: 'Windy',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.favorite),

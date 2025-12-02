@@ -274,8 +274,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<WeatherProvider, ThemeProvider>(
-      builder: (context, provider, themeProvider, _) {
+    return Consumer3<WeatherProvider, ThemeProvider, FavoritesService>(
+      builder: (context, provider, themeProvider, favoritesService, _) {
         // Determine weather condition for animation
         String weatherCondition = 'sunny';
         if (provider.weatherData?.current != null) {

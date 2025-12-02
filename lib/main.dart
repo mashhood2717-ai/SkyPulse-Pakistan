@@ -9,7 +9,6 @@ import 'services/favorites_cache_service.dart' show FavoritesCacheService;
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
-import 'screens/map_screen.dart';
 import 'services/push_notification_service.dart';
 
 void main() async {
@@ -174,10 +173,9 @@ class _HomePageState extends State<HomePage> {
         children: [
           const AlertsScreen(), // Index 0 - Alerts
           const HomeScreen(), // Index 1 - Weather/Home
-          const MapScreen(), // Index 2 - Satellite Map
           _FavoritesScreenWrapper(
             onFavoriteSelected: switchToWeatherTab,
-          ), // Index 3 - Favorites
+          ), // Index 2 - Favorites
         ],
       ),
       bottomNavigationBar: Container(
@@ -256,10 +254,6 @@ class _HomePageState extends State<HomePage> {
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.cloud),
                   label: 'Weather',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.satellite_alt),
-                  label: 'Map',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.favorite),

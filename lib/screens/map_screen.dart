@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
-import 'dart:async';
 import 'dart:math';
 
 class MapScreen extends StatefulWidget {
@@ -12,74 +11,30 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  late Timer _satelliteRefreshTimer;
-  int _currentSatelliteIndex = 0;
-  
-  // OpenWeatherMap API Key
-  static const String _owmApiKey = '785e637a1ddc31df39e0e2f6858209c6';
-  
+  // Satellite map - using Google satellite imagery (free, no API key)
+  static const String _satelliteUrl =
+      'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
+
   // Zoom level for tile mapping
   int _zoomLevel = 6;
-
-  // OpenWeatherMap satellite imagery URLs with multiple layers
-  late final List<Map<String, String>> _satelliteImages;
 
   @override
   void initState() {
     super.initState();
-    
-    // Initialize satellite images with OpenWeatherMap tiles
-    // These will be updated with actual location coordinates
-    _satelliteImages = [
-      {
-        'name': 'Clouds Layer',
-        'url': 'https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
-      },
-      {
-        'name': 'Precipitation',
-        'url': 'https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
-      },
-      {
-        'name': 'Sea Level Pressure',
-        'url': 'https://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
-      },
-      {
-        'name': 'Wind Speed',
-        'url': 'https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
-      },
-      {
-        'name': 'Temperature',
-        'url': 'https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=$_owmApiKey',
-      },
-    ];
-    
-    // Refresh satellite image every 10 minutes
-    _satelliteRefreshTimer = Timer.periodic(
-      const Duration(minutes: 10),
-      (_) {
-        if (mounted) {
-          setState(() {
-            _currentSatelliteIndex =
-                (_currentSatelliteIndex + 1) % _satelliteImages.length;
-          });
-        }
-      },
-    );
+    // Satellite map loads directly, no refresh timer needed
   }
 
   @override
   void dispose() {
-    _satelliteRefreshTimer.cancel();
     super.dispose();
   }
 
   /// Convert latitude/longitude to tile coordinates
   Map<String, int> _latlngToTile(double lat, double lng, int zoom) {
     int x = ((lng + 180) / 360 * pow(2, zoom).toInt()).toInt();
-    int y = ((1 -
-            log(tan(lat * pi / 180) + 1 / cos(lat * pi / 180)) / pi) /
-        2 *
-        pow(2, zoom).toInt())
+    int y = ((1 - log(tan(lat * pi / 180) + 1 / cos(lat * pi / 180)) / pi) /
+            2 *
+            pow(2, zoom).toInt())
         .toInt();
     return {'x': x, 'y': y};
   }
@@ -117,10 +72,10 @@ class _MapScreenState extends State<MapScreen> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // OpenWeatherMap Satellite Tile Layer
+                      // Satellite Tile Layer
                       Image.network(
                         _getSatelliteUrl(
-                          _satelliteImages[_currentSatelliteIndex]['url']!,
+                          _satelliteUrl,
                           provider.latitude,
                           provider.longitude,
                           _zoomLevel,
@@ -134,7 +89,7 @@ class _MapScreenState extends State<MapScreen> {
                         },
                         errorBuilder: (context, error, stackTrace) {
                           print(
-                              '🛰️ OpenWeatherMap satellite load failed: $error'); // Debug output
+                              '🛰️ Satellite map load failed: $error'); // Debug output
                           return Container(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -152,13 +107,13 @@ class _MapScreenState extends State<MapScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.satellite_alt,
+                                    Icons.cloud,
                                     size: 80,
                                     color: Colors.cyan.withOpacity(0.5),
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'OpenWeatherMap Satellite',
+                                    'Cloud Cover Map',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.7),
                                       fontSize: 16,
@@ -166,26 +121,10 @@ class _MapScreenState extends State<MapScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    '${_satelliteImages[_currentSatelliteIndex]['name']}',
+                                    'Showing cloud coverage worldwide',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.6),
                                       fontSize: 12,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      setState(() {
-                                        _currentSatelliteIndex =
-                                            (_currentSatelliteIndex + 1) %
-                                                _satelliteImages.length;
-                                      });
-                                    },
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Try Another'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.cyan
-                                          .withOpacity(0.3),
                                     ),
                                   ),
                                 ],
@@ -231,7 +170,7 @@ class _MapScreenState extends State<MapScreen> {
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
-                                    'Loading ${_satelliteImages[_currentSatelliteIndex]['name']}...',
+                                    'Loading cloud cover map...',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.7),
                                       fontSize: 14,
@@ -365,9 +304,9 @@ class _MapScreenState extends State<MapScreen> {
                         size: 18,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        _satelliteImages[_currentSatelliteIndex]['name']!,
-                        style: const TextStyle(
+                      const Text(
+                        'Satellite Map',
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,

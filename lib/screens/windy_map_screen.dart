@@ -33,6 +33,7 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
   void _initializeWebView() {
     _webViewController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF0A0E27))
       ..loadRequest(Uri.parse(_buildWindyUrl(33.6584, 73.0532, _selectedLayer)));
   }
 
@@ -69,11 +70,15 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0A0E27),
       body: Consumer<WeatherProvider>(
         builder: (context, provider, _) {
           return Stack(
             children: [
-              WebViewWidget(controller: _webViewController),
+              // WebView with performance optimizations
+              WebViewWidget(
+                controller: _webViewController,
+              ),
               // Location header overlay
               Positioned(
                 top: 0,
@@ -154,6 +159,7 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
                   ),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
                     child: Row(
                       children: _layers
                           .map((layer) => Padding(

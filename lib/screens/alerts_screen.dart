@@ -62,7 +62,7 @@ class _AlertsScreenState extends State<AlertsScreen>
               Expanded(
                 child: Consumer<WeatherProvider>(
                   builder: (context, provider, _) {
-                    final alerts = provider.activeAlerts;
+                    final alerts = provider.activeAlerts.reversed.toList();
 
                     if (alerts.isEmpty) {
                       return _buildEmptyState(provider);

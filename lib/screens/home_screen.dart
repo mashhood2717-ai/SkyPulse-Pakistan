@@ -36,6 +36,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
   String? _lastNavigatedCity; // Track last auto-swiped city to prevent loops
+  bool _isReturningHome = false; // Flag to prevent auto-swipe when returning home
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -187,22 +188,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _restoreInitialLocation(WeatherProvider provider) {
     if (_cachedInitialWeather != null && _initialLocationCity != null) {
+      print('📋 [HomeScreen] Restoring initial weather for $_initialLocationCity');
       provider.restoreCachedWeather(
         _cachedInitialWeather!,
         _initialLocationCity!,
         _initialLocationCountry ?? '',
       );
+      // Refresh METAR and AQI data for initial location
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          provider.refresh();
+        }
+      });
     }
   }
 
   /// Go to the first page (current location)
   void _goToFirstPage() {
     if (_currentPage != 0 && _pageController.hasClients) {
+      _isReturningHome = true; // Set flag before animating
       _pageController.animateToPage(
         0,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-      );
+      ).then((_) {
+        // Clear flag after animation completes
+        Future.delayed(const Duration(milliseconds: 600), () {
+          if (mounted) {
+            setState(() => _isReturningHome = false);
+          }
+        });
+      });
     }
   }
 
@@ -690,6 +706,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               final previousPage = _currentPage;
               setState(() => _currentPage = index);
 
+              // Skip navigation if we're just returning home via button
+              if (_isReturningHome) {
+                print('📱 [HomeScreen] Returning home - skipping auto-swipe');
+                if (index == 0 && previousPage > 0) {
+                  _restoreInitialLocation(provider);
+                }
+                return;
+              }
+
               // Only navigate to favorite if swiping to a favorite card (index > 0)
               if (index > 0 && index - 1 < _favorites.length) {
                 final favorite = _favorites[index - 1];
@@ -747,84 +772,85 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildGlassFavoriteCard(String cityName, String countryCode,
       {bool isActive = false}) {
-    // When active, wrap with Consumer to listen for updates
-    if (isActive) {
-      return Consumer<WeatherProvider>(
-        builder: (context, provider, _) {
-          // Show temp if data loaded and not currently loading
-          final current = provider.weatherData?.current;
-          if (current != null && !provider.isLoading) {
-            final temp = current.temperature;
-            // Show data-loaded state
-            return _buildFavoriteCachedCard(
-                cityName, countryCode, temp.toString());
-          }
-          // Show loading state
+    // Always wrap with Consumer to listen for updates - both active and inactive
+    return Consumer<WeatherProvider>(
+      builder: (context, provider, _) {
+        // Show temp and details if data loaded and not currently loading
+        final current = provider.weatherData?.current;
+        if (current != null && !provider.isLoading && isActive) {
+          final temp = current.temperature;
+          // Show data-loaded state with full details
+          return _buildFavoriteCachedCard(
+              cityName, countryCode, temp.toString());
+        }
+        
+        // Show loading state
+        if (isActive) {
           return _buildFavoriteLoadingCard(cityName, countryCode);
-        },
-      );
-    }
+        }
 
-    // When inactive, just show glass card with city name
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.blue.withOpacity(0.3),
-                Colors.purple.withOpacity(0.2),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
+        // When inactive, show glass card with city name
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.blue.withOpacity(0.3),
+                    Colors.purple.withOpacity(0.2),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                cityName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (countryCode.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  countryCode,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 10,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    ),
                   ),
-                ),
-              ],
-            ],
+                  const SizedBox(height: 6),
+                  Text(
+                    cityName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (countryCode.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      countryCode,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

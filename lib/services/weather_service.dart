@@ -1,15 +1,19 @@
 import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
-import 'package:geocoding/geocoding.dart' as geocoding;
 import '../models/weather_model.dart';
 
 class WeatherService {
   static const String baseUrl = 'https://api.open-meteo.com/v1/forecast';
-  static const String geocodingUrl =
-      'https://geocoding-api.open-meteo.com/v1/search';
   static const String aqiUrl =
       'https://air-quality-api.open-meteo.com/v1/air-quality';
+  
+  // Google Geocoding API
+  static const String googleGeocodingUrl =
+      'https://maps.googleapis.com/maps/api/geocode/json';
+  
+  // TODO: Replace with your actual Google API key
+  static const String googleApiKey = 'YOUR_GOOGLE_API_KEY_HERE';
 
   // Fetch weather data by coordinates
   Future<WeatherData> getWeatherByCoordinates(
@@ -92,17 +96,17 @@ class WeatherService {
     }
   }
 
-  // Get coordinates from city name
+  // Get coordinates from city name using Google Geocoding API
   Future<Map<String, dynamic>> getCoordinatesFromCity(String cityName) async {
     try {
       final url = Uri.parse(
-          '$geocodingUrl?name=${Uri.encodeComponent(cityName)}&count=1&language=en&format=json');
+          '$googleGeocodingUrl?address=${Uri.encodeComponent(cityName)}&key=$googleApiKey');
 
       print('🔍 Searching for city: $cityName');
       final response = await http.get(url).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          print('⏱️ [Geocoding] Request timeout after 10 seconds');
+          print('⏱️ [Google Geocoding] Request timeout after 10 seconds');
           throw TimeoutException('Geocoding request timeout');
         },
       );
@@ -110,20 +114,39 @@ class WeatherService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['results'] == null || data['results'].isEmpty) {
+        if (data['status'] != 'OK' || data['results'] == null || data['results'].isEmpty) {
+          print('⚠️ [Google Geocoding] Status: ${data['status']}, Error: ${data['error_message'] ?? 'No results'}');
           throw Exception('City not found');
         }
 
         final result = data['results'][0];
-        print('✅ City found: ${result['name']}');
+        final location = result['geometry']['location'];
+        
+        // Extract city name and country from address components
+        String name = cityName;
+        String country = '';
+        
+        for (final component in result['address_components'] ?? []) {
+          final types = List<String>.from(component['types'] ?? []);
+          if (types.contains('locality')) {
+            name = component['long_name'];
+          } else if (types.contains('administrative_area_level_1') && name == cityName) {
+            name = component['long_name'];
+          }
+          if (types.contains('country')) {
+            country = component['short_name'] ?? '';
+          }
+        }
+        
+        print('✅ City found: $name, $country');
         return {
-          'latitude': result['latitude'],
-          'longitude': result['longitude'],
-          'name': result['name'],
-          'country': result['country_code'] ?? result['country'] ?? '',
+          'latitude': location['lat'],
+          'longitude': location['lng'],
+          'name': name,
+          'country': country,
         };
       } else {
-        throw Exception('Failed to find city');
+        throw Exception('Failed to find city: ${response.statusCode}');
       }
     } catch (e) {
       print('❌ Error finding city: $e');
@@ -144,37 +167,68 @@ class WeatherService {
     }
   }
 
-  // Reverse geocoding: Get city name from coordinates using geocoding package
+  // Reverse geocoding: Get city name from coordinates using Google Geocoding API
   Future<Map<String, dynamic>> getCityFromCoordinates(
       double latitude, double longitude) async {
     try {
       print('🔍 Reverse geocoding: $latitude, $longitude');
 
-      // Use the geocoding package for reverse geocoding
-      final placemarks = await geocoding.placemarkFromCoordinates(
-        latitude,
-        longitude,
+      final url = Uri.parse(
+          '$googleGeocodingUrl?latlng=$latitude,$longitude&key=$googleApiKey');
+
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('⏱️ [Google Geocoding] Reverse geocoding timeout');
+          throw TimeoutException('Reverse geocoding timeout');
+        },
       );
 
-      if (placemarks.isNotEmpty) {
-        final placemark = placemarks[0];
-        final cityName = placemark.locality ??
-            placemark.administrativeArea ??
-            'Current Location';
-        final countryCode = placemark.isoCountryCode ?? '';
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
 
-        print('✅ Location found: $cityName, $countryCode');
+        if (data['status'] != 'OK' || data['results'] == null || data['results'].isEmpty) {
+          print('⚠️ [Google Geocoding] Reverse: Status: ${data['status']}');
+          return {
+            'name': 'Current Location',
+            'country': '',
+            'latitude': latitude,
+            'longitude': longitude,
+          };
+        }
+
+        final result = data['results'][0];
+        
+        // Extract city name and country from address components
+        String cityName = 'Current Location';
+        String country = '';
+        
+        for (final component in result['address_components'] ?? []) {
+          final types = List<String>.from(component['types'] ?? []);
+          if (types.contains('locality')) {
+            cityName = component['long_name'];
+          } else if (types.contains('administrative_area_level_1') && cityName == 'Current Location') {
+            cityName = component['long_name'];
+          }
+          if (types.contains('country')) {
+            country = component['short_name'] ?? '';
+          }
+        }
+
+        print('✅ Location found: $cityName, $country');
         return {
           'name': cityName,
-          'country': countryCode,
+          'country': country,
           'latitude': latitude,
           'longitude': longitude,
         };
       } else {
-        print('⚠️ No placemarks found');
+        print('⚠️ [Google Geocoding] Failed: ${response.statusCode}');
         return {
           'name': 'Current Location',
           'country': '',
+          'latitude': latitude,
+          'longitude': longitude,
         };
       }
     } catch (e) {
@@ -182,6 +236,8 @@ class WeatherService {
       return {
         'name': 'Current Location',
         'country': '',
+        'latitude': latitude,
+        'longitude': longitude,
       };
     }
   }

@@ -17,7 +17,7 @@
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="YOUR_GOOGLE_MAPS_API_KEY_HERE" />
+            android:value="AIzaSyDjZ0ZlSS19MP0uecz0XeyxriUCl-aNvMo" />
         
         <!-- Default Firebase Notification Channel -->
         <meta-data

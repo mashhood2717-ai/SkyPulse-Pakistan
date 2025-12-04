@@ -12,8 +12,8 @@ class WeatherService {
   static const String googleGeocodingUrl =
       'https://maps.googleapis.com/maps/api/geocode/json';
   
-  // TODO: Replace with your actual Google API key
-  static const String googleApiKey = 'YOUR_GOOGLE_API_KEY_HERE';
+  // Google API key (same as Google Maps)
+  static const String googleApiKey = 'AIzaSyDjZ0ZlSS19MP0uecz0XeyxriUCl-aNvMo';
 
   // Fetch weather data by coordinates
   Future<WeatherData> getWeatherByCoordinates(

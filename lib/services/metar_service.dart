@@ -57,15 +57,23 @@ class MetarService {
   };
 
   /// Try to fetch METAR data for any city by searching nearby airports (optimized)
+  /// PRIORITY: Uses coordinates first (more accurate), then falls back to city name lookup
   Future<MetarData?> getMetarDataForCity(
       String cityName, double latitude, double longitude) async {
-    print('🔍 Attempting to find METAR data for $cityName');
+    print('🔍 Attempting to find METAR data for $cityName at ($latitude, $longitude)');
 
-    // 1. First, check if we have a known airport for this city (no await needed)
+    // 1. FIRST: Search for nearby airports using coordinates (most reliable)
+    print('   📍 Searching for nearby airports by coordinates...');
+    final nearbyMetar = await _searchNearbyAirports(latitude, longitude);
+    if (nearbyMetar != null) {
+      print('   ✅ Found METAR from nearby airport using coordinates!');
+      return nearbyMetar;
+    }
+
+    // 2. FALLBACK: Check if we have a known airport for this city name
     final knownIcao = _getKnownIcaoCode(cityName);
     if (knownIcao != null) {
-      print('   Found known airport: $knownIcao (attempting fetch)');
-      // Try to fetch from known airport
+      print('   🔄 Fallback: trying known airport $knownIcao for city name "$cityName"');
       final metar = await _fetchMetarByIcao(knownIcao).timeout(
         const Duration(seconds: 2),
         onTimeout: () => null,
@@ -73,14 +81,6 @@ class MetarService {
       if (metar != null) {
         return metar;
       }
-    }
-
-    // 2. If not found, search for nearby airports using coordinates
-    print('   Searching for nearby airports at ($latitude, $longitude)...');
-    final nearbyMetar = await _searchNearbyAirports(latitude, longitude);
-    if (nearbyMetar != null) {
-      print('   ✅ Found METAR from nearby airport!');
-      return nearbyMetar;
     }
 
     print('   ⏭️ No METAR available, using weather API only');
@@ -120,11 +120,12 @@ class MetarService {
   /// Search for airports within a radius and try to get METAR (optimized - fetch only FIRST airport)
   Future<MetarData?> _searchNearbyAirports(
       double latitude, double longitude) async {
-    // List of nearby airports (20km radius for more accurate local data)
+    // List of nearby airports (50km radius for good coverage while still local)
     final nearbyAirports =
-        _findNearbyAirportICAOs(latitude, longitude, radiusKm: 20);
+        _findNearbyAirportICAOs(latitude, longitude, radiusKm: 50);
 
     if (nearbyAirports.isEmpty) {
+      print('   ⚠️ No airports found within 50km radius');
       return null;
     }
 
@@ -146,25 +147,47 @@ class MetarService {
 
   /// Find nearby airport ICAO codes (optimized - return sorted by distance)
   List<String> _findNearbyAirportICAOs(double latitude, double longitude,
-      {double radiusKm = 40}) {
+      {double radiusKm = 50}) {
     // Database of major world airports with coordinates
+    // Using 50km radius for better coverage while still being local
     final airports = {
-      // Pakistan - prioritize these
-      'OPIS': {'lat': 33.6167, 'lon': 73.0994}, // Islamabad
-      'OPKC': {'lat': 24.9065, 'lon': 67.1608}, // Karachi
-      'OPLA': {'lat': 31.5217, 'lon': 74.4036}, // Lahore
-      'OPPS': {'lat': 33.9939, 'lon': 71.5146}, // Peshawar
+      // Pakistan - all major airports
+      'OPIS': {'lat': 33.6167, 'lon': 73.0994}, // Islamabad International
+      'OPRN': {'lat': 33.6169, 'lon': 73.0991}, // Benazir Bhutto (old Islamabad)
+      'OPKC': {'lat': 24.9065, 'lon': 67.1608}, // Karachi Jinnah
+      'OPLA': {'lat': 31.5217, 'lon': 74.4036}, // Lahore Allama Iqbal
+      'OPPS': {'lat': 33.9939, 'lon': 71.5146}, // Peshawar Bacha Khan
       'OPQT': {'lat': 30.2514, 'lon': 66.9378}, // Quetta
       'OPMT': {'lat': 30.2031, 'lon': 71.4197}, // Multan
       'OPFA': {'lat': 31.3650, 'lon': 72.9947}, // Faisalabad
+      'OPST': {'lat': 32.5356, 'lon': 74.3639}, // Sialkot
+      'OPGD': {'lat': 25.2333, 'lon': 62.3294}, // Gwadar
+      'OPDI': {'lat': 35.9186, 'lon': 74.7364}, // Gilgit
+      'OPSD': {'lat': 35.3356, 'lon': 75.5364}, // Skardu
 
-      // International (add more as needed)
+      // International - major hubs
       'OMDB': {'lat': 25.2528, 'lon': 55.3644}, // Dubai
+      'OMDW': {'lat': 24.8961, 'lon': 55.1619}, // Dubai Al Maktoum
+      'OERK': {'lat': 24.9576, 'lon': 46.6988}, // Riyadh
+      'OEJN': {'lat': 21.6796, 'lon': 39.1565}, // Jeddah
+      'OEMA': {'lat': 21.4859, 'lon': 39.6987}, // Makkah (nearby)
       'EGLL': {'lat': 51.4700, 'lon': -0.4543}, // London Heathrow
       'KJFK': {'lat': 40.6413, 'lon': -73.7781}, // New York JFK
+      'KEWR': {'lat': 40.6925, 'lon': -74.1687}, // Newark
+      'KLGA': {'lat': 40.7769, 'lon': -73.8740}, // LaGuardia
       'KLAX': {'lat': 33.9416, 'lon': -118.4085}, // Los Angeles
-      'VIDP': {'lat': 28.5665, 'lon': 77.1031}, // Delhi
+      'VIDP': {'lat': 28.5665, 'lon': 77.1031}, // Delhi Indira Gandhi
       'VABB': {'lat': 19.0896, 'lon': 72.8656}, // Mumbai
+      'VTBS': {'lat': 13.6900, 'lon': 100.7501}, // Bangkok
+      'WSSS': {'lat': 1.3644, 'lon': 103.9915}, // Singapore Changi
+      'VHHH': {'lat': 22.3080, 'lon': 113.9185}, // Hong Kong
+      'RJTT': {'lat': 35.5533, 'lon': 139.7811}, // Tokyo Haneda
+      'LFPG': {'lat': 49.0097, 'lon': 2.5479}, // Paris CDG
+      'EDDF': {'lat': 50.0264, 'lon': 8.5431}, // Frankfurt
+      'EHAM': {'lat': 52.3105, 'lon': 4.7683}, // Amsterdam
+      'LTFM': {'lat': 41.2608, 'lon': 28.7419}, // Istanbul
+      'CYYZ': {'lat': 43.6772, 'lon': -79.6306}, // Toronto
+      'YSSY': {'lat': -33.9461, 'lon': 151.1772}, // Sydney
     };
 
     final nearby = <MapEntry<String, double>>[];

@@ -174,7 +174,7 @@ class WeatherService {
       print('🔍 Reverse geocoding: $latitude, $longitude');
 
       final url = Uri.parse(
-          '$googleGeocodingUrl?latlng=$latitude,$longitude&key=$googleApiKey');
+          '$googleGeocodingUrl?latlng=$latitude,$longitude&key=$googleApiKey&result_type=locality|administrative_area_level_2|administrative_area_level_1');
 
       final response = await http.get(url).timeout(
         const Duration(seconds: 10),
@@ -200,22 +200,39 @@ class WeatherService {
         final result = data['results'][0];
         
         // Extract city name and country from address components
-        String cityName = 'Current Location';
+        // Priority: locality > administrative_area_level_2 > administrative_area_level_1
+        String? locality;
+        String? adminArea2;
+        String? adminArea1;
         String country = '';
         
         for (final component in result['address_components'] ?? []) {
           final types = List<String>.from(component['types'] ?? []);
           if (types.contains('locality')) {
-            cityName = component['long_name'];
-          } else if (types.contains('administrative_area_level_1') && cityName == 'Current Location') {
-            cityName = component['long_name'];
+            locality = component['long_name'];
+          }
+          if (types.contains('administrative_area_level_2')) {
+            adminArea2 = component['long_name'];
+          }
+          if (types.contains('administrative_area_level_1')) {
+            adminArea1 = component['long_name'];
           }
           if (types.contains('country')) {
             country = component['short_name'] ?? '';
           }
         }
 
-        print('✅ Location found: $cityName, $country');
+        // Use the most specific name available
+        String cityName = locality ?? adminArea2 ?? adminArea1 ?? 'Current Location';
+        
+        // Clean up common suffixes for cleaner display
+        cityName = cityName
+            .replaceAll(' Capital Territory', '')
+            .replaceAll(' Metropolitan Area', '')
+            .replaceAll(' District', '')
+            .trim();
+
+        print('✅ Location found: $cityName, $country (locality=$locality, admin2=$adminArea2, admin1=$adminArea1)');
         return {
           'name': cityName,
           'country': country,

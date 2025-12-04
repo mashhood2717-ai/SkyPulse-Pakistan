@@ -123,22 +123,44 @@ class WeatherService {
         final location = result['geometry']['location'];
         
         // Extract city name and country from address components
-        String name = cityName;
+        // Priority: locality > sublocality > administrative_area_level_2 > search term
+        String? locality;
+        String? sublocality;
+        String? adminArea2;
         String country = '';
         
         for (final component in result['address_components'] ?? []) {
           final types = List<String>.from(component['types'] ?? []);
           if (types.contains('locality')) {
-            name = component['long_name'];
-          } else if (types.contains('administrative_area_level_1') && name == cityName) {
-            name = component['long_name'];
+            locality = component['long_name'];
+          }
+          if (types.contains('sublocality') || types.contains('sublocality_level_1')) {
+            sublocality = component['long_name'];
+          }
+          if (types.contains('administrative_area_level_2')) {
+            adminArea2 = component['long_name'];
           }
           if (types.contains('country')) {
             country = component['short_name'] ?? '';
           }
         }
         
-        print('✅ City found: $name, $country');
+        // Use the most specific name, fall back to original search term
+        // This ensures "Mailsi" stays as "Mailsi", not "Punjab"
+        String name = locality ?? sublocality ?? adminArea2 ?? cityName;
+        
+        // If the original search term looks like a specific place name (not a province),
+        // prefer keeping it over a generic admin area
+        if (name != cityName && 
+            locality == null && 
+            !cityName.toLowerCase().contains('province') &&
+            !cityName.toLowerCase().contains('state')) {
+          // The search term was specific but we only found admin areas
+          // Keep the original search term as it's likely more specific
+          name = cityName;
+        }
+        
+        print('✅ City found: $name, $country (locality=$locality, sublocality=$sublocality, admin2=$adminArea2)');
         return {
           'latitude': location['lat'],
           'longitude': location['lng'],

@@ -241,4 +241,105 @@ class WeatherService {
       };
     }
   }
+
+  // Google Places Autocomplete for search suggestions
+  static const String googlePlacesAutocompleteUrl =
+      'https://maps.googleapis.com/maps/api/place/autocomplete/json';
+
+  Future<List<Map<String, dynamic>>> getPlaceSuggestions(String input) async {
+    if (input.isEmpty) return [];
+
+    try {
+      final url = Uri.parse(
+          '$googlePlacesAutocompleteUrl?input=${Uri.encodeComponent(input)}&types=(cities)&key=$googleApiKey');
+
+      print('🔍 [Autocomplete] Searching: $input');
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          print('⏱️ [Autocomplete] Request timeout');
+          throw TimeoutException('Autocomplete timeout');
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['status'] != 'OK') {
+          print('⚠️ [Autocomplete] Status: ${data['status']}');
+          return [];
+        }
+
+        final predictions = data['predictions'] as List<dynamic>;
+        print('✅ [Autocomplete] Found ${predictions.length} suggestions');
+
+        return predictions.map((p) {
+          return {
+            'description': p['description'] ?? '',
+            'placeId': p['place_id'] ?? '',
+            'mainText': p['structured_formatting']?['main_text'] ?? '',
+            'secondaryText': p['structured_formatting']?['secondary_text'] ?? '',
+          };
+        }).toList();
+      } else {
+        print('⚠️ [Autocomplete] Failed: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('❌ [Autocomplete] Error: $e');
+      return [];
+    }
+  }
+
+  // Get place details (coordinates) from place_id
+  static const String googlePlaceDetailsUrl =
+      'https://maps.googleapis.com/maps/api/place/details/json';
+
+  Future<Map<String, dynamic>?> getPlaceDetails(String placeId) async {
+    try {
+      final url = Uri.parse(
+          '$googlePlaceDetailsUrl?place_id=$placeId&fields=geometry,name,address_components&key=$googleApiKey');
+
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => throw TimeoutException('Place details timeout'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['status'] != 'OK' || data['result'] == null) {
+          return null;
+        }
+
+        final result = data['result'];
+        final location = result['geometry']['location'];
+
+        // Extract city name and country
+        String name = result['name'] ?? '';
+        String country = '';
+
+        for (final component in result['address_components'] ?? []) {
+          final types = List<String>.from(component['types'] ?? []);
+          if (types.contains('locality')) {
+            name = component['long_name'];
+          }
+          if (types.contains('country')) {
+            country = component['short_name'] ?? '';
+          }
+        }
+
+        return {
+          'latitude': location['lat'],
+          'longitude': location['lng'],
+          'name': name,
+          'country': country,
+        };
+      }
+      return null;
+    } catch (e) {
+      print('❌ [PlaceDetails] Error: $e');
+      return null;
+    }
+  }
 }

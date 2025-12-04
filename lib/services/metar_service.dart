@@ -120,9 +120,9 @@ class MetarService {
   /// Search for airports within a radius and try to get METAR (optimized - fetch only FIRST airport)
   Future<MetarData?> _searchNearbyAirports(
       double latitude, double longitude) async {
-    // List of nearby airports
+    // List of nearby airports (20km radius for more accurate local data)
     final nearbyAirports =
-        _findNearbyAirportICAOs(latitude, longitude, radiusKm: 40);
+        _findNearbyAirportICAOs(latitude, longitude, radiusKm: 20);
 
     if (nearbyAirports.isEmpty) {
       return null;

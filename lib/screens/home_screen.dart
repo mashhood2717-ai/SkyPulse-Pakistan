@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
@@ -10,6 +11,7 @@ import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
 import '../services/favorites_service.dart';
+import '../services/weather_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -32,6 +34,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final PageController _pageController = PageController();
+  final WeatherService _weatherService = WeatherService();
 
   bool _isFavorite = false;
   List<Map<String, dynamic>> _favorites = [];
@@ -40,6 +43,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
   bool _isAnimatingToPage = false; // Flag to prevent intermediate fetches during animation
+
+  // Search autocomplete
+  List<Map<String, dynamic>> _searchSuggestions = [];
+  bool _showSuggestions = false;
+  Timer? _debounceTimer;
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -109,11 +117,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     _pageController.dispose();
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    _debounceTimer?.cancel();
+    if (query.length < 2) {
+      setState(() {
+        _searchSuggestions = [];
+        _showSuggestions = false;
+      });
+      return;
+    }
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+      final suggestions = await _weatherService.getPlaceSuggestions(query);
+      if (mounted) {
+        setState(() {
+          _searchSuggestions = suggestions;
+          _showSuggestions = suggestions.isNotEmpty;
+        });
+      }
+    });
+  }
+
+  void _onSuggestionTap(Map<String, dynamic> suggestion) {
+    final mainText = suggestion['mainText'] as String? ?? '';
+    _searchController.text = mainText;
+    setState(() {
+      _showSuggestions = false;
+      _searchSuggestions = [];
+    });
+    _searchCity();
   }
 
   Future<void> _loadFavorites() async {
@@ -675,58 +714,144 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildGlassSearchBar() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.25),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: _searchController,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Search city...',
-              hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.6),
-                fontWeight: FontWeight.w400,
-              ),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                color: Colors.white.withOpacity(0.6),
-              ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Colors.white.withOpacity(0.8),
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.25),
+                  width: 1.5,
                 ),
-                onPressed: _searchCity,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Search city...',
+                  hintStyle: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontWeight: FontWeight.w400,
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search_rounded,
+                    color: Colors.white.withOpacity(0.6),
+                  ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      Icons.arrow_forward_rounded,
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                    onPressed: _searchCity,
+                  ),
+                ),
+                onChanged: _onSearchChanged,
+                onSubmitted: (_) {
+                  setState(() => _showSuggestions = false);
+                  _searchCity();
+                },
               ),
             ),
-            onSubmitted: (_) => _searchCity(),
+          ),
+        ),
+        if (_showSuggestions && _searchSuggestions.isNotEmpty)
+          _buildSuggestionsDropdown(),
+      ],
+    );
+  }
+
+  Widget _buildSuggestionsDropdown() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: _searchSuggestions.take(5).map((suggestion) {
+              return InkWell(
+                onTap: () => _onSuggestionTap(suggestion),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        color: Colors.white.withOpacity(0.6),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              suggestion['mainText'] ?? '',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if ((suggestion['secondaryText'] ?? '').isNotEmpty)
+                              Text(
+                                suggestion['secondaryText'],
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
       ),

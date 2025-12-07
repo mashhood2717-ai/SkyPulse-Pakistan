@@ -12,6 +12,7 @@ import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
 import '../services/favorites_service.dart';
 import '../services/weather_service.dart';
+import '../utils/theme_utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -385,19 +386,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Get isDay from provider for dynamic theme
+    final weatherProvider = Provider.of<WeatherProvider>(context);
+    final isDay = weatherProvider.weatherData?.current.isDay ?? true;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF1e3c72),
-              const Color(0xFF2a5298),
-              const Color(0xFF1e3c72).withOpacity(0.9),
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
+          gradient: WeatherTheme.getBackgroundGradient(isDay),
         ),
         child: SafeArea(
           child: Consumer2<WeatherProvider, FavoritesService>(

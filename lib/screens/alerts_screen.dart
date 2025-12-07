@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
 import '../services/alert_service.dart';
+import '../utils/theme_utils.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({Key? key}) : super(key: key);
@@ -41,19 +42,13 @@ class _AlertsScreenState extends State<AlertsScreen>
 
   @override
   Widget build(BuildContext context) {
+    final weatherProvider = Provider.of<WeatherProvider>(context);
+    final isDay = weatherProvider.weatherData?.current.isDay ?? true;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF1A1F3A),
-              const Color(0xFF0D1321),
-              const Color(0xFF1A1F3A).withOpacity(0.9),
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
+          gradient: WeatherTheme.getBackgroundGradient(isDay),
         ),
         child: SafeArea(
           child: Column(

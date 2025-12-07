@@ -7,6 +7,7 @@ import '../providers/weather_provider.dart';
 import '../services/weather_service.dart';
 import '../models/weather_model.dart';
 import '../widgets/skeleton_loader.dart';
+import '../utils/theme_utils.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final Function(String)? onLocationSelected;
@@ -204,19 +205,13 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final weatherProvider = Provider.of<WeatherProvider>(context);
+    final isDay = weatherProvider.weatherData?.current.isDay ?? true;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF667eea),
-              const Color(0xFF764ba2),
-              const Color(0xFF667eea).withOpacity(0.8),
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ),
+          gradient: WeatherTheme.getBackgroundGradient(isDay),
         ),
         child: SafeArea(
           child: Column(

@@ -269,15 +269,19 @@ class WeatherService {
           }
         }
 
-        // Prefer street, route, neighborhood, sublocality, then locality/city
-        String address = street ??
-            route ??
-            neighborhood ??
-            sublocality ??
-            locality ??
-            adminArea2 ??
-            adminArea1 ??
-            'Current Location';
+        // Build a combined address: neighborhood/sublocality + locality (e.g., "I-8/3 Islamabad")
+        // Priority: neighborhood (most specific) > sublocality > route, combined with city
+        String address;
+        final cityName = locality ?? adminArea2 ?? adminArea1;
+        final detailedArea = neighborhood ?? sublocality ?? route;
+        
+        if (detailedArea != null && cityName != null && detailedArea != cityName) {
+          // Combine detailed area with city: "I-8/3 Islamabad"
+          address = '$detailedArea $cityName';
+        } else {
+          // Fallback to most specific available
+          address = detailedArea ?? cityName ?? 'Current Location';
+        }
 
         // Clean up common suffixes for cleaner display
         address = address

@@ -44,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   WeatherData? _cachedInitialWeather;
   bool _isAnimatingToPage =
       false; // Flag to prevent intermediate fetches during animation
+  bool _isLocationGPSBased = true; // True if current location is from GPS, false if searched
 
   // Search autocomplete
   List<Map<String, dynamic>> _searchSuggestions = [];
@@ -127,8 +128,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _locationRefreshTimer?.cancel();
     _locationRefreshTimer =
         Timer.periodic(const Duration(seconds: 30), (timer) {
-      // Only refresh if on the main card (current location, index 0)
-      if (_currentPage == 0 && mounted) {
+      // Only refresh if on the main card AND location is GPS-based (not searched)
+      if (_currentPage == 0 && mounted && _isLocationGPSBased) {
         print('🔄 [30s Timer] Refreshing current location...');
         final provider = context.read<WeatherProvider>();
         provider.fetchWeatherByLocation().then((_) {
@@ -199,6 +200,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _searchCity() {
     if (_searchController.text.isNotEmpty) {
+      // Mark as searched location, not GPS-based (disables auto-refresh)
+      _isLocationGPSBased = false;
       context
           .read<WeatherProvider>()
           .fetchWeatherByCity(_searchController.text);
@@ -258,6 +261,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// Go to the first page (current location)
   void _goToFirstPage() {
     final provider = context.read<WeatherProvider>();
+
+    // Clear search field and suggestions
+    _searchController.clear();
+    setState(() {
+      _showSuggestions = false;
+      _searchSuggestions = [];
+    });
+
+    // Mark as GPS-based location (enables auto-refresh)
+    _isLocationGPSBased = true;
 
     // Immediately restore cached data for instant UI response
     _restoreInitialLocation(provider);

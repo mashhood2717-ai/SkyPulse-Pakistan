@@ -117,27 +117,26 @@ class MetarService {
     }
   }
 
-  /// Search for airports within a radius and try to get METAR (optimized - fetch only FIRST airport)
+  /// Search for airports within a radius and try to get METAR (tries up to 3 closest airports)
   Future<MetarData?> _searchNearbyAirports(
       double latitude, double longitude) async {
-    // List of nearby airports (50km radius for good coverage while still local)
+    // List of nearby airports (20km radius for accurate local weather)
     final nearbyAirports =
-        _findNearbyAirportICAOs(latitude, longitude, radiusKm: 50);
+        _findNearbyAirportICAOs(latitude, longitude, radiusKm: 20);
 
     if (nearbyAirports.isEmpty) {
-      print('   ⚠️ No airports found within 50km radius');
+      print('   ⚠️ No airports found within 20km radius');
       return null;
     }
 
-    // ⚡ OPTIMIZATION: Try only the FIRST (closest) airport, don't wait for multiple
-    // This is much faster than parallel fetching
-    for (final icao in nearbyAirports.take(1)) {
-      // Take only first airport - the closest one
+    // Try up to 3 closest airports in case some don't have METAR data
+    for (final icao in nearbyAirports.take(3)) {
       final metar = await _fetchMetarByIcao(icao).timeout(
         const Duration(seconds: 2),
         onTimeout: () => null,
       );
       if (metar != null) {
+        print('   ✅ Found METAR from nearby airport using coordinates!');
         return metar;
       }
     }
@@ -147,9 +146,9 @@ class MetarService {
 
   /// Find nearby airport ICAO codes (optimized - return sorted by distance)
   List<String> _findNearbyAirportICAOs(double latitude, double longitude,
-      {double radiusKm = 50}) {
+      {double radiusKm = 20}) {
     // Database of major world airports with coordinates
-    // Using 50km radius for better coverage while still being local
+    // Using 20km radius for accurate local weather data
     final airports = {
       // Pakistan - all major airports
       'OPIS': {'lat': 33.6167, 'lon': 73.0994}, // Islamabad International

@@ -180,7 +180,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     });
   }
 
-  void _onSuggestionTap(Map<String, dynamic> suggestion) {
+  void _onSuggestionTap(Map<String, dynamic> suggestion) async {
+    final placeId = suggestion['placeId'] as String? ?? '';
     final mainText = suggestion['mainText'] as String? ?? '';
 
     // Close dropdown immediately and clear state
@@ -192,10 +193,32 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Unfocus keyboard first
     FocusScope.of(context).unfocus();
 
-    // Clear search text and fetch weather
+    // Clear search text
     _searchController.clear();
     _isLocationGPSBased = false;
-    context.read<WeatherProvider>().fetchWeatherByCity(mainText);
+
+    // Capture provider before async gap to avoid BuildContext warning
+    final provider = context.read<WeatherProvider>();
+
+    // Use place_id to get accurate coordinates for specific locations
+    // This ensures "Model Town Lahore" gets precise coordinates, not just "Lahore"
+    if (placeId.isNotEmpty) {
+      final placeDetails = await _weatherService.getPlaceDetails(placeId);
+      if (!mounted) return;
+      if (placeDetails != null) {
+        print('📍 [Search] Using precise coordinates for: $mainText');
+        provider.fetchWeatherByCoordinates(
+          placeDetails['latitude'],
+          placeDetails['longitude'],
+          cityName: mainText,
+          countryCode: placeDetails['country'] ?? '',
+        );
+        return;
+      }
+    }
+
+    // Fallback to city name search if place details fail
+    provider.fetchWeatherByCity(mainText);
   }
 
   Future<void> _loadFavorites() async {
@@ -277,6 +300,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     setState(() {
       _showSuggestions = false;
       _searchSuggestions = [];
+      // Update _currentPage immediately so card shows at full opacity
+      _currentPage = 0;
     });
 
     // Mark as GPS-based location (enables auto-refresh)
@@ -286,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _restoreInitialLocation(provider);
 
     // Animate to page 0
-    if (_currentPage != 0 && _pageController.hasClients) {
+    if (_pageController.hasClients && _pageController.page != 0) {
       // Set flag to prevent intermediate page fetches
       _isAnimatingToPage = true;
 

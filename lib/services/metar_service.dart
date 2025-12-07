@@ -150,7 +150,7 @@ class MetarService {
   List<String> _findNearbyAirportICAOs(double latitude, double longitude,
       {double radiusKm = 20}) {
     // Database of major world airports with coordinates
-    // Using 20km radius for accurate local weather data
+    // 20km radius is sufficient for metro areas
     final airports = {
       // Pakistan - all major airports
       'OPIS': {'lat': 33.6167, 'lon': 73.0994}, // Islamabad International

@@ -252,12 +252,25 @@ class WeatherProvider extends ChangeNotifier {
     }
   }
 
-  // Fetch weather by coordinates directly (for cached location)
+  // Fetch weather by coordinates directly (for cached location or specific places)
   Future<void> fetchWeatherByCoordinates(
-      double latitude, double longitude) async {
+    double latitude,
+    double longitude, {
+    String? cityName,
+    String? countryCode,
+  }) async {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
+
+    // Update city/country if provided (for specific location searches)
+    if (cityName != null) {
+      _cityName = cityName;
+    }
+    if (countryCode != null) {
+      _countryCode = countryCode;
+    }
+
     notifyListeners();
 
     try {

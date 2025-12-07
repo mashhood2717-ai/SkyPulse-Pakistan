@@ -328,8 +328,12 @@ class WeatherService {
     if (input.isEmpty) return [];
 
     try {
+      // No type restriction - show all places including:
+      // - Cities, neighborhoods, areas (Model Town, DHA, Bahria Town)
+      // - Specific locations (Capital Smart City, etc.)
+      // - Establishments and addresses
       final url = Uri.parse(
-          '$googlePlacesAutocompleteUrl?input=${Uri.encodeComponent(input)}&types=(cities)&key=$googleApiKey');
+          '$googlePlacesAutocompleteUrl?input=${Uri.encodeComponent(input)}&key=$googleApiKey');
 
       print('🔍 [Autocomplete] Searching: $input');
       final response = await http.get(url).timeout(

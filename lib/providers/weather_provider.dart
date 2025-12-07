@@ -54,6 +54,106 @@ class WeatherProvider extends ChangeNotifier {
     return _activeAlerts.where((alert) => !(alert['isRead'] ?? false)).length;
   }
 
+  /// Check if two city names are in the same metro area (for METAR matching)
+  bool _isSameCityArea(String city1, String city2) {
+    final c1 = city1.toLowerCase().trim();
+    final c2 = city2.toLowerCase().trim();
+
+    // Direct match
+    if (c1 == c2 || c1.contains(c2) || c2.contains(c1)) return true;
+
+    // Pakistan major cities and their neighborhoods
+    const cityAreas = {
+      'lahore': [
+        'samanabad',
+        'model town',
+        'gulberg',
+        'dha',
+        'johar town',
+        'iqbal town',
+        'allama iqbal town',
+        'garden town',
+        'faisal town',
+        'township',
+        'cantt',
+        'cantonment',
+        'bahria',
+        'wapda town',
+        'valencia',
+        'raiwind'
+      ],
+      'karachi': [
+        'dha',
+        'clifton',
+        'gulshan',
+        'nazimabad',
+        'north nazimabad',
+        'korangi',
+        'malir',
+        'saddar',
+        'bahria',
+        'pechs',
+        'tariq road'
+      ],
+      'islamabad': [
+        'f-6',
+        'f-7',
+        'f-8',
+        'f-10',
+        'f-11',
+        'g-6',
+        'g-7',
+        'g-8',
+        'g-9',
+        'g-10',
+        'g-11',
+        'i-8',
+        'i-9',
+        'i-10',
+        'e-7',
+        'e-11',
+        'dha',
+        'bahria',
+        'blue area'
+      ],
+      'rawalpindi': [
+        'saddar',
+        'cantt',
+        'cantonment',
+        'chaklala',
+        'satellite town',
+        'bahria',
+        'commercial market'
+      ],
+      'faisalabad': [
+        'dha',
+        'peoples colony',
+        'madina town',
+        'ghulam muhammad abad'
+      ],
+      'multan': ['dha', 'cantt', 'cantonment', 'bosan road'],
+      'peshawar': ['hayatabad', 'university town', 'cantt', 'cantonment'],
+    };
+
+    // Find which major city each belongs to
+    String? majorCity1, majorCity2;
+
+    for (final entry in cityAreas.entries) {
+      final major = entry.key;
+      final areas = entry.value;
+
+      if (c1.contains(major) || areas.any((a) => c1.contains(a))) {
+        majorCity1 = major;
+      }
+      if (c2.contains(major) || areas.any((a) => c2.contains(a))) {
+        majorCity2 = major;
+      }
+    }
+
+    // Both in same metro area
+    return majorCity1 != null && majorCity1 == majorCity2;
+  }
+
   /// Update the home screen widget with current weather data
   void _updateHomeWidget() {
     if (_weatherData != null && _cityName.isNotEmpty) {
@@ -399,9 +499,11 @@ class WeatherProvider extends ChangeNotifier {
         return {'current': {}};
       },
     ).then((aqiData) {
-      // ⚠️ CRITICAL: Check if we're STILL viewing the same city (case-insensitive)
-      if (_cityName.toLowerCase() != targetCity.toLowerCase()) {
-        print('⏭️ [AQI] Ignoring AQI for $targetCity - now viewing $_cityName');
+      // ⚠️ CRITICAL: Check if we're STILL viewing the same city area
+      // Use flexible matching for neighborhoods (e.g., Samanabad ↔ Lahore)
+      if (!_isSameCityArea(_cityName, targetCity)) {
+        print(
+            '⏭️ [AQI] Ignoring AQI for $targetCity - now viewing $_cityName (different area)');
         return;
       }
 
@@ -465,11 +567,12 @@ class WeatherProvider extends ChangeNotifier {
           onTimeout: () => null,
         )
         .then((metarData) {
-      // ⚠️ CRITICAL: Check if we're STILL viewing the same city (case-insensitive)
-      // If user swiped to a different location, ignore this METAR
-      if (_cityName.toLowerCase() != targetCity.toLowerCase()) {
+      // ⚠️ CRITICAL: Check if we're STILL viewing the same city area
+      // If user swiped to a completely different location, ignore this METAR
+      // Use flexible matching for neighborhoods (e.g., Samanabad ↔ Lahore)
+      if (!_isSameCityArea(_cityName, targetCity)) {
         print(
-            '⏭️ [METAR] Ignoring METAR for $targetCity - now viewing $_cityName');
+            '⏭️ [METAR] Ignoring METAR for $targetCity - now viewing $_cityName (different area)');
         return;
       }
 

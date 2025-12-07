@@ -205,6 +205,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _searchController.clear();
     _isLocationGPSBased = false;
 
+    // Navigate back to main card (index 0) when searching
+    if (_currentPage != 0 && _pageController.hasClients) {
+      setState(() => _currentPage = 0);
+      _pageController.animateToPage(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+
     // Capture provider before async gap to avoid BuildContext warning
     final provider = context.read<WeatherProvider>();
 
@@ -243,6 +253,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_searchController.text.isNotEmpty) {
       // Mark as searched location, not GPS-based (disables auto-refresh)
       _isLocationGPSBased = false;
+
+      // Navigate back to main card (index 0) when searching
+      if (_currentPage != 0 && _pageController.hasClients) {
+        setState(() => _currentPage = 0);
+        _pageController.animateToPage(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+
       context
           .read<WeatherProvider>()
           .fetchWeatherByCity(_searchController.text);
@@ -356,6 +377,123 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     // 🔄 Reload favorites list to keep in sync
     _loadFavorites();
+  }
+
+  /// Check if two city names likely refer to the same area
+  /// Handles neighborhoods within major cities (e.g., Samanabad in Lahore)
+  bool _isSameCityArea(String providerCity, String cardCity) {
+    // Pakistan major cities and their neighborhoods/areas
+    const cityAreas = {
+      'lahore': [
+        'samanabad',
+        'model town',
+        'gulberg',
+        'dha',
+        'johar town',
+        'iqbal town',
+        'allama iqbal town',
+        'garden town',
+        'faisal town',
+        'township',
+        'cantt',
+        'cantonment',
+        'bahria',
+        'wapda town',
+        'valencia',
+        'raiwind'
+      ],
+      'karachi': [
+        'dha',
+        'clifton',
+        'gulshan',
+        'nazimabad',
+        'north nazimabad',
+        'korangi',
+        'malir',
+        'saddar',
+        'bahria',
+        'pechs',
+        'tariq road'
+      ],
+      'islamabad': [
+        'f-6',
+        'f-7',
+        'f-8',
+        'f-10',
+        'f-11',
+        'g-6',
+        'g-7',
+        'g-8',
+        'g-9',
+        'g-10',
+        'g-11',
+        'i-8',
+        'i-9',
+        'i-10',
+        'e-7',
+        'e-11',
+        'dha',
+        'bahria',
+        'blue area'
+      ],
+      'rawalpindi': [
+        'saddar',
+        'cantt',
+        'cantonment',
+        'chaklala',
+        'satellite town',
+        'bahria',
+        'commercial market'
+      ],
+      'faisalabad': [
+        'dha',
+        'peoples colony',
+        'madina town',
+        'ghulam muhammad abad'
+      ],
+      'multan': ['dha', 'cantt', 'cantonment', 'bosan road'],
+      'peshawar': ['hayatabad', 'university town', 'cantt', 'cantonment'],
+    };
+
+    // Find which major city each location belongs to
+    String? providerMajorCity;
+    String? cardMajorCity;
+
+    for (final entry in cityAreas.entries) {
+      final majorCity = entry.key;
+      final areas = entry.value;
+
+      // Check if providerCity is this major city or one of its areas
+      if (providerCity.contains(majorCity)) {
+        providerMajorCity = majorCity;
+      } else {
+        for (final area in areas) {
+          if (providerCity.contains(area)) {
+            providerMajorCity = majorCity;
+            break;
+          }
+        }
+      }
+
+      // Check if cardCity is this major city or one of its areas
+      if (cardCity.contains(majorCity)) {
+        cardMajorCity = majorCity;
+      } else {
+        for (final area in areas) {
+          if (cardCity.contains(area)) {
+            cardMajorCity = majorCity;
+            break;
+          }
+        }
+      }
+    }
+
+    // If both belong to the same major city, they're in the same area
+    if (providerMajorCity != null && cardMajorCity != null) {
+      return providerMajorCity == cardMajorCity;
+    }
+
+    return false;
   }
 
   Future<void> _checkFavorite() async {
@@ -1043,7 +1181,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 final isSameCity = providerCity == cardCity ||
                     providerCity.contains(cardCity) ||
                     cardCity.contains(providerCity) ||
-                    providerFirstWord == cardFirstWord;
+                    providerFirstWord == cardFirstWord ||
+                    _isSameCityArea(providerCity, cardCity);
 
                 // Only fetch if we're not already showing this city's data
                 if (!isSameCity) {
@@ -1105,28 +1244,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (isActive) {
       return Consumer<WeatherProvider>(
         builder: (context, provider, _) {
-          // Show full weather info ONLY if data loaded AND it matches this city
+          // ACTIVE CARD: Show whatever data is available
+          // The fetch was already triggered when navigating to this card
+          // No need for strict city matching - just show the data!
           final current = provider.weatherData?.current;
 
-          // More flexible city matching - extract first word and compare
-          final providerCity = provider.cityName.toLowerCase().trim();
-          final cardCity = cityName.toLowerCase().trim();
-
-          // Extract first word from both city names for comparison
-          final providerFirstWord =
-              providerCity.split(RegExp(r'[\s,.]+')).first;
-          final cardFirstWord = cardCity.split(RegExp(r'[\s,.]+')).first;
-
-          final isCorrectCity = providerCity == cardCity ||
-              providerCity.contains(cardCity) ||
-              cardCity.contains(providerCity) ||
-              providerFirstWord == cardFirstWord; // Match on first word
-
-          if (current != null && !provider.isLoading && isCorrectCity) {
+          if (current != null && !provider.isLoading) {
             // Show data-loaded state with FULL weather info
+            // Use the card's cityName for display, provider's data for weather
             return _buildFavoriteCachedCard(cityName, countryCode, current);
           }
-          // Show loading state if still loading or data is for wrong city
+          // Show loading state if still loading
           return _buildFavoriteLoadingCard(cityName, countryCode);
         },
       );

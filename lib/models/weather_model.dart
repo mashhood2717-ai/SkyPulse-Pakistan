@@ -368,10 +368,15 @@ class DailyForecast {
   final double minTemp;
   final int weatherCode;
   final int precipitationProbability;
+  final double precipitationSum;
   final double windSpeed;
+  final double windGust;
+  final int windDirection;
   final int sunrise;
   final int sunset;
   final double uvIndexMax;
+  final double apparentTempMax;
+  final double apparentTempMin;
 
   DailyForecast({
     required this.date,
@@ -379,10 +384,15 @@ class DailyForecast {
     required this.minTemp,
     required this.weatherCode,
     required this.precipitationProbability,
+    this.precipitationSum = 0.0,
     required this.windSpeed,
+    this.windGust = 0.0,
+    this.windDirection = 0,
     required this.sunrise,
     required this.sunset,
     this.uvIndexMax = 0.0,
+    this.apparentTempMax = 0.0,
+    this.apparentTempMin = 0.0,
   });
 
   factory DailyForecast.fromJson(Map<String, dynamic> json, int index) {
@@ -417,10 +427,17 @@ class DailyForecast {
         weatherCode: _toInt(json['weather_code'][index]),
         precipitationProbability:
             _toInt(json['precipitation_probability_max']?[index] ?? 0),
+        precipitationSum: _toDouble(json['precipitation_sum']?[index] ?? 0),
         windSpeed: _toDouble(json['wind_speed_10m_max']?[index] ?? 0),
+        windGust: _toDouble(json['wind_gusts_10m_max']?[index] ?? 0),
+        windDirection: _toInt(json['wind_direction_10m_dominant']?[index] ?? 0),
         sunrise: sunrise,
         sunset: sunset,
         uvIndexMax: _toDouble(json['uv_index_max']?[index] ?? 0),
+        apparentTempMax:
+            _toDouble(json['apparent_temperature_max']?[index] ?? 0),
+        apparentTempMin:
+            _toDouble(json['apparent_temperature_min']?[index] ?? 0),
       );
 
       // Debug output
@@ -513,5 +530,68 @@ class DailyForecast {
 
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[date.weekday - 1];
+  }
+
+  String get weatherDescription {
+    switch (weatherCode) {
+      case 0:
+        return 'Clear sky';
+      case 1:
+        return 'Mainly clear';
+      case 2:
+        return 'Partly cloudy';
+      case 3:
+        return 'Overcast';
+      case 45:
+        return 'Foggy';
+      case 48:
+        return 'Depositing rime fog';
+      case 51:
+        return 'Light drizzle';
+      case 53:
+        return 'Moderate drizzle';
+      case 55:
+        return 'Dense drizzle';
+      case 56:
+        return 'Light freezing drizzle';
+      case 57:
+        return 'Dense freezing drizzle';
+      case 61:
+        return 'Slight rain';
+      case 63:
+        return 'Moderate rain';
+      case 65:
+        return 'Heavy rain';
+      case 66:
+        return 'Light freezing rain';
+      case 67:
+        return 'Heavy freezing rain';
+      case 71:
+        return 'Slight snow fall';
+      case 73:
+        return 'Moderate snow fall';
+      case 75:
+        return 'Heavy snow fall';
+      case 77:
+        return 'Snow grains';
+      case 80:
+        return 'Slight rain showers';
+      case 81:
+        return 'Moderate rain showers';
+      case 82:
+        return 'Violent rain showers';
+      case 85:
+        return 'Slight snow showers';
+      case 86:
+        return 'Heavy snow showers';
+      case 95:
+        return 'Thunderstorm';
+      case 96:
+        return 'Thunderstorm with slight hail';
+      case 99:
+        return 'Thunderstorm with heavy hail';
+      default:
+        return 'Unknown';
+    }
   }
 }

@@ -181,12 +181,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _onSuggestionTap(Map<String, dynamic> suggestion) {
     final mainText = suggestion['mainText'] as String? ?? '';
-    _searchController.text = mainText;
+    
+    // Close dropdown immediately and clear state
     setState(() {
       _showSuggestions = false;
       _searchSuggestions = [];
     });
-    _searchCity();
+    
+    // Unfocus keyboard first
+    FocusScope.of(context).unfocus();
+    
+    // Clear search text and fetch weather
+    _searchController.clear();
+    _isLocationGPSBased = false;
+    context.read<WeatherProvider>().fetchWeatherByCity(mainText);
   }
 
   Future<void> _loadFavorites() async {

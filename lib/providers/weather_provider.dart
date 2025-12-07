@@ -606,7 +606,25 @@ class WeatherProvider extends ChangeNotifier {
     }
   }
 
-  /// Update read status for an alert
+  /// Update read status for an alert by matching its properties
+  void markAlertAsRead(Map<String, dynamic> alert) {
+    for (int i = 0; i < _activeAlerts.length; i++) {
+      // Match by title and timestamp
+      if (_activeAlerts[i]['title'] == alert['title'] &&
+          _activeAlerts[i]['timestamp'] == alert['timestamp']) {
+        _activeAlerts[i]['isRead'] = true;
+        notifyListeners();
+
+        final alertTitle = _activeAlerts[i]['title'] ?? 'Alert';
+        final unreadCount = unreadAlertCount;
+        print('📖 Alert "$alertTitle" marked as read');
+        print('📊 Unread alerts: $unreadCount');
+        return;
+      }
+    }
+  }
+
+  /// Update read status for an alert (legacy, by index)
   void updateAlertReadStatus(int index, bool isRead) {
     if (index >= 0 && index < _activeAlerts.length) {
       _activeAlerts[index]['isRead'] = isRead;

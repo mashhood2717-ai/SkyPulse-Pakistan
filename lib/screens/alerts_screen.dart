@@ -57,7 +57,12 @@ class _AlertsScreenState extends State<AlertsScreen>
               Expanded(
                 child: Consumer<WeatherProvider>(
                   builder: (context, provider, _) {
-                    final alerts = provider.activeAlerts.reversed.toList();
+                    // Only show unread alerts
+                    final alerts = provider.activeAlerts
+                        .where((alert) => !(alert['isRead'] ?? false))
+                        .toList()
+                        .reversed
+                        .toList();
 
                     if (alerts.isEmpty) {
                       return _buildEmptyState(provider);
@@ -300,8 +305,9 @@ class _AlertsScreenState extends State<AlertsScreen>
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
+                    // Mark as read when tapped
                     if (!isRead) {
-                      provider.updateAlertReadStatus(index, true);
+                      provider.markAlertAsRead(alert);
                     }
                     _showAlertDetails(context, alert, color);
                   },

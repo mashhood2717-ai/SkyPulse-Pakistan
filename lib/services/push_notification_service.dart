@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../main.dart';
 
 // Background message handler - MUST be top-level
 @pragma('vm:entry-point')
@@ -70,24 +71,38 @@ class PushNotificationService {
         });
       });
 
-      // Notification tap - OPTIMIZED: Just log, no UI refresh needed
+      // Notification tap - Navigate to alerts tab
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         print('📩 [Tapped] ${message.notification?.title}');
-        // Removed: _notifyListeners(message); - Firebase handles the UI natively
+        // Navigate to alerts tab when notification is tapped
+        _navigateToAlerts();
       });
 
-      // App launched from notification
+      // App launched from notification - navigate to alerts
       final initialMessage = await _firebaseMessaging.getInitialMessage();
       if (initialMessage != null) {
         print(
             '📩 [App Opened from Notification] ${initialMessage.notification?.title}');
-        // Removed: _notifyListeners(initialMessage);
+        // Navigate to alerts tab after a short delay (wait for app to build)
+        Future.delayed(const Duration(milliseconds: 500), () {
+          _navigateToAlerts();
+        });
       }
 
       _initialized = true;
       print('✅ [PushNotifications] Initialization complete!');
     } catch (e) {
       print('❌ [PushNotifications] Error: $e');
+    }
+  }
+
+  /// Navigate to alerts tab (called when notification is tapped)
+  static void _navigateToAlerts() {
+    try {
+      AppNavigation.navigateToAlerts();
+      print('📩 [PushNotifications] Navigating to Alerts tab');
+    } catch (e) {
+      print('⚠️ [PushNotifications] Could not navigate to alerts: $e');
     }
   }
 

@@ -6,6 +6,7 @@ import '../services/weather_service.dart';
 import '../services/metar_service.dart';
 import '../services/alert_service.dart';
 import '../services/push_notification_service.dart';
+import '../services/home_widget_service.dart';
 import '../models/metar_model.dart';
 
 class WeatherProvider extends ChangeNotifier {
@@ -51,6 +52,16 @@ class WeatherProvider extends ChangeNotifier {
   /// Get count of unread alerts
   int get unreadAlertCount {
     return _activeAlerts.where((alert) => !(alert['isRead'] ?? false)).length;
+  }
+
+  /// Update the home screen widget with current weather data
+  void _updateHomeWidget() {
+    if (_weatherData != null && _cityName.isNotEmpty) {
+      HomeWidgetService.updateWidget(
+        city: _cityName,
+        current: _weatherData!.current,
+      );
+    }
   }
 
   // Fetch weather by current location (URGENT - blocks on this)
@@ -355,6 +366,9 @@ class WeatherProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
       print('🌐 Weather API data loaded for $cityName');
+
+      // 📱 Update home screen widget
+      _updateHomeWidget();
 
       // 📡 BACKGROUND: Fetch METAR and AQI in background without blocking UI
       // Pass cityName to ensure background tasks validate against the correct city

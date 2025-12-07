@@ -10,6 +10,7 @@ import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
 import 'services/push_notification_service.dart';
+import 'services/home_widget_service.dart';
 import 'utils/theme_utils.dart';
 
 /// Global navigation helper for external access (e.g., from push notifications)
@@ -62,6 +63,10 @@ void main() async {
   // Initialize push notifications in parallel (NO TIMEOUT)
   print('🔔 Initializing push notifications...');
   final pushInit = PushNotificationService.initializePushNotifications();
+
+  // Initialize home screen widget
+  print('📱 Initializing home widget...');
+  HomeWidgetService.initialize();
 
   // Wait for Firebase first (critical)
   try {

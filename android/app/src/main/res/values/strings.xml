@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SkyPulse</string>
+    <string name="widget_name">SkyPulse Weather</string>
+    <string name="widget_description">Shows current weather with temperature, humidity, and wind</string>
+</resources>

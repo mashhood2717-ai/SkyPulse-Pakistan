@@ -1,12 +1,51 @@
 import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
+
+// Flutter Local Notifications plugin instance
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 // Background message handler - MUST be top-level
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print('🔔 [Background] Message received: ${message.notification?.title}');
+
+  // Show local notification when app is in background/terminated
+  await _showLocalNotification(message);
+}
+
+/// Show local notification (top-level for background access)
+Future<void> _showLocalNotification(RemoteMessage message) async {
+  final notification = message.notification;
+  if (notification == null) return;
+
+  // Android notification details
+  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'weather_alerts', // Channel ID - must match AndroidManifest
+    'Weather Alerts', // Channel name
+    channelDescription: 'Weather alerts and notifications from SkyPulse',
+    importance: Importance.max,
+    priority: Priority.high,
+    showWhen: true,
+    icon: '@mipmap/ic_launcher',
+    enableVibration: true,
+    playSound: true,
+  );
+
+  const NotificationDetails notificationDetails = NotificationDetails(
+    android: androidDetails,
+  );
+
+  await flutterLocalNotificationsPlugin.show(
+    notification.hashCode, // Unique ID
+    notification.title ?? 'Weather Alert',
+    notification.body ?? '',
+    notificationDetails,
+    payload: message.data['route'] ?? 'alerts',
+  );
 }
 
 class PushNotificationService {
@@ -24,6 +63,9 @@ class PushNotificationService {
 
     try {
       print('✅ [PushNotifications] Starting initialization...');
+
+      // Initialize local notifications FIRST
+      await _initializeLocalNotifications();
 
       // Set background handler
       FirebaseMessaging.onBackgroundMessage(
@@ -55,12 +97,12 @@ class PushNotificationService {
       // Subscribe to topics
       await _subscribeToAllTopics();
 
-      // Foreground messages - OPTIMIZED: Only log, don't notify UI
-      // Firebase notifications are handled natively
+      // Foreground messages - Show local notification
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         print('📨 [Foreground] ${message.notification?.title}');
         _messages.add(message);
-        // Removed: _notifyListeners(message); - causes extra UI refreshes
+        // Show notification even when app is in foreground
+        _showLocalNotification(message);
       });
 
       // Token refresh
@@ -94,6 +136,40 @@ class PushNotificationService {
     } catch (e) {
       print('❌ [PushNotifications] Error: $e');
     }
+  }
+
+  /// Initialize local notifications
+  static Future<void> _initializeLocalNotifications() async {
+    // Android initialization
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        print('📩 [Local Notification Tapped] ${response.payload}');
+        _navigateToAlerts();
+      },
+    );
+
+    // Create notification channel for Android 8.0+
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'weather_alerts', // ID - must match AndroidManifest
+      'Weather Alerts', // Name
+      description: 'Weather alerts and notifications from SkyPulse',
+      importance: Importance.max,
+    );
+
+    await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    print('✅ [LocalNotifications] Initialized with channel: weather_alerts');
   }
 
   /// Navigate to alerts tab (called when notification is tapped)

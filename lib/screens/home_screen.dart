@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
 import '../models/weather_model.dart';
@@ -12,6 +13,7 @@ import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
 import '../services/favorites_service.dart';
 import '../services/weather_service.dart';
+import '../services/push_notification_service.dart';
 import '../utils/theme_utils.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -47,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       false; // Flag to prevent intermediate fetches during animation
   bool _isLocationGPSBased =
       true; // True if current location is from GPS, false if searched
+  bool _checkingFavorite = false; // Prevent duplicate _checkFavorite calls
 
   // Search autocomplete
   List<Map<String, dynamic>> _searchSuggestions = [];
@@ -55,6 +58,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // Location refresh timer - refreshes every 30 seconds when on main card
   Timer? _locationRefreshTimer;
+
+  // Easter egg: tap counter to show FCM token
+  int _appNameTapCount = 0;
+  Timer? _tapResetTimer;
 
   // Animation controllers
   late AnimationController _fadeController;
@@ -153,6 +160,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void dispose() {
     _locationRefreshTimer?.cancel();
     _debounceTimer?.cancel();
+    _tapResetTimer?.cancel();
     _searchController.dispose();
     _pageController.dispose();
     _fadeController.dispose();
@@ -242,6 +250,94 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// Easter egg: Tap app name 5 times to show FCM token
+  void _onAppNameTap() {
+    _tapResetTimer?.cancel();
+    _appNameTapCount++;
+
+    // Reset counter after 2 seconds of no taps
+    _tapResetTimer = Timer(const Duration(seconds: 2), () {
+      _appNameTapCount = 0;
+    });
+
+    // Show FCM token after 5 taps
+    if (_appNameTapCount >= 5) {
+      _appNameTapCount = 0;
+      _showFCMTokenDialog();
+    }
+  }
+
+  /// Show FCM token in a dialog with copy option
+  Future<void> _showFCMTokenDialog() async {
+    final token = await PushNotificationService.getStoredFCMToken();
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1F3A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.key, color: Color(0xFF667EEA)),
+            SizedBox(width: 8),
+            Text(
+              'FCM Token',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SelectableText(
+                token ?? 'No token found',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close', style: TextStyle(color: Colors.white54)),
+          ),
+          if (token != null)
+            TextButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: token));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('FCM Token copied to clipboard'),
+                    backgroundColor: const Color(0xFF667EEA),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Copy',
+                  style: TextStyle(color: Color(0xFF667EEA))),
+            ),
+        ],
+      ),
+    );
+  }
+
   void _toggleFavorite() {
     final provider = context.read<WeatherProvider>();
     final favoritesService = context.read<FavoritesService>();
@@ -263,6 +359,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _checkFavorite() async {
+    // Prevent duplicate checks
+    if (_checkingFavorite) return;
+    _checkingFavorite = true;
+    
     final provider = context.read<WeatherProvider>();
     final favoritesService = context.read<FavoritesService>();
     final isFav = await favoritesService.isFavorite(
@@ -270,6 +370,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (mounted) {
       setState(() => _isFavorite = isFav);
     }
+    _checkingFavorite = false;
   }
 
   Future<void> _navigateToLocationAsync(String cityName) async {
@@ -277,7 +378,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final provider = context.read<WeatherProvider>();
 
     // Always fetch fresh data when swiping to a favorite
-    print('🔄 [HomeScreen] Fetching fresh data for $cityName');
     await provider.fetchWeatherByCity(cityName);
   }
 
@@ -444,8 +544,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               }
 
               // Auto-swipe to favorite if it was selected from FavoritesScreen
+              // Use addPostFrameCallback to avoid setState during build
               if (provider.weatherData != null && !provider.isLoading) {
-                _checkFavorite();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _checkFavorite();
+                });
               }
 
               if (provider.isLoading && provider.weatherData == null) {
@@ -681,6 +784,50 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ),
       ),
+      title: GestureDetector(
+        onTap: _onAppNameTap,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [
+                  Color(0xFF667EEA),
+                  Color(0xFF64B5F6),
+                  Color(0xFF81D4FA)
+                ],
+              ).createShader(bounds),
+              child: const Text(
+                'Sky',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w300,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [
+                  Color(0xFFFF6B6B),
+                  Color(0xFFFF8E53),
+                  Color(0xFFFECE47)
+                ],
+              ).createShader(bounds),
+              child: const Text(
+                'Pulse',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       actions: [
         // Favorite button with animation
         TweenAnimationBuilder<double>(
@@ -872,17 +1019,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             physics: const BouncingScrollPhysics(),
             onPageChanged: (index) async {
               // Skip if already on this page (happens when programmatically navigating)
-              if (index == _currentPage) {
-                print('📱 [HomeScreen] Already on page $index, skipping fetch');
-                return;
-              }
+              if (index == _currentPage) return;
 
               // Skip fetching during programmatic animation (intermediate pages)
-              if (_isAnimatingToPage) {
-                print(
-                    '📱 [HomeScreen] Skipping intermediate page $index during animation');
-                return;
-              }
+              if (_isAnimatingToPage) return;
 
               final previousPage = _currentPage;
               setState(() => _currentPage = index);
@@ -893,16 +1033,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 final favorite = _favorites[index - 1];
                 final cityName = favorite['city'] as String;
 
+                // Flexible city name matching (first word comparison)
+                final providerCity = provider.cityName.toLowerCase().trim();
+                final cardCity = cityName.toLowerCase().trim();
+                final providerFirstWord = providerCity.split(RegExp(r'[\s,.]+')).first;
+                final cardFirstWord = cardCity.split(RegExp(r'[\s,.]+')).first;
+                
+                final isSameCity = providerCity == cardCity ||
+                    providerCity.contains(cardCity) ||
+                    cardCity.contains(providerCity) ||
+                    providerFirstWord == cardFirstWord;
+
                 // Only fetch if we're not already showing this city's data
-                if (provider.cityName.toLowerCase() != cityName.toLowerCase()) {
-                  print('📱 [HomeScreen] Swiped to favorite: $cityName');
+                if (!isSameCity) {
                   await _navigateToLocationAsync(cityName);
-                } else {
-                  print('📱 [HomeScreen] Already showing $cityName data');
                 }
               } else if (index == 0 && previousPage > 0) {
                 // Swiped back to current location (index 0)
-                print('📱 [HomeScreen] Swiped back to current location');
                 _restoreInitialLocation(provider);
                 // Fetch fresh data in background
                 _fetchFreshCurrentLocation(provider);
@@ -959,8 +1106,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         builder: (context, provider, _) {
           // Show full weather info ONLY if data loaded AND it matches this city
           final current = provider.weatherData?.current;
-          final isCorrectCity =
-              provider.cityName.toLowerCase() == cityName.toLowerCase();
+          
+          // More flexible city matching - extract first word and compare
+          final providerCity = provider.cityName.toLowerCase().trim();
+          final cardCity = cityName.toLowerCase().trim();
+          
+          // Extract first word from both city names for comparison
+          final providerFirstWord = providerCity.split(RegExp(r'[\s,.]+')).first;
+          final cardFirstWord = cardCity.split(RegExp(r'[\s,.]+')).first;
+          
+          final isCorrectCity = providerCity == cardCity ||
+              providerCity.contains(cardCity) ||
+              cardCity.contains(providerCity) ||
+              providerFirstWord == cardFirstWord;  // Match on first word
 
           if (current != null && !provider.isLoading && isCorrectCity) {
             // Show data-loaded state with FULL weather info
@@ -1404,44 +1562,98 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.blue.withOpacity(0.3),
-                Colors.purple.withOpacity(0.2),
+                Colors.white.withOpacity(0.12),
+                Colors.white.withOpacity(0.06),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
+              color: Colors.white.withOpacity(0.25),
+              width: 1,
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Skeleton temperature placeholder with shimmer effect
-              _buildSkeletonLoader(width: 32, height: 28),
-              const SizedBox(height: 6),
-              Text(
-                cityName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              // Loading weather icon placeholder - pulsing animation
+              _buildPulsingLoader(size: 36),
+              const SizedBox(width: 12),
+
+              // Center: City info + loading placeholders
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // City name (always visible)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            cityName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (countryCode.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: Text(
+                              countryCode,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    // Loading text
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 12,
+                          height: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white70),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Loading weather...',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-              if (countryCode.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  countryCode,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 10,
-                  ),
-                ),
-              ],
+              const SizedBox(width: 10),
+
+              // Right side: Loading indicator dots
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildShimmerBar(width: 40, height: 10),
+                  const SizedBox(height: 4),
+                  _buildShimmerBar(width: 50, height: 10),
+                  const SizedBox(height: 4),
+                  _buildShimmerBar(width: 45, height: 10),
+                ],
+              ),
             ],
           ),
         ),
@@ -1449,31 +1661,49 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildSkeletonLoader({required double width, required double height}) {
-    return ShaderMask(
-      shaderCallback: (bounds) {
-        return LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [
-            Colors.white.withOpacity(0.1),
-            Colors.white.withOpacity(0.4),
-            Colors.white.withOpacity(0.1),
-          ],
-          stops: const [0.0, 0.5, 1.0],
-          transform: GradientRotation(
-            DateTime.now().millisecondsSinceEpoch / 1000.0 * 2.0,
+  Widget _buildPulsingLoader({required double size}) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.3, end: 1.0),
+      duration: const Duration(milliseconds: 800),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        return Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15 * value),
+            borderRadius: BorderRadius.circular(8),
           ),
-        ).createShader(bounds);
+          child: Center(
+            child: Icon(
+              Icons.cloud_outlined,
+              color: Colors.white.withOpacity(0.4 * value),
+              size: size * 0.6,
+            ),
+          ),
+        );
       },
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(4),
-        ),
-      ),
+      onEnd: () {
+        // Re-trigger animation would need stateful widget
+      },
+    );
+  }
+
+  Widget _buildShimmerBar({required double width, required double height}) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.2, end: 0.5),
+      duration: const Duration(milliseconds: 1000),
+      curve: Curves.easeInOut,
+      builder: (context, value, child) {
+        return Container(
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(value),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+      },
     );
   }
 }

@@ -204,6 +204,11 @@ class CurrentWeather {
         '🌡️ [CurrentWeather.fromJson] Input JSON keys: ${json.keys.toList()}');
     print(
         '🌡️ [CurrentWeather.fromJson] dew_point_2m value: ${json['dew_point_2m']} (type: ${json['dew_point_2m']?.runtimeType})');
+    print(
+        '🌙 [CurrentWeather.fromJson] is_day value: ${json['is_day']} (type: ${json['is_day']?.runtimeType})');
+
+    final isDay = _toBool(json['is_day']);
+    print('🌙 [CurrentWeather] Parsed isDay: $isDay');
 
     return CurrentWeather(
       temperature: _toDouble(json['temperature_2m']),
@@ -216,10 +221,19 @@ class CurrentWeather {
       weatherCode: _toInt(json['weather_code']),
       pressure: _toDouble(json['pressure_msl']),
       cloudCover: _toInt(json['cloud_cover']),
-      isDay: json['is_day'] == 1,
+      isDay: isDay,
       visibility: _toDouble(json['visibility']) / 1000,
       uvIndex: _toDouble(json['uv_index']),
     );
+  }
+
+  /// Convert various types to bool (handles 0/1, true/false, "true"/"false")
+  static bool _toBool(dynamic value) {
+    if (value == null) return true; // Default to day
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) return value.toLowerCase() == 'true' || value == '1';
+    return true;
   }
 
   static double _toDouble(dynamic value) {

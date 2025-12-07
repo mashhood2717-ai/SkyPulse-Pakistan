@@ -83,6 +83,8 @@ class MyApp extends StatelessWidget {
       child: Consumer<WeatherProvider>(
         builder: (context, weatherProvider, child) {
           final isDay = weatherProvider.weatherData?.current.isDay ?? true;
+          // Debug: Log theme decision
+          print('🎨 [Theme] isDay = $isDay, city = ${weatherProvider.cityName}');
           return MaterialApp(
             title: 'Skypulse',
             debugShowCheckedModeBanner: false,

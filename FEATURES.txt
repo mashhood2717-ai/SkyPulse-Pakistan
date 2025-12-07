@@ -1,0 +1,155 @@
+================================================================================
+                         SKYPULSE - WEATHER APP FEATURES
+================================================================================
+
+App Name: SkyPulse
+Platform: Android (iOS ready)
+Built With: Flutter 3.x, Dart, Firebase
+Repository: https://github.com/mashhood2717-ai/SkyPulse-Pakistan
+
+================================================================================
+                              CORE FEATURES
+================================================================================
+
+🌡️ REAL-TIME WEATHER
+   • Current temperature with "Feels Like" calculation
+   • Humidity, wind speed, pressure, visibility
+   • Weather condition icons and descriptions
+   • UV index and cloud coverage
+   • Auto-refresh every 30 seconds
+
+📅 FORECASTS
+   • Hourly forecast (24 hours) with horizontal scroll
+   • 7-day extended forecast with daily breakdowns
+   • High/low temperatures for each day
+   • Precipitation probability
+   • Weather condition per hour/day
+
+🛫 METAR AVIATION DATA
+   • Live airport weather from Pakistan airports
+   • Supports: Lahore (OPLA), Karachi (OPKC), Islamabad (OPRN),
+     Peshawar (OPPS), Multan (OPMT), Faisalabad (OPFA),
+     Quetta (OPQT), Sialkot (OPST)
+   • Auto-detects nearest airport within 20km
+   • Fallback to API data if METAR unavailable
+
+📍 LOCATION FEATURES
+   • GPS-based automatic location
+   • Search any city worldwide
+   • Google Places autocomplete
+   • Precise coordinates for neighborhoods/districts
+   • Model Town, Capital Smart City, etc. supported
+
+⭐ FAVORITES SYSTEM
+   • Save unlimited favorite cities
+   • Swipeable card carousel on home screen
+   • Swipe-to-delete with confirmation
+   • "Clear All" button for bulk removal
+   • Instant weather loading for favorites
+
+🔔 PUSH NOTIFICATIONS
+   • Firebase Cloud Messaging (FCM)
+   • Weather alerts and updates
+   • Background notification support
+   • Topic-based subscriptions per city
+   • flutter_local_notifications integration
+
+📊 AIR QUALITY INDEX (AQI)
+   • Real-time air quality monitoring
+   • Color-coded health indicators:
+     - Green: Good (0-50)
+     - Yellow: Moderate (51-100)
+     - Orange: Unhealthy for Sensitive (101-150)
+     - Red: Unhealthy (151-200)
+     - Purple: Very Unhealthy (201-300)
+     - Maroon: Hazardous (301+)
+
+🌅 SUN ARC WIDGET
+   • Visual sunrise/sunset tracker
+   • Current sun position on arc
+   • Exact sunrise/sunset times
+   • Day/night mode detection
+
+📱 HOME SCREEN WIDGET (Android)
+   • 3x2 compact widget
+   • Glassmorphism design
+   • Shows: temp, weather emoji, humidity, wind
+   • Auto-updates with app data
+
+================================================================================
+                              UI/UX DESIGN
+================================================================================
+
+🎨 GLASSMORPHISM THEME
+   • Blur effects and transparency
+   • Frosted glass cards
+   • Gradient backgrounds
+   • Soft shadows and borders
+
+🌓 DYNAMIC DAY/NIGHT MODE
+   • Automatic based on sunrise/sunset
+   • Day: Blue/cyan gradients
+   • Night: Purple/dark blue gradients
+   • Smooth theme transitions
+
+✨ ANIMATIONS
+   • Fade and slide transitions
+   • Skeleton loading placeholders
+   • Pulsing loaders
+   • Card carousel with scale effects
+   • Heart animation for favorites
+
+📐 APPLE WEATHER-INSPIRED
+   • Clean, minimal interface
+   • Information hierarchy
+   • Intuitive navigation
+   • Bottom navigation with 3 tabs
+
+================================================================================
+                              TECHNICAL DETAILS
+================================================================================
+
+ARCHITECTURE
+   • Provider pattern for state management
+   • Service layer for API calls
+   • Model classes for data parsing
+   • Separate widgets for reusability
+
+APIS USED
+   • Open-Meteo: Weather data (free, no key)
+   • Aviation Weather: METAR data (free)
+   • Google Places: City autocomplete (API key)
+   • Firebase FCM: Push notifications
+
+DATA FLOW
+   UI Screens → WeatherProvider → Services → APIs → Models → UI
+
+CACHING
+   • Weather data cached for instant refresh
+   • Favorites stored in SharedPreferences
+   • FCM token persisted locally
+   • Offline fallback with cached data
+
+================================================================================
+                              EASTER EGG
+================================================================================
+
+🔑 FCM TOKEN REVEAL
+   Tap "SkyPulse" app title 5 times to show your FCM token!
+   Useful for testing push notifications.
+
+================================================================================
+                              QUICK COMMANDS
+================================================================================
+
+Install dependencies:     flutter pub get
+Run app:                  flutter run
+Build release APK:        flutter build apk --release
+Analyze code:             flutter analyze
+Format code:              dart format lib/
+
+APK Location: build/app/outputs/flutter-apk/app-release.apk
+
+================================================================================
+                         Made with ❤️ in Pakistan 🇵🇰
+================================================================================

@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 
 void main() async {
   // Test reverse geocoding with Islamabad coordinates
-  final latitude = 33.6699;
-  final longitude = 73.0794;
+  const latitude = 33.6699;
+  const longitude = 73.0794;
 
   final url = Uri.parse(
       'https://geocoding-api.open-meteo.com/v1/search?latitude=$latitude&longitude=$longitude&format=json');

@@ -49,6 +49,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _showSuggestions = false;
   Timer? _debounceTimer;
 
+  // Location refresh timer - refreshes every 30 seconds when on main card
+  Timer? _locationRefreshTimer;
+
   // Animation controllers
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -113,10 +116,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         }
       });
     });
+
+    // Start 30-second location refresh timer
+    _startLocationRefreshTimer();
+  }
+
+  /// Start timer to refresh location every 30 seconds when on main card (index 0)
+  void _startLocationRefreshTimer() {
+    _locationRefreshTimer?.cancel();
+    _locationRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      // Only refresh if on the main card (current location, index 0)
+      if (_currentPage == 0 && mounted) {
+        print('🔄 [30s Timer] Refreshing current location...');
+        final provider = context.read<WeatherProvider>();
+        provider.fetchWeatherByLocation().then((_) {
+          if (mounted) {
+            setState(() {
+              _initialLocationCity = provider.cityName;
+              _initialLocationCountry = provider.countryCode;
+              _cachedInitialWeather = provider.weatherData;
+            });
+          }
+        }).catchError((e) {
+          print('⚠️ [30s Timer] Refresh failed: $e');
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _locationRefreshTimer?.cancel();
     _debounceTimer?.cancel();
     _searchController.dispose();
     _pageController.dispose();
@@ -384,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Column(
                       children: [
                         const SizedBox(height: 80),
-                        WeatherSkeletonCard(),
+                        const WeatherSkeletonCard(),
                         const SizedBox(height: 24),
                         SkeletonLoader(
                           height: 100,
@@ -512,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             ],
                                           ),
                                         ),
-                                        child: CircularProgressIndicator(
+                                        child: const CircularProgressIndicator(
                                           color: Colors.white,
                                           strokeWidth: 3,
                                         ),
@@ -612,8 +642,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             color: Colors.white.withOpacity(0.6),
           ),
           const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
             child: Text(
               'Unable to find location',
               textAlign: TextAlign.center,
@@ -961,15 +991,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (isActive) {
       return Consumer<WeatherProvider>(
         builder: (context, provider, _) {
-          // Show temp ONLY if data loaded AND it matches this city
+          // Show full weather info ONLY if data loaded AND it matches this city
           final current = provider.weatherData?.current;
           final isCorrectCity = provider.cityName.toLowerCase() == cityName.toLowerCase();
           
           if (current != null && !provider.isLoading && isCorrectCity) {
-            final temp = current.temperature;
-            // Show data-loaded state
-            return _buildFavoriteCachedCard(
-                cityName, countryCode, temp.toString());
+            // Show data-loaded state with FULL weather info
+            return _buildFavoriteCachedCard(cityName, countryCode, current);
           }
           // Show loading state if still loading or data is for wrong city
           return _buildFavoriteLoadingCard(cityName, countryCode);
@@ -1252,9 +1280,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  /// Build a favorite card showing cached temperature data
+  /// Build a favorite card showing full weather data (icon, temp, description, humidity, wind, pressure)
   Widget _buildFavoriteCachedCard(
-      String cityName, String countryCode, String temp) {
+      String cityName, String countryCode, CurrentWeather current) {
+    // Calculate feels like temperature
+    final feelsLike = current.temperature -
+        ((current.windSpeed / 10) * 2) -
+        ((100 - current.humidity) / 20);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -1266,50 +1299,121 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.blue.withOpacity(0.3),
-                Colors.purple.withOpacity(0.2),
+                Colors.white.withOpacity(0.12),
+                Colors.white.withOpacity(0.06),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
+              color: Colors.white.withOpacity(0.25),
+              width: 1,
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Weather icon
               Text(
-                '$temp°',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+                current.weatherIcon,
+                style: const TextStyle(fontSize: 36),
+              ),
+              const SizedBox(width: 12),
+
+              // Center: City, Temp & Description
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // City name
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            cityName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (countryCode.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: Text(
+                              countryCode,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 9,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    // Temp & Description
+                    Text(
+                      '${current.temperature.round()}° • ${current.weatherDescription}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    // Feels like
+                    Text(
+                      'Feels ${feelsLike.round()}°C',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                cityName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (countryCode.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  countryCode,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 10,
+              const SizedBox(width: 10),
+
+              // Right: Quick stats (humidity, wind, pressure)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.opacity, size: 11, color: Colors.white70),
+                      const SizedBox(width: 3),
+                      Text('${current.humidity.round()}%',
+                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 3),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.air, size: 11, color: Colors.white70),
+                      const SizedBox(width: 3),
+                      Text('${current.windSpeed.round()} km/h',
+                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.compress, size: 11, color: Colors.white70),
+                      const SizedBox(width: 3),
+                      Text('${current.pressure.round()}hPa',
+                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                    ],
+                  ),
+                ],
+              ),
             ],
           ),
         ),

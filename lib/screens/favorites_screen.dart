@@ -646,30 +646,84 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   Widget _buildWeatherInfo(CurrentWeather? weather) {
     if (weather != null) {
+      // Calculate feels like temperature
+      final feelsLike = weather.temperature -
+          ((weather.windSpeed / 10) * 2) -
+          ((100 - weather.humidity) / 20);
+
       return Row(
         children: [
+          // Weather icon
           Text(
             weather.weatherIcon,
-            style: const TextStyle(fontSize: 28),
+            style: const TextStyle(fontSize: 32),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
+          // Temperature and description
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${weather.temperature.round()}°C',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  weather.weatherDescription,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Feels ${feelsLike.round()}°C',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.5),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Quick stats column
           Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                '${weather.temperature.round()}°C',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.opacity, size: 12, color: Colors.white.withOpacity(0.7)),
+                  const SizedBox(width: 3),
+                  Text('${weather.humidity.round()}%',
+                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                ],
               ),
-              Text(
-                weather.weatherDescription,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
-                  fontSize: 12,
-                ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.air, size: 12, color: Colors.white.withOpacity(0.7)),
+                  const SizedBox(width: 3),
+                  Text('${weather.windSpeed.round()} km/h',
+                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.compress, size: 12, color: Colors.white.withOpacity(0.7)),
+                  const SizedBox(width: 3),
+                  Text('${weather.pressure.round()}hPa',
+                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                ],
               ),
             ],
           ),

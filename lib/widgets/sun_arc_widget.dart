@@ -28,7 +28,7 @@ class SunArcWidget extends StatelessWidget {
     }
 
     return Container(
-      padding: EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -53,16 +53,16 @@ class SunArcWidget extends StatelessWidget {
               // Sunrise
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.wb_twilight,
                     color: Color(0xFFFFA726),
                     size: 24,
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Sunrise',
                         style: TextStyle(
                           color: Colors.white70,
@@ -70,10 +70,10 @@ class SunArcWidget extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         DateFormat.jm().format(sunriseTime),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -83,21 +83,21 @@ class SunArcWidget extends StatelessWidget {
                   ),
                 ],
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
 
               // Sunset
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.wb_twilight,
                     color: Color(0xFFEF5350),
                     size: 24,
                   ),
-                  SizedBox(width: 12),
+                  const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Sunset',
                         style: TextStyle(
                           color: Colors.white70,
@@ -105,10 +105,10 @@ class SunArcWidget extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         DateFormat.jm().format(sunsetTime),
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -121,14 +121,14 @@ class SunArcWidget extends StatelessWidget {
             ],
           ),
 
-          SizedBox(width: 20),
+          const SizedBox(width: 20),
 
           // Right side: Sun arc
           Expanded(
             child: SizedBox(
               height: 140,
               child: CustomPaint(
-                size: Size(double.infinity, 140),
+                size: const Size(double.infinity, 140),
                 painter: SunArcPainter(progress: progress),
               ),
             ),
@@ -167,7 +167,7 @@ class SunArcPainter extends CustomPainter {
     // Draw progress arc (filled portion)
     if (progress > 0) {
       final progressPaint = Paint()
-        ..shader = LinearGradient(
+        ..shader = const LinearGradient(
           colors: [
             Color(0xFFFFA726), // Orange
             Color(0xFFFFD54F), // Yellow
@@ -196,8 +196,8 @@ class SunArcPainter extends CustomPainter {
     final glowPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          Color(0xFFFFA726).withOpacity(0.4),
-          Color(0xFFFFA726).withOpacity(0.0),
+          const Color(0xFFFFA726).withOpacity(0.4),
+          const Color(0xFFFFA726).withOpacity(0.0),
         ],
       ).createShader(Rect.fromCircle(center: sunPosition, radius: 30));
 
@@ -205,7 +205,7 @@ class SunArcPainter extends CustomPainter {
 
     // Draw sun
     final sunPaint = Paint()
-      ..shader = RadialGradient(
+      ..shader = const RadialGradient(
         colors: [
           Color(0xFFFFD54F),
           Color(0xFFFFA726),
@@ -225,7 +225,7 @@ class SunArcPainter extends CustomPainter {
     // Draw sun icon
     final textSpan = TextSpan(
       text: _getSunEmoji(progress),
-      style: TextStyle(fontSize: 20),
+      style: const TextStyle(fontSize: 20),
     );
 
     final textPainter = TextPainter(

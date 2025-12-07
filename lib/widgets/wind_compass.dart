@@ -46,7 +46,7 @@ class CompassPainter extends CustomPainter {
 
     // Draw border
     final borderPaint = Paint()
-      ..color = Color(0xFF66BB6A).withOpacity(0.4)
+      ..color = const Color(0xFF66BB6A).withOpacity(0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
@@ -71,7 +71,7 @@ class CompassPainter extends CustomPainter {
       final textSpan = TextSpan(
         text: directions[i],
         style: TextStyle(
-          color: i == 0 ? Color(0xFF66BB6A) : Colors.white70,
+          color: i == 0 ? const Color(0xFF66BB6A) : Colors.white70,
           fontSize: 14,
           fontWeight: i == 0 ? FontWeight.w700 : FontWeight.w600,
         ),
@@ -108,7 +108,7 @@ class CompassPainter extends CustomPainter {
 
     // Draw arrow shaft
     final shaftPaint = Paint()
-      ..color = Color(0xFF66BB6A)
+      ..color = const Color(0xFF66BB6A)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
@@ -121,7 +121,7 @@ class CompassPainter extends CustomPainter {
 
     // Draw arrow head
     final arrowPaint = Paint()
-      ..color = Color(0xFF66BB6A)
+      ..color = const Color(0xFF66BB6A)
       ..style = PaintingStyle.fill;
 
     canvas.drawPath(arrowPath, arrowPaint);
@@ -131,7 +131,7 @@ class CompassPainter extends CustomPainter {
       ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(Offset(0, 0), 4, dotPaint);
+    canvas.drawCircle(const Offset(0, 0), 4, dotPaint);
 
     canvas.restore();
   }

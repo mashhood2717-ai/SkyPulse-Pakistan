@@ -181,12 +181,15 @@ class MetarData {
       if (part == 'FZ') condition = 'FZ'; // Freezing
 
       // Precipitation
-      if (part == 'RA' || part == '-RA' || part == '+RA')
+      if (part == 'RA' || part == '-RA' || part == '+RA') {
         condition = 'RA'; // Rain
-      if (part == 'DZ' || part == '-DZ' || part == '+DZ')
+      }
+      if (part == 'DZ' || part == '-DZ' || part == '+DZ') {
         condition = 'DZ'; // Drizzle
-      if (part == 'SN' || part == '-SN' || part == '+SN')
+      }
+      if (part == 'SN' || part == '-SN' || part == '+SN') {
         condition = 'SN'; // Snow
+      }
       if (part == 'SG') condition = 'SG'; // Snow Grains
       if (part == 'IC') condition = 'IC'; // Ice Crystals
       if (part == 'PL') condition = 'PL'; // Ice Pellets/Sleet
@@ -200,8 +203,9 @@ class MetarData {
       if (part == 'SHGS') condition = 'SHGS'; // Hail Showers
       if (part == 'SHPL') condition = 'SHPL'; // Ice Pellet Showers
       if (part == 'SHIC') condition = 'SHIC'; // Ice Crystal Showers
-      if (part == 'TS' || part == 'THUNDERSTORM')
+      if (part == 'TS' || part == 'THUNDERSTORM') {
         condition = 'TS'; // Thunderstorm
+      }
       if (part == 'TSRA') condition = 'TSRA'; // Thunderstorm with Rain
       if (part == 'TSGR') condition = 'TSGR'; // Thunderstorm with Hail
       if (part == 'TSSN') condition = 'TSSN'; // Thunderstorm with Snow
@@ -280,8 +284,8 @@ class MetarData {
   static int _calculateHumidity(double? temp, double? dewpoint) {
     if (temp == null || dewpoint == null) return 50;
 
-    final a = 17.27;
-    final b = 237.7;
+    const a = 17.27;
+    const b = 237.7;
 
     final rh = 100 *
         (math.exp((a * dewpoint) / (b + dewpoint)) /
@@ -299,8 +303,9 @@ class MetarData {
     // Thunderstorms (highest priority)
     if (condition.contains('TS')) return 95;
     if (condition.contains('THUNDER')) return 95;
-    if (condition.contains('FC'))
+    if (condition.contains('FC')) {
       return 95; // Funnel cloud/Tornado - use thunderstorm
+    }
 
     // Severe precipitation with hail
     if (condition.contains('GR')) return 96; // Hail - thunderstorm with hail
@@ -312,8 +317,9 @@ class MetarData {
     if (condition.contains('SNOW')) return 71;
     if (condition.contains('SG')) return 77; // Snow grains
     if (condition.contains('IC')) return 71; // Ice crystals - treat as snow
-    if (condition.contains('PL'))
+    if (condition.contains('PL')) {
       return 71; // Ice pellets/Sleet - treat as snow
+    }
     if (condition.contains('GS')) return 71; // Small hail - treat as snow
     if (condition.contains('TSSN')) return 71; // Thunderstorm with snow
     if (condition.contains('SHSN')) return 71; // Snow showers
@@ -322,8 +328,9 @@ class MetarData {
     // Rain and showers
     if (condition.contains('TSRA')) return 95; // Thunderstorm with rain
     if (condition.contains('SHRA')) return 80; // Rain showers
-    if (condition.contains('SHPL'))
+    if (condition.contains('SHPL')) {
       return 61; // Ice pellet showers - treat as rain
+    }
     if (condition.contains('RASN')) return 61; // Rain and snow
     if (condition.contains('RA')) return 61; // Rain
     if (condition.contains('RAIN')) return 61;
@@ -332,8 +339,9 @@ class MetarData {
     // Drizzle and light precipitation
     if (condition.contains('DZ')) return 51; // Drizzle
     if (condition.contains('DRIZZLE')) return 51;
-    if (condition.contains('UP'))
+    if (condition.contains('UP')) {
       return 51; // Unknown precipitation - treat as drizzle
+    }
 
     // Fog (severe visibility reduction)
     if (condition.contains('FG')) return 45;
@@ -349,8 +357,9 @@ class MetarData {
     if (condition.contains('VA')) return 45; // Volcanic ash - use fog icon
 
     // Haze (lighter visibility reduction)
-    if (condition.contains('HZ'))
+    if (condition.contains('HZ')) {
       return 1; // Haze - mostly clear but with haze layer
+    }
     if (condition.contains('HAZE')) return 1;
 
     // Dust, Sand, and Storms
@@ -379,7 +388,9 @@ class MetarData {
       if (cloudStr.contains('FEW')) return 1; // Few
       if (cloudStr.contains('CLR') ||
           cloudStr.contains('SKC') ||
-          cloudStr.contains('NSC')) return 0;
+          cloudStr.contains('NSC')) {
+        return 0;
+      }
     }
 
     // Default to clear if no conditions reported
@@ -394,7 +405,9 @@ class MetarData {
 
     if (cloudStr.contains('SKC') ||
         cloudStr.contains('CLR') ||
-        cloudStr.contains('NSC')) return 0;
+        cloudStr.contains('NSC')) {
+      return 0;
+    }
     if (cloudStr.contains('FEW')) return 20;
     if (cloudStr.contains('SCT')) return 50;
     if (cloudStr.contains('BKN')) return 75;

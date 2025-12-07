@@ -67,7 +67,7 @@ class _DebugScreenState extends State<DebugScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -88,12 +88,12 @@ class _DebugScreenState extends State<DebugScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        const Row(
                           children: [
                             Icon(Icons.smartphone,
                                 color: Colors.cyan, size: 24),
-                            const SizedBox(width: 12),
-                            const Text(
+                            SizedBox(width: 12),
+                            Text(
                               'FCM Token',
                               style: TextStyle(
                                 color: Colors.white,
@@ -105,7 +105,7 @@ class _DebugScreenState extends State<DebugScreen> {
                         ),
                         const SizedBox(height: 16),
                         _isLoading
-                            ? Center(
+                            ? const Center(
                                 child: CircularProgressIndicator(
                                   color: Colors.cyan,
                                 ),
@@ -128,7 +128,7 @@ class _DebugScreenState extends State<DebugScreen> {
                                         ),
                                         child: SelectableText(
                                           _fcmToken!,
-                                          style: TextStyle(
+                                          style: const TextStyle(
                                             color: Colors.cyan,
                                             fontSize: 12,
                                             fontFamily: 'monospace',
@@ -175,7 +175,7 @@ class _DebugScreenState extends State<DebugScreen> {
                                       ),
                                     ],
                                   )
-                                : Text(
+                                : const Text(
                                     'Failed to load FCM token',
                                     style: TextStyle(
                                       color: Colors.red,
@@ -183,7 +183,7 @@ class _DebugScreenState extends State<DebugScreen> {
                                     ),
                                   ),
                         const SizedBox(height: 12),
-                        Text(
+                        const Text(
                           'Use this token to test push notifications',
                           style: TextStyle(
                             color: Colors.white70,
@@ -204,12 +204,12 @@ class _DebugScreenState extends State<DebugScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        const Row(
                           children: [
                             Icon(Icons.analytics,
                                 color: Colors.green, size: 24),
-                            const SizedBox(width: 12),
-                            const Text(
+                            SizedBox(width: 12),
+                            Text(
                               'Diagnostics',
                               style: TextStyle(
                                 color: Colors.white,
@@ -248,16 +248,16 @@ class _DebugScreenState extends State<DebugScreen> {
                 // Instructions Section
                 Card(
                   color: Colors.white.withOpacity(0.1),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                  child: const Padding(
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
                             Icon(Icons.info, color: Colors.amber, size: 24),
-                            const SizedBox(width: 12),
-                            const Text(
+                            SizedBox(width: 12),
+                            Text(
                               'How to Use',
                               style: TextStyle(
                                 color: Colors.white,
@@ -267,8 +267,8 @@ class _DebugScreenState extends State<DebugScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
+                        SizedBox(height: 12),
+                        Text(
                           '1. Copy your FCM token above\n\n'
                           '2. Use it to test push notifications\n\n'
                           '3. Visit Firebase Console → Cloud Messaging\n\n'
@@ -291,16 +291,16 @@ class _DebugScreenState extends State<DebugScreen> {
                 // Firebase Info Section
                 Card(
                   color: Colors.white.withOpacity(0.1),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                  child: const Padding(
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
                             Icon(Icons.cloud, color: Colors.orange, size: 24),
-                            const SizedBox(width: 12),
-                            const Text(
+                            SizedBox(width: 12),
+                            Text(
                               'Firebase Project',
                               style: TextStyle(
                                 color: Colors.white,
@@ -310,7 +310,7 @@ class _DebugScreenState extends State<DebugScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        SizedBox(height: 12),
                         _InfoRow('Project ID', 'skypulse-pakistan'),
                         _InfoRow('Service', 'Cloud Messaging (FCM)'),
                         _InfoRow('Topics', 'all_alerts, city_alerts'),
@@ -330,16 +330,16 @@ class _DebugScreenState extends State<DebugScreen> {
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
+                  child: const Padding(
+                    padding: EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
                             Icon(Icons.speed, color: Colors.lime, size: 24),
-                            const SizedBox(width: 12),
-                            const Text(
+                            SizedBox(width: 12),
+                            Text(
                               'Quick Test',
                               style: TextStyle(
                                 color: Colors.white,
@@ -349,8 +349,8 @@ class _DebugScreenState extends State<DebugScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        const Text(
+                        SizedBox(height: 12),
+                        Text(
                           'To send a test notification:\n\n'
                           '1. Go to Firebase Console\n'
                           '2. Cloud Messaging tab\n'
@@ -394,7 +394,7 @@ class _InfoRow extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 13,
               ),
@@ -403,7 +403,7 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,

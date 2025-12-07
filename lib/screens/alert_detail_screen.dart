@@ -21,7 +21,7 @@ class AlertDetailScreen extends StatelessWidget {
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -33,19 +33,19 @@ class AlertDetailScreen extends StatelessWidget {
             children: [
               // Header
               Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: Icon(
+                      child: const Icon(
                         Icons.arrow_back,
                         color: Colors.white,
                         size: 24,
                       ),
                     ),
-                    SizedBox(width: 12),
-                    Expanded(
+                    const SizedBox(width: 12),
+                    const Expanded(
                       child: Text(
                         'Alert Details',
                         style: TextStyle(
@@ -63,21 +63,21 @@ class AlertDetailScreen extends StatelessWidget {
               // Content
               Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Severity Badge
                       Container(
                         padding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: _getSeverityColor(severity),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           _getSeverityLabel(severity),
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
@@ -85,11 +85,11 @@ class AlertDetailScreen extends StatelessWidget {
                           ),
                         ),
                       ),
-                      SizedBox(height: 16),
+                      const SizedBox(height: 16),
 
                       // Zone
                       Container(
-                        padding: EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(10),
@@ -99,15 +99,15 @@ class AlertDetailScreen extends StatelessWidget {
                         ),
                         child: Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.location_on,
                               color: Colors.white70,
                               size: 20,
                             ),
-                            SizedBox(width: 10),
+                            const SizedBox(width: 10),
                             Text(
                               zoneName,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -116,10 +116,10 @@ class AlertDetailScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
                       // Title
-                      Text(
+                      const Text(
                         'Alert Title',
                         style: TextStyle(
                           color: Colors.white70,
@@ -128,19 +128,19 @@ class AlertDetailScreen extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Text(
                         title,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
                       // Message
-                      Text(
+                      const Text(
                         'Alert Message',
                         style: TextStyle(
                           color: Colors.white70,
@@ -149,9 +149,9 @@ class AlertDetailScreen extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      SizedBox(height: 6),
+                      const SizedBox(height: 6),
                       Container(
-                        padding: EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(10),
@@ -161,17 +161,17 @@ class AlertDetailScreen extends StatelessWidget {
                         ),
                         child: Text(
                           message,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
                             height: 1.6,
                           ),
                         ),
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
                       // Time Info
-                      Text(
+                      const Text(
                         'Time Information',
                         style: TextStyle(
                           color: Colors.white70,
@@ -180,7 +180,7 @@ class AlertDetailScreen extends StatelessWidget {
                           letterSpacing: 0.5,
                         ),
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
                       // Created At
                       _buildInfoRow(
@@ -191,7 +191,7 @@ class AlertDetailScreen extends StatelessWidget {
                                 DateTime.fromMillisecondsSinceEpoch(createdAt))
                             : 'Unknown',
                       ),
-                      SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
                       // Start Time
                       if (startTime != null && startTime.isNotEmpty)
@@ -201,7 +201,7 @@ class AlertDetailScreen extends StatelessWidget {
                           value: startTime,
                         ),
                       if (startTime != null && startTime.isNotEmpty)
-                        SizedBox(height: 10),
+                        const SizedBox(height: 10),
 
                       // End Time
                       if (endTime != null && endTime.isNotEmpty)
@@ -211,7 +211,7 @@ class AlertDetailScreen extends StatelessWidget {
                           value: endTime,
                         ),
 
-                      SizedBox(height: 30),
+                      const SizedBox(height: 30),
 
                       // Close Button
                       SizedBox(
@@ -220,12 +220,12 @@ class AlertDetailScreen extends StatelessWidget {
                           onPressed: () => Navigator.pop(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _getSeverityColor(severity),
-                            padding: EdgeInsets.symmetric(vertical: 14),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          child: Text(
+                          child: const Text(
                             'Got it',
                             style: TextStyle(
                               color: Colors.white,
@@ -259,23 +259,23 @@ class AlertDetailScreen extends StatelessWidget {
           color: Colors.white70,
           size: 18,
         ),
-        SizedBox(width: 10),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(height: 2),
+              const SizedBox(height: 2),
               Text(
                 value,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -291,15 +291,15 @@ class AlertDetailScreen extends StatelessWidget {
   Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
       case 'critical':
-        return Color(0xFFFF5252);
+        return const Color(0xFFFF5252);
       case 'high':
-        return Color(0xFFFF9800);
+        return const Color(0xFFFF9800);
       case 'medium':
-        return Color(0xFFFFC107);
+        return const Color(0xFFFFC107);
       case 'low':
-        return Color(0xFF4CAF50);
+        return const Color(0xFF4CAF50);
       default:
-        return Color(0xFF2196F3);
+        return const Color(0xFF2196F3);
     }
   }
 

@@ -85,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   child: Container(
                                     width: 26,
                                     height: 26,
-                                    decoration: BoxDecoration(
+                                    decoration: const BoxDecoration(
                                       shape: BoxShape.circle,
                                       color: Colors.white,
                                     ),
@@ -151,15 +151,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 width: 2,
                               ),
                             ),
-                            child: Column(
+                            child: const Column(
                               children: [
                                 Icon(
                                   Icons.light_mode,
                                   color: Colors.orange,
                                   size: 24,
                                 ),
-                                const SizedBox(height: 8),
-                                const Text(
+                                SizedBox(height: 8),
+                                Text(
                                   'Light',
                                   style: TextStyle(fontSize: 12),
                                 ),

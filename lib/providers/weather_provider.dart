@@ -22,8 +22,8 @@ class WeatherProvider extends ChangeNotifier {
   MetarData? _metarData;
   List<Map<String, dynamic>> _activeAlerts = [];
   Timer? _alertRefreshTimer;
-  double _currentLatitude = 33.6699; // Default: Islamabad
-  double _currentLongitude = 73.0794; // Default: Islamabad
+  final double _currentLatitude = 33.6699; // Default: Islamabad
+  final double _currentLongitude = 73.0794; // Default: Islamabad
 
   // Cache for instant refresh
   WeatherData? _cachedWeatherData;
@@ -523,7 +523,7 @@ class WeatherProvider extends ChangeNotifier {
         String cityTopic = _sanitizeTopicName(_cityName);
 
         print(
-            '📝 [Topic Sanitization] Original: "${_cityName}" → Sanitized: "$cityTopic"');
+            '📝 [Topic Sanitization] Original: "$_cityName" → Sanitized: "$cityTopic"');
 
         if (cityTopic.isNotEmpty) {
           try {
@@ -567,7 +567,7 @@ class WeatherProvider extends ChangeNotifier {
         // Use title as primary ID if available, otherwise use title+message hash
         messageId = title.isNotEmpty
             ? title
-            : '${title}_${message}'.hashCode.toString();
+            : '${title}_$message'.hashCode.toString();
         alert['messageId'] = messageId;
       }
 

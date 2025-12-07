@@ -189,10 +189,10 @@ class _WindyMapScreenState extends State<WindyMapScreen> {
                                   },
                                   backgroundColor: Colors.transparent,
                                   selectedColor:
-                                      Color(0xFF667EEA).withOpacity(0.7),
+                                      const Color(0xFF667EEA).withOpacity(0.7),
                                   side: BorderSide(
                                     color: _selectedLayer == layer['overlay']
-                                        ? Color(0xFF667EEA)
+                                        ? const Color(0xFF667EEA)
                                         : Colors.white.withOpacity(0.3),
                                     width: 1,
                                   ),

@@ -10,6 +10,7 @@ import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
 import 'services/push_notification_service.dart';
+import 'utils/theme_utils.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -79,26 +80,37 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FavoritesService()),
         ChangeNotifierProvider(create: (_) => FavoritesCacheService()),
       ],
-      child: MaterialApp(
-        title: 'Skypulse',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: Color(0xFF0A0E27),
-          appBarTheme: AppBarTheme(
-            backgroundColor: Color(0xFF1A1F3A),
-            elevation: 0,
-          ),
-          colorScheme: ColorScheme.dark(
-            primary: Color(0xFF667EEA),
-            secondary: Color(0xFF764BA2),
-            surface: Color(0xFF1A1F3A),
-          ),
-        ),
-        home: const HomePage(),
-        routes: {
-          '/favorites': (context) => const FavoritesScreen(),
+      child: Consumer<WeatherProvider>(
+        builder: (context, weatherProvider, child) {
+          final isDay = weatherProvider.weatherData?.current.isDay ?? true;
+          return MaterialApp(
+            title: 'Skypulse',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              useMaterial3: true,
+              brightness: isDay ? Brightness.light : Brightness.dark,
+              scaffoldBackgroundColor: WeatherTheme.getPrimaryColor(isDay),
+              appBarTheme: AppBarTheme(
+                backgroundColor: WeatherTheme.getAccentColor(isDay),
+                elevation: 0,
+              ),
+              colorScheme: isDay
+                  ? const ColorScheme.light(
+                      primary: WeatherTheme.dayPrimary,
+                      secondary: WeatherTheme.dayAccent,
+                      surface: WeatherTheme.dayPrimary,
+                    )
+                  : const ColorScheme.dark(
+                      primary: WeatherTheme.nightPrimary,
+                      secondary: WeatherTheme.nightAccent,
+                      surface: WeatherTheme.nightPrimary,
+                    ),
+            ),
+            home: const HomePage(),
+            routes: {
+              '/favorites': (context) => const FavoritesScreen(),
+            },
+          );
         },
       ),
     );
@@ -190,7 +202,7 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Color(0xFF1A1F3A).withOpacity(0.7), // Transparent
+          color: const Color(0xFF1A1F3A).withOpacity(0.7), // Transparent
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.3),
@@ -208,7 +220,7 @@ class _HomePageState extends State<HomePage> {
                   _selectedIndex + 1, // Adjust for Home button (add 1)
               backgroundColor: Colors.transparent,
               elevation: 0,
-              selectedItemColor: Color(0xFF667EEA),
+              selectedItemColor: const Color(0xFF667EEA),
               unselectedItemColor: Colors.white54,
               onTap: (index) {
                 if (index == 0) {
@@ -238,7 +250,7 @@ class _HomePageState extends State<HomePage> {
                           child: Container(
                             width: 22,
                             height: 22,
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.red,
                               shape: BoxShape.circle,
                             ),

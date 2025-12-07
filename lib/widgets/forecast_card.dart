@@ -12,8 +12,8 @@ class ForecastCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
@@ -36,7 +36,7 @@ class ForecastCard extends StatelessWidget {
             width: 70,
             child: Text(
               forecast.dayName,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -44,36 +44,36 @@ class ForecastCard extends StatelessWidget {
             ),
           ),
 
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
 
           // Weather Icon
           Text(
             forecast.weatherIcon,
-            style: TextStyle(fontSize: 30),
+            style: const TextStyle(fontSize: 30),
           ),
 
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
 
           // Precipitation (if any)
           if (forecast.precipitationProbability > 0)
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Color(0xFF42A5F5).withOpacity(0.2),
+                color: const Color(0xFF42A5F5).withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.water_drop,
                     color: Color(0xFF42A5F5),
                     size: 14,
                   ),
-                  SizedBox(width: 4),
+                  const SizedBox(width: 4),
                   Text(
                     '${forecast.precipitationProbability}%',
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -83,7 +83,7 @@ class ForecastCard extends StatelessWidget {
               ),
             ),
 
-          Spacer(),
+          const Spacer(),
 
           // Temperature Range
           Row(
@@ -91,18 +91,18 @@ class ForecastCard extends StatelessWidget {
               // Min temp
               Text(
                 '${forecast.minTemp.round()}°',
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white60,
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               Container(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
+                  gradient: const LinearGradient(
                     colors: [
                       Color(0xFF42A5F5),
                       Color(0xFFEF5350),
@@ -111,11 +111,11 @@ class ForecastCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              SizedBox(width: 4),
+              const SizedBox(width: 4),
               // Max temp
               Text(
                 '${forecast.maxTemp.round()}°',
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,

@@ -16,7 +16,7 @@ class _MapScreenState extends State<MapScreen> {
       'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}';
 
   // Zoom level for tile mapping
-  int _zoomLevel = 6;
+  final int _zoomLevel = 6;
 
   @override
   void initState() {
@@ -58,14 +58,14 @@ class _MapScreenState extends State<MapScreen> {
               // EUMETSAT Satellite Background Layer
               Positioned.fill(
                 child: Container(
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color(0xFF1a3a3a),
-                        const Color(0xFF0d1f1f),
-                        const Color(0xFF2a4a4a),
+                        Color(0xFF1a3a3a),
+                        Color(0xFF0d1f1f),
+                        Color(0xFF2a4a4a),
                       ],
                     ),
                   ),
@@ -83,7 +83,7 @@ class _MapScreenState extends State<MapScreen> {
                         fit: BoxFit.cover,
                         cacheHeight: 2000,
                         cacheWidth: 2000,
-                        headers: {
+                        headers: const {
                           'User-Agent':
                               'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                         },
@@ -91,14 +91,14 @@ class _MapScreenState extends State<MapScreen> {
                           print(
                               '🛰️ Satellite map load failed: $error'); // Debug output
                           return Container(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  const Color(0xFF1a3a3a),
-                                  const Color(0xFF0d1f1f),
-                                  const Color(0xFF2a4a4a),
+                                  Color(0xFF1a3a3a),
+                                  Color(0xFF0d1f1f),
+                                  Color(0xFF2a4a4a),
                                 ],
                               ),
                             ),
@@ -135,14 +135,14 @@ class _MapScreenState extends State<MapScreen> {
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Container(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  const Color(0xFF1a3a3a),
-                                  const Color(0xFF0d1f1f),
-                                  const Color(0xFF2a4a4a),
+                                  Color(0xFF1a3a3a),
+                                  Color(0xFF0d1f1f),
+                                  Color(0xFF2a4a4a),
                                 ],
                               ),
                             ),
@@ -295,16 +295,16 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ],
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.satellite_alt,
                         color: Colors.white,
                         size: 18,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         'Satellite Map',
                         style: TextStyle(
                           color: Colors.white,

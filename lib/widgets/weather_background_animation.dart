@@ -84,28 +84,28 @@ class _WeatherBackgroundAnimationState extends State<WeatherBackgroundAnimation>
         );
       } else if (condition.contains('cloud')) {
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFF1A1F3A),
-                const Color(0xFF2A2E4A),
-                const Color(0xFF1F2340),
+                Color(0xFF1A1F3A),
+                Color(0xFF2A2E4A),
+                Color(0xFF1F2340),
               ],
             ),
           ),
         );
       } else if (condition.contains('snow')) {
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF1E2847),
-                const Color(0xFF2D3A5C),
-                const Color(0xFF1A2535),
+                Color(0xFF1E2847),
+                Color(0xFF2D3A5C),
+                Color(0xFF1A2535),
               ],
             ),
           ),
@@ -128,55 +128,55 @@ class _WeatherBackgroundAnimationState extends State<WeatherBackgroundAnimation>
     } else {
       if (condition.contains('rain') || condition.contains('storm')) {
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFF3B5998),
-                const Color(0xFF5B7CAA),
-                const Color(0xFF6B8EBC),
+                Color(0xFF3B5998),
+                Color(0xFF5B7CAA),
+                Color(0xFF6B8EBC),
               ],
             ),
           ),
         );
       } else if (condition.contains('cloud')) {
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFFA8C5E0),
-                const Color(0xFFD0DEEE),
-                const Color(0xFFE5EDF7),
+                Color(0xFFA8C5E0),
+                Color(0xFFD0DEEE),
+                Color(0xFFE5EDF7),
               ],
             ),
           ),
         );
       } else if (condition.contains('snow')) {
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFFC5D9F0),
-                const Color(0xFFE0EBF8),
-                const Color(0xFFF0F6FC),
+                Color(0xFFC5D9F0),
+                Color(0xFFE0EBF8),
+                Color(0xFFF0F6FC),
               ],
             ),
           ),
         );
       } else {
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                const Color(0xFF5DB3E8),
-                const Color(0xFFFFFFFF),
+                Color(0xFF5DB3E8),
+                Color(0xFFFFFFFF),
               ],
             ),
           ),

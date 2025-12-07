@@ -22,8 +22,8 @@ class WeatherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      padding: EdgeInsets.all(12),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -45,9 +45,9 @@ class WeatherCard extends StatelessWidget {
           // Icon
           Text(
             current.weatherIcon,
-            style: TextStyle(fontSize: 36),
+            style: const TextStyle(fontSize: 36),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
 
           // Center: City & Temp
           Expanded(
@@ -61,7 +61,7 @@ class WeatherCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         cityName,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
@@ -72,10 +72,10 @@ class WeatherCard extends StatelessWidget {
                     ),
                     if (countryCode.isNotEmpty)
                       Padding(
-                        padding: EdgeInsets.only(left: 6),
+                        padding: const EdgeInsets.only(left: 6),
                         child: Text(
                           countryCode,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 9,
                           ),
@@ -83,22 +83,22 @@ class WeatherCard extends StatelessWidget {
                       ),
                   ],
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 // Temp & Description
                 Text(
                   '${current.temperature.round()}° • ${current.weatherDescription}',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 // Feels like
                 Text(
                   'Feels ${feelsLike.round()}°C',
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 10,
                   ),
@@ -106,7 +106,7 @@ class WeatherCard extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(width: 10),
+          const SizedBox(width: 10),
 
           // Right: Quick stats
           Column(
@@ -116,30 +116,30 @@ class WeatherCard extends StatelessWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.opacity, size: 11, color: Colors.white70),
-                  SizedBox(width: 3),
+                  const Icon(Icons.opacity, size: 11, color: Colors.white70),
+                  const SizedBox(width: 3),
                   Text('${current.humidity.round()}%',
-                      style: TextStyle(color: Colors.white, fontSize: 10)),
+                      style: const TextStyle(color: Colors.white, fontSize: 10)),
                 ],
               ),
-              SizedBox(height: 3),
+              const SizedBox(height: 3),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.air, size: 11, color: Colors.white70),
-                  SizedBox(width: 3),
+                  const Icon(Icons.air, size: 11, color: Colors.white70),
+                  const SizedBox(width: 3),
                   Text('${current.windSpeed.round()} km/h',
-                      style: TextStyle(color: Colors.white, fontSize: 10)),
+                      style: const TextStyle(color: Colors.white, fontSize: 10)),
                 ],
               ),
-              SizedBox(height: 3),
+              const SizedBox(height: 3),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.compress, size: 11, color: Colors.white70),
-                  SizedBox(width: 3),
+                  const Icon(Icons.compress, size: 11, color: Colors.white70),
+                  const SizedBox(width: 3),
                   Text('${current.pressure.round()}hPa',
-                      style: TextStyle(color: Colors.white, fontSize: 10)),
+                      style: const TextStyle(color: Colors.white, fontSize: 10)),
                 ],
               ),
             ],

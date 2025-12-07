@@ -1,59 +1,104 @@
-<!-- Copilot / AI agent instructions for the SkyPulse_Pakistan Flutter app -->
-# Copilot instructions — SkyPulse_Pakistan
+# Copilot Instructions — SkyPulse Pakistan
 
-Purpose: provide focused, actionable knowledge so an AI coding agent can be immediately productive in this repository.
+## Quick Start
+```bash
+flutter pub get           # Install dependencies
+flutter run -d <device>   # Launch app (use -d chrome for web, -d emulator-5554 for Android)
+```
+No API keys required for weather/METAR. Firebase requires `android/app/google-services.json`.
 
-- Quick start
-  - Run: `flutter pub get` (dependencies are in `pubspec.yaml`).
-  - Launch app: `flutter run -d <device>` from repository root.
-  - Android build (if needed): open `android/` and run `./gradlew assembleDebug`.
+## Architecture Overview
+Flutter app using **Provider** for state management with a 3-tab UI (Alerts | Weather | Favorites).
 
-- High-level architecture (one-paragraph)
-  - This is a Flutter app using `provider` for state management. `WeatherProvider` (in `lib/providers/weather_provider.dart`) is the single source of truth: it orchestrates data fetching, METAR fallback logic, alert polling, and notifies UI screens. The provider delegates heavy lifting to `lib/services/*` (WeatherService, MetarService, AlertService) and consumes models in `lib/models/*`.
+**Data Flow:** UI screens → `WeatherProvider` → Services → External APIs → Models → UI
 
-- Core components & boundaries (files to inspect first)
-  - App entry + DI: `lib/main.dart` — registers `WeatherProvider` with `ChangeNotifierProvider`.
-  - State orchestration: `lib/providers/weather_provider.dart` — central flows: `fetchWeatherByLocation`, `fetchWeatherByCity`, `refresh`, and `_fetchWeatherWithMetarAttempt` (METAR-first strategy).
-  - Weather API: `lib/services/weather_service.dart` — uses Open-Meteo APIs (no API key). Methods: `getWeatherByCoordinates`, `getCoordinatesFromCity`.
-  - METAR support: `lib/services/metar_service.dart` — looks up nearby airports (hard-coded lists + coordinate lookup) and uses Aviation Weather Center endpoints. Extend `cityAirports` or airport coordinates to add support.
-  - Alerts: `lib/services/alert_service.dart` — calls a Cloudflare Worker endpoint (`_alertApiBase`) to check alerts. Alerts are optional and errors return empty lists.
-  - Models: `lib/models/weather_model.dart`, `lib/models/metar_model.dart` — note conversions: METAR -> `CurrentWeather` uses sunrise/sunset from the API to compute `isDay` correctly.
-  - UI surfaces: `lib/screens/*` and `lib/widgets/*` — these consume `WeatherProvider` and the model objects directly.
+| Layer | Key Files | Responsibility |
+|-------|-----------|----------------|
+| Entry | `lib/main.dart` | Firebase init, MultiProvider registration, theme based on `isDay` |
+| State | `lib/providers/weather_provider.dart` | Single source of truth: fetches, caching, alert polling |
+| Services | `lib/services/*.dart` | Network calls (Open-Meteo, METAR, Alerts, FCM) |
+| Models | `lib/models/*.dart` | Parsing & unit conversions |
+| UI | `lib/screens/*`, `lib/widgets/*` | Consume provider via `Consumer<WeatherProvider>` |
 
-- Important patterns & repo-specific conventions
-  - METAR-first: code attempts to obtain METAR for a location and, if present, composes an enhanced current weather by combining METAR (for accurate immediate observations) with API-derived forecast/UV info. See `_fetchWeatherWithMetarAttempt` in `WeatherProvider`.
-  - Units & conversions: METAR wind speed is in knots and converted to km/h in `MetarData.toCurrentWeather`. Visibility in METAR may be miles/meters — the models convert to km. Watch for unit conversions when adding features.
-  - Airport support: add cities to `MetarService.cityAirports` (key = city display name, value = ICAO list) OR extend `_findNearbyAirportICAOs` airport coordinates to broaden nearby searches.
-  - Alerts are polled: `WeatherProvider` starts a Timer in `_startAlertRefreshTimer` that refreshes every 30s. Changes to this behavior must update provider and UI expectations.
-  - Error handling style: services typically catch exceptions, log with `print`, and return safe defaults (e.g., empty alert arrays). Avoid assuming network calls always return data.
+## Critical Patterns
 
-- External integrations & secrets
-  - Open-Meteo (forecast + geocoding): no API key required (`weather_service.dart`).
-  - Aviation Weather Center (METAR): no API key required (`metar_service.dart`).
-  - Alerts endpoint: `lib/services/alert_service.dart` uses a Cloudflare Worker URL; update `_alertApiBase` if deploying your own alert backend.
-  - Firebase: `lib/firebase_options.dart` exists and `firebase_messaging` is listed in `pubspec.yaml`. If running push notifications locally, follow Firebase project setup and ensure `google-services.json` (Android) / `GoogleService-Info.plist` (iOS) are present.
+### METAR-First with API Fallback
+`WeatherProvider._fetchWeatherWithMetarAttempt()` fetches Open-Meteo first (shows immediately), then enhances with METAR in background:
+```dart
+// Pattern: Show API data instantly, enhance with METAR async
+_weatherData = apiData;
+notifyListeners();  // UI updates immediately
+_fetchMetarInBackground(cityName, lat, lon, apiData);  // Enhances later
+```
 
-- Developer workflows & commands
-  - Install deps: `flutter pub get`.
-  - Run app: `flutter run -d <device>`.
-  - To reproduce network issues locally: enable verbose prints — the code already emits many `print(...)` debug logs.
-  - If adding new native (Firebase) configuration, update files under `android/app/` and `ios/Runner/` accordingly.
+### Caching Strategy
+Provider maintains `_cachedWeatherData` for instant refresh and offline fallback. Always update cache after successful fetch:
+```dart
+_cachedWeatherData = _weatherData;
+_cachedCityName = _cityName;
+```
 
-- How to extend common features (examples)
-  - Add METAR airport for a city: edit `MetarService.cityAirports`, e.g.
-    - `cityAirports['MyCity'] = ['XXXX'];`
-  - Add a new nearby airport coordinate for discovery: add `{ 'XXXX': {'lat': xx.x, 'lon': yy.y} }` inside `_findNearbyAirportICAOs`.
-  - Change alert API URL: update `_alertApiBase` in `lib/services/alert_service.dart`.
+### Background Tasks Pattern
+Non-blocking operations use `_doBackgroundTasks()` with `Future.microtask()` — alerts, FCM topics run after UI updates.
 
-- Quick file references (first places to look when changing behavior)
-  - `pubspec.yaml` — dependencies and SDK constraints
-  - `lib/main.dart` — app boot and provider registration
-  - `lib/providers/weather_provider.dart` — main orchestration and polling logic
-  - `lib/services/*.dart` — integrations and network logic
-  - `lib/models/*.dart` — parsing/formatting and unit conversions
-  - `lib/screens/*` and `lib/widgets/*` — UI usage of models/provider
+### Unit Conversions (METAR ↔ API)
+- Wind: METAR uses **knots** → convert to **km/h** (`wspd * 1.852`)
+- Visibility: METAR uses **statute miles** → convert to **km** (`visib * 1.60934`)
+- See `MetarData.fromJson()` and `MetarData.toCurrentWeather()` in `lib/models/metar_model.dart`
 
-- Tests & CI
-  - There are no tests in the repository. When adding tests, prefer unit tests for `WeatherService`, `MetarService` (parsing), and `MetarData.toCurrentWeather` conversions.
+### Error Handling
+Services catch exceptions, log with `print()`, return safe defaults (empty lists, null). Never assume network success:
+```dart
+} catch (e) {
+  print('❌ [AlertService] Error: $e');
+  return [];  // Alerts are optional
+}
+```
 
-If any section is unclear or you'd like more examples (for example: exact code snippets to add a new METAR airport, or a checklist to configure Firebase locally), tell me which area to expand and I'll iterate.
+## Extending the App
+
+### Add METAR Support for a City
+Edit `lib/services/metar_service.dart`:
+```dart
+static const Map<String, List<String>> cityAirports = {
+  'MyCity': ['ICAO'],  // Add here - key is display name, value is ICAO code list
+  // ...
+};
+```
+
+### Add Alert Backend
+Update `lib/services/alert_service.dart`:
+```dart
+static const String _alertApiBase = 'https://your-worker.workers.dev';
+```
+
+### Add New Theme Colors
+Edit `lib/utils/theme_utils.dart` — `WeatherTheme` provides day/night gradients. Theme is auto-switched based on `weatherData.current.isDay`.
+
+## External Dependencies
+
+| Service | Endpoint | Auth | File |
+|---------|----------|------|------|
+| Open-Meteo | `api.open-meteo.com` | None | `weather_service.dart` |
+| METAR | `aviationweather.gov` | None | `metar_service.dart` |
+| Alerts | Cloudflare Worker | None | `alert_service.dart` |
+| Push | Firebase FCM | `google-services.json` | `push_notification_service.dart` |
+
+## Key Files Quick Reference
+- **State orchestration**: `lib/providers/weather_provider.dart` (all fetch logic, caching, alert polling)
+- **Weather parsing**: `lib/models/weather_model.dart` (`WeatherData.fromJson`)
+- **METAR parsing**: `lib/models/metar_model.dart` (`MetarData.fromJson`, unit conversions)
+- **Day/Night theme**: `lib/utils/theme_utils.dart` + `lib/main.dart` Consumer
+- **Firebase setup**: `lib/firebase_options.dart`, `lib/services/push_notification_service.dart`
+
+## Debugging Tips
+- Verbose logging via `print()` is already present throughout services
+- Check FCM token: stored in SharedPreferences as `fcm_token`
+- Alert polling runs every 30s via `_startAlertRefreshTimer()` in WeatherProvider
+- METAR fallback: if no airport found, app silently uses API-only data
+
+## Testing (No Tests Exist)
+When adding tests, prioritize:
+1. `MetarData.fromJson()` and `toCurrentWeather()` — unit conversion correctness
+2. `WeatherData.fromJson()` — parsing hourly/daily forecasts
+3. `WeatherProvider` — mock services to test caching/fallback logic

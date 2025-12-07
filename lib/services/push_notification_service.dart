@@ -131,7 +131,7 @@ class PushNotificationService {
 
   /// Subscribe to city alerts
   static Future<void> subscribeToCityAlerts(String cityName) async {
-    final topic = cityName.toLowerCase().replaceAll(' ', '_') + '_alerts';
+    final topic = '${cityName.toLowerCase().replaceAll(' ', '_')}_alerts';
     await subscribeToTopic(topic);
   }
 

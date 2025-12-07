@@ -22,7 +22,7 @@ class WeatherDetails extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
+        const Padding(
           padding: EdgeInsets.only(left: 4, bottom: 12),
           child: Text(
             'Current Conditions',
@@ -41,19 +41,19 @@ class WeatherDetails extends StatelessWidget {
             Expanded(
               child: _buildWindTile(windDirection),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: _buildDetailTile(
                 icon: Icons.water_drop,
-                iconColor: Color(0xFF4FC3F7),
+                iconColor: const Color(0xFF4FC3F7),
                 label: 'Humidity',
                 value: '${current.humidity}%',
-                backgroundColor: Color(0xFF4FC3F7).withOpacity(0.1),
+                backgroundColor: const Color(0xFF4FC3F7).withOpacity(0.1),
               ),
             ),
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
 
         // Row 2: Dew Point and Wind Gust (hide gust if 0, show wind speed instead)
         Row(
@@ -61,33 +61,33 @@ class WeatherDetails extends StatelessWidget {
             Expanded(
               child: _buildDetailTile(
                 icon: Icons.thermostat,
-                iconColor: Color(0xFF81C784),
+                iconColor: const Color(0xFF81C784),
                 label: 'Dew Point',
                 value: '${current.dewPoint.toStringAsFixed(1)}°C',
-                backgroundColor: Color(0xFF81C784).withOpacity(0.1),
+                backgroundColor: const Color(0xFF81C784).withOpacity(0.1),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: current.windGust > 0
                   ? _buildDetailTile(
                       icon: Icons.air,
-                      iconColor: Color(0xFF64B5F6),
+                      iconColor: const Color(0xFF64B5F6),
                       label: 'Wind Gust',
                       value: '${current.windGust.round()} km/h',
-                      backgroundColor: Color(0xFF64B5F6).withOpacity(0.1),
+                      backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
                     )
                   : _buildDetailTile(
                       icon: Icons.air,
-                      iconColor: Color(0xFF64B5F6),
+                      iconColor: const Color(0xFF64B5F6),
                       label: 'Wind Speed',
                       value: '${current.windSpeed.round()} km/h',
-                      backgroundColor: Color(0xFF64B5F6).withOpacity(0.1),
+                      backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
                     ),
             ),
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
 
         // Row 3: UV Index and Visibility
         Row(
@@ -101,19 +101,19 @@ class WeatherDetails extends StatelessWidget {
                 backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: _buildDetailTile(
                 icon: Icons.visibility,
-                iconColor: Color(0xFF9C27B0),
+                iconColor: const Color(0xFF9C27B0),
                 label: 'Visibility',
                 value: '${current.visibility.toStringAsFixed(1)} km',
-                backgroundColor: Color(0xFF9C27B0).withOpacity(0.1),
+                backgroundColor: const Color(0xFF9C27B0).withOpacity(0.1),
               ),
             ),
           ],
         ),
-        SizedBox(height: 12),
+        const SizedBox(height: 12),
 
         // Row 4: Pressure and Cloud Cover
         Row(
@@ -121,20 +121,20 @@ class WeatherDetails extends StatelessWidget {
             Expanded(
               child: _buildDetailTile(
                 icon: Icons.compress,
-                iconColor: Color(0xFFFF7043),
+                iconColor: const Color(0xFFFF7043),
                 label: 'Pressure',
                 value: '${current.pressure.round()} hPa',
-                backgroundColor: Color(0xFFFF7043).withOpacity(0.1),
+                backgroundColor: const Color(0xFFFF7043).withOpacity(0.1),
               ),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Expanded(
               child: _buildDetailTile(
                 icon: Icons.cloud,
-                iconColor: Color(0xFF78909C),
+                iconColor: const Color(0xFF78909C),
                 label: 'Cloud Cover',
                 value: '${current.cloudCover}%',
-                backgroundColor: Color(0xFF78909C).withOpacity(0.1),
+                backgroundColor: const Color(0xFF78909C).withOpacity(0.1),
               ),
             ),
           ],
@@ -145,14 +145,14 @@ class WeatherDetails extends StatelessWidget {
 
   Widget _buildWindTile(double windDirection) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFF66BB6A).withOpacity(0.15),
-            Color(0xFF66BB6A).withOpacity(0.05),
+            const Color(0xFF66BB6A).withOpacity(0.15),
+            const Color(0xFF66BB6A).withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
@@ -164,7 +164,7 @@ class WeatherDetails extends StatelessWidget {
       child: Column(
         children: [
           // Wind Compass
-          Container(
+          SizedBox(
             height: 80,
             width: 80,
             child: WindCompass(
@@ -172,10 +172,10 @@ class WeatherDetails extends StatelessWidget {
               windDirection: windDirection,
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
 
           // Label and Value
-          Text(
+          const Text(
             'Wind Speed',
             style: TextStyle(
               color: Colors.white70,
@@ -183,20 +183,20 @@ class WeatherDetails extends StatelessWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
             '${current.windSpeed.round()} km/h',
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (windDirection > 0) ...[
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
               '${windDirection.round()}°',
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white60,
                 fontSize: 12,
               ),
@@ -215,7 +215,7 @@ class WeatherDetails extends StatelessWidget {
     required Color backgroundColor,
   }) {
     return Container(
-      padding: EdgeInsets.all(18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -235,7 +235,7 @@ class WeatherDetails extends StatelessWidget {
         children: [
           // Icon with colored background
           Container(
-            padding: EdgeInsets.all(12),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.2),
               shape: BoxShape.circle,
@@ -246,24 +246,24 @@ class WeatherDetails extends StatelessWidget {
               size: 28,
             ),
           ),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
 
           // Label
           Text(
             label,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white70,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
 
           // Value
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -277,10 +277,10 @@ class WeatherDetails extends StatelessWidget {
   }
 
   Color _getUVColor(double uvIndex) {
-    if (uvIndex <= 2) return Color(0xFF66BB6A); // Green
-    if (uvIndex <= 5) return Color(0xFFFDD835); // Yellow
-    if (uvIndex <= 7) return Color(0xFFFF9800); // Orange
-    if (uvIndex <= 10) return Color(0xFFF44336); // Red
-    return Color(0xFF9C27B0); // Purple
+    if (uvIndex <= 2) return const Color(0xFF66BB6A); // Green
+    if (uvIndex <= 5) return const Color(0xFFFDD835); // Yellow
+    if (uvIndex <= 7) return const Color(0xFFFF9800); // Orange
+    if (uvIndex <= 10) return const Color(0xFFF44336); // Red
+    return const Color(0xFF9C27B0); // Purple
   }
 }

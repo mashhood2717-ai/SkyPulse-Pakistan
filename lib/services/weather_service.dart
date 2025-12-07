@@ -7,11 +7,11 @@ class WeatherService {
   static const String baseUrl = 'https://api.open-meteo.com/v1/forecast';
   static const String aqiUrl =
       'https://air-quality-api.open-meteo.com/v1/air-quality';
-  
+
   // Google Geocoding API
   static const String googleGeocodingUrl =
       'https://maps.googleapis.com/maps/api/geocode/json';
-  
+
   // Google API key (same as Google Maps)
   static const String googleApiKey = 'AIzaSyDjZ0ZlSS19MP0uecz0XeyxriUCl-aNvMo';
 
@@ -114,27 +114,31 @@ class WeatherService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['status'] != 'OK' || data['results'] == null || data['results'].isEmpty) {
-          print('⚠️ [Google Geocoding] Status: ${data['status']}, Error: ${data['error_message'] ?? 'No results'}');
+        if (data['status'] != 'OK' ||
+            data['results'] == null ||
+            data['results'].isEmpty) {
+          print(
+              '⚠️ [Google Geocoding] Status: ${data['status']}, Error: ${data['error_message'] ?? 'No results'}');
           throw Exception('City not found');
         }
 
         final result = data['results'][0];
         final location = result['geometry']['location'];
-        
+
         // Extract city name and country from address components
         // Priority: locality > sublocality > administrative_area_level_2 > search term
         String? locality;
         String? sublocality;
         String? adminArea2;
         String country = '';
-        
+
         for (final component in result['address_components'] ?? []) {
           final types = List<String>.from(component['types'] ?? []);
           if (types.contains('locality')) {
             locality = component['long_name'];
           }
-          if (types.contains('sublocality') || types.contains('sublocality_level_1')) {
+          if (types.contains('sublocality') ||
+              types.contains('sublocality_level_1')) {
             sublocality = component['long_name'];
           }
           if (types.contains('administrative_area_level_2')) {
@@ -144,23 +148,24 @@ class WeatherService {
             country = component['short_name'] ?? '';
           }
         }
-        
+
         // Use the most specific name, fall back to original search term
         // This ensures "Mailsi" stays as "Mailsi", not "Punjab"
         String name = locality ?? sublocality ?? adminArea2 ?? cityName;
-        
+
         // If the original search term looks like a specific place name (not a province),
         // prefer keeping it over a generic admin area
-        if (name != cityName && 
-            locality == null && 
+        if (name != cityName &&
+            locality == null &&
             !cityName.toLowerCase().contains('province') &&
             !cityName.toLowerCase().contains('state')) {
           // The search term was specific but we only found admin areas
           // Keep the original search term as it's likely more specific
           name = cityName;
         }
-        
-        print('✅ City found: $name, $country (locality=$locality, sublocality=$sublocality, admin2=$adminArea2)');
+
+        print(
+            '✅ City found: $name, $country (locality=$locality, sublocality=$sublocality, admin2=$adminArea2)');
         return {
           'latitude': location['lat'],
           'longitude': location['lng'],
@@ -190,13 +195,15 @@ class WeatherService {
   }
 
   // Reverse geocoding: Get city name from coordinates using Google Geocoding API
+  // Returns street-level addresses like "I-8/3" instead of just "Islamabad"
   Future<Map<String, dynamic>> getCityFromCoordinates(
       double latitude, double longitude) async {
     try {
       print('🔍 Reverse geocoding: $latitude, $longitude');
 
+      // No result_type filter - get the most detailed address available
       final url = Uri.parse(
-          '$googleGeocodingUrl?latlng=$latitude,$longitude&key=$googleApiKey&result_type=locality|administrative_area_level_2|administrative_area_level_1');
+          '$googleGeocodingUrl?latlng=$latitude,$longitude&key=$googleApiKey');
 
       final response = await http.get(url).timeout(
         const Duration(seconds: 10),
@@ -209,7 +216,9 @@ class WeatherService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        if (data['status'] != 'OK' || data['results'] == null || data['results'].isEmpty) {
+        if (data['status'] != 'OK' ||
+            data['results'] == null ||
+            data['results'].isEmpty) {
           print('⚠️ [Google Geocoding] Reverse: Status: ${data['status']}');
           return {
             'name': 'Current Location',
@@ -220,16 +229,32 @@ class WeatherService {
         }
 
         final result = data['results'][0];
-        
-        // Extract city name and country from address components
-        // Priority: locality > administrative_area_level_2 > administrative_area_level_1
+
+        // Extract the most specific address available
+        String? street;
+        String? route;
+        String? neighborhood;
+        String? sublocality;
         String? locality;
         String? adminArea2;
         String? adminArea1;
         String country = '';
-        
+
         for (final component in result['address_components'] ?? []) {
           final types = List<String>.from(component['types'] ?? []);
+          if (types.contains('street_address')) {
+            street = component['long_name'];
+          }
+          if (types.contains('route')) {
+            route = component['long_name'];
+          }
+          if (types.contains('neighborhood')) {
+            neighborhood = component['long_name'];
+          }
+          if (types.contains('sublocality') ||
+              types.contains('sublocality_level_1')) {
+            sublocality = component['long_name'];
+          }
           if (types.contains('locality')) {
             locality = component['long_name'];
           }
@@ -244,19 +269,27 @@ class WeatherService {
           }
         }
 
-        // Use the most specific name available
-        String cityName = locality ?? adminArea2 ?? adminArea1 ?? 'Current Location';
-        
+        // Prefer street, route, neighborhood, sublocality, then locality/city
+        String address = street ??
+            route ??
+            neighborhood ??
+            sublocality ??
+            locality ??
+            adminArea2 ??
+            adminArea1 ??
+            'Current Location';
+
         // Clean up common suffixes for cleaner display
-        cityName = cityName
+        address = address
             .replaceAll(' Capital Territory', '')
             .replaceAll(' Metropolitan Area', '')
             .replaceAll(' District', '')
             .trim();
 
-        print('✅ Location found: $cityName, $country (locality=$locality, admin2=$adminArea2, admin1=$adminArea1)');
+        print(
+            '✅ Location found: $address, $country (street=$street, route=$route, neighborhood=$neighborhood, sublocality=$sublocality, locality=$locality, admin2=$adminArea2, admin1=$adminArea1)');
         return {
-          'name': cityName,
+          'name': address,
           'country': country,
           'latitude': latitude,
           'longitude': longitude,
@@ -317,7 +350,8 @@ class WeatherService {
             'description': p['description'] ?? '',
             'placeId': p['place_id'] ?? '',
             'mainText': p['structured_formatting']?['main_text'] ?? '',
-            'secondaryText': p['structured_formatting']?['secondary_text'] ?? '',
+            'secondaryText':
+                p['structured_formatting']?['secondary_text'] ?? '',
           };
         }).toList();
       } else {
@@ -340,9 +374,9 @@ class WeatherService {
           '$googlePlaceDetailsUrl?place_id=$placeId&fields=geometry,name,address_components&key=$googleApiKey');
 
       final response = await http.get(url).timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => throw TimeoutException('Place details timeout'),
-      );
+            const Duration(seconds: 5),
+            onTimeout: () => throw TimeoutException('Place details timeout'),
+          );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);

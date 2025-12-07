@@ -2,9 +2,10 @@ include: package:flutter_lints/flutter.yaml
 
 linter:
   rules:
-    # Disabled rules for weather app
-    - avoid_print  # Debug logging is essential for weather data tracking
-    - prefer_const_constructors  # Some dynamic construction is necessary
+    # Disabled rules for weather app - debug logging is essential
+    avoid_print: false
+    # Some dynamic construction is necessary
+    prefer_const_constructors: false
 
 analyzer:
   errors:

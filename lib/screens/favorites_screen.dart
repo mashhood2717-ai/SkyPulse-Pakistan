@@ -6,6 +6,7 @@ import '../services/favorites_cache_service.dart';
 import '../providers/weather_provider.dart';
 import '../services/weather_service.dart';
 import '../models/weather_model.dart';
+import '../widgets/skeleton_loader.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final Function(String)? onLocationSelected;
@@ -183,7 +184,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   Future<void> _selectLocation(String city) async {
     // Show loading indicator
     setState(() => _loadingCity = city);
-    
+
     try {
       final provider = context.read<WeatherProvider>();
 
@@ -386,31 +387,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const CircularProgressIndicator(
-              color: Colors.white,
-              strokeWidth: 3,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Loading favorites...',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
+    return const Padding(
+      padding: EdgeInsets.all(20),
+      child: WeatherSkeletonCard(),
     );
   }
 
@@ -558,7 +537,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               color: Colors.transparent,
               child: InkWell(
                 borderRadius: BorderRadius.circular(20),
-                onTap: _loadingCity == null ? () => _selectLocation(cityName) : null,
+                onTap: _loadingCity == null
+                    ? () => _selectLocation(cityName)
+                    : null,
                 child: Stack(
                   children: [
                     Padding(
@@ -622,14 +603,11 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                             color: Colors.black.withOpacity(0.3),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Center(
-                            child: SizedBox(
+                          child: Center(
+                            child: SkeletonLoader(
                               width: 24,
                               height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
@@ -699,30 +677,36 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.opacity, size: 12, color: Colors.white.withOpacity(0.7)),
+                  Icon(Icons.opacity,
+                      size: 12, color: Colors.white.withOpacity(0.7)),
                   const SizedBox(width: 3),
                   Text('${weather.humidity.round()}%',
-                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.9), fontSize: 11)),
                 ],
               ),
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.air, size: 12, color: Colors.white.withOpacity(0.7)),
+                  Icon(Icons.air,
+                      size: 12, color: Colors.white.withOpacity(0.7)),
                   const SizedBox(width: 3),
                   Text('${weather.windSpeed.round()} km/h',
-                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.9), fontSize: 11)),
                 ],
               ),
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.compress, size: 12, color: Colors.white.withOpacity(0.7)),
+                  Icon(Icons.compress,
+                      size: 12, color: Colors.white.withOpacity(0.7)),
                   const SizedBox(width: 3),
                   Text('${weather.pressure.round()}hPa',
-                      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.9), fontSize: 11)),
                 ],
               ),
             ],
@@ -733,21 +717,16 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
     return Row(
       children: [
-        SizedBox(
+        SkeletonLoader(
           width: 16,
           height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white.withOpacity(0.5),
-          ),
+          borderRadius: BorderRadius.circular(8),
         ),
         const SizedBox(width: 10),
-        Text(
-          'Loading...',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.5),
-            fontSize: 12,
-          ),
+        SkeletonLoader(
+          width: 60,
+          height: 12,
+          borderRadius: BorderRadius.circular(6),
         ),
       ],
     );

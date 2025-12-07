@@ -42,7 +42,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String? _initialLocationCity;
   String? _initialLocationCountry;
   WeatherData? _cachedInitialWeather;
-  bool _isAnimatingToPage = false; // Flag to prevent intermediate fetches during animation
+  bool _isAnimatingToPage =
+      false; // Flag to prevent intermediate fetches during animation
 
   // Search autocomplete
   List<Map<String, dynamic>> _searchSuggestions = [];
@@ -124,7 +125,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// Start timer to refresh location every 30 seconds when on main card (index 0)
   void _startLocationRefreshTimer() {
     _locationRefreshTimer?.cancel();
-    _locationRefreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+    _locationRefreshTimer =
+        Timer.periodic(const Duration(seconds: 30), (timer) {
       // Only refresh if on the main card (current location, index 0)
       if (_currentPage == 0 && mounted) {
         print('🔄 [30s Timer] Refreshing current location...');
@@ -256,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// Go to the first page (current location)
   void _goToFirstPage() {
     final provider = context.read<WeatherProvider>();
-    
+
     // Immediately restore cached data for instant UI response
     _restoreInitialLocation(provider);
 
@@ -264,26 +266,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_currentPage != 0 && _pageController.hasClients) {
       // Set flag to prevent intermediate page fetches
       _isAnimatingToPage = true;
-      
-      _pageController.animateToPage(
+
+      _pageController
+          .animateToPage(
         0,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-      ).then((_) {
+      )
+          .then((_) {
         _isAnimatingToPage = false;
       });
     }
-    
+
     // Fetch fresh data in background (includes AQI)
     _fetchFreshCurrentLocation(provider);
   }
-  
+
   /// Fetch fresh data for current location
   Future<void> _fetchFreshCurrentLocation(WeatherProvider provider) async {
     if (_initialLocationCity != null) {
-      print('🔄 [HomeScreen] Fetching fresh data for current location: $_initialLocationCity');
+      print(
+          '🔄 [HomeScreen] Fetching fresh data for current location: $_initialLocationCity');
       await provider.fetchWeatherByCity(_initialLocationCity!);
-      
+
       // Update cached data with fresh data
       if (mounted && provider.weatherData != null) {
         setState(() {
@@ -312,16 +317,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       // Set flag to prevent onPageChanged from fetching during animation
       _isAnimatingToPage = true;
-      
+
       // Update current page BEFORE animation to prevent duplicate fetches
       setState(() => _currentPage = targetPage);
 
       // Animate to the favorite card (index + 1 because 0 is current location)
-      _pageController.animateToPage(
+      _pageController
+          .animateToPage(
         targetPage,
         duration: const Duration(milliseconds: 500),
         curve: Curves.easeInOut,
-      ).then((_) {
+      )
+          .then((_) {
         // Clear flag after animation completes
         _isAnimatingToPage = false;
       });
@@ -520,47 +527,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       if (isLoadingFavorite)
                         Container(
                           color: Colors.black.withOpacity(0.5),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                TweenAnimationBuilder<double>(
-                                  tween: Tween(begin: 0.0, end: 1.0),
-                                  duration: const Duration(milliseconds: 1500),
-                                  builder: (context, value, child) {
-                                    return Transform.scale(
-                                      scale: 0.8 + (value * 0.2),
-                                      child: Container(
-                                        width: 60,
-                                        height: 60,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Colors.white.withOpacity(0.3),
-                                              Colors.blue.withOpacity(0.5),
-                                            ],
-                                          ),
-                                        ),
-                                        child: const CircularProgressIndicator(
-                                          color: Colors.white,
-                                          strokeWidth: 3,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'Loading weather data...',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: WeatherSkeletonCard(),
                           ),
                         ),
                     ],
@@ -575,57 +544,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Animated loading indicator
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 1500),
-            builder: (context, value, child) {
-              return Transform.scale(
-                scale: 0.8 + (value * 0.2),
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.white.withOpacity(0.3),
-                        Colors.white.withOpacity(0.1),
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.2),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 3,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Loading weather data...',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
+    // Use skeleton loader instead of spinner
+    return const Padding(
+      padding: EdgeInsets.all(20),
+      child: WeatherSkeletonCard(),
     );
   }
 
@@ -911,10 +833,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 print('📱 [HomeScreen] Already on page $index, skipping fetch');
                 return;
               }
-              
+
               // Skip fetching during programmatic animation (intermediate pages)
               if (_isAnimatingToPage) {
-                print('📱 [HomeScreen] Skipping intermediate page $index during animation');
+                print(
+                    '📱 [HomeScreen] Skipping intermediate page $index during animation');
                 return;
               }
 
@@ -993,8 +916,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         builder: (context, provider, _) {
           // Show full weather info ONLY if data loaded AND it matches this city
           final current = provider.weatherData?.current;
-          final isCorrectCity = provider.cityName.toLowerCase() == cityName.toLowerCase();
-          
+          final isCorrectCity =
+              provider.cityName.toLowerCase() == cityName.toLowerCase();
+
           if (current != null && !provider.isLoading && isCorrectCity) {
             // Show data-loaded state with FULL weather info
             return _buildFavoriteCachedCard(cityName, countryCode, current);
@@ -1005,7 +929,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       );
     }
 
-    // When inactive, just show glass card with city name
+    // When inactive, just show glass card with skeleton shimmer
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -1031,13 +955,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
+              // Skeleton shimmer instead of spinner
+              SkeletonLoader(
+                width: 28,
+                height: 28,
+                borderRadius: BorderRadius.circular(8),
               ),
               const SizedBox(height: 6),
               Text(
@@ -1386,10 +1308,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.opacity, size: 11, color: Colors.white70),
+                      const Icon(Icons.opacity,
+                          size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.humidity.round()}%',
-                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 10)),
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -1399,17 +1323,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const Icon(Icons.air, size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.windSpeed.round()} km/h',
-                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 10)),
                     ],
                   ),
                   const SizedBox(height: 3),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.compress, size: 11, color: Colors.white70),
+                      const Icon(Icons.compress,
+                          size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.pressure.round()}hPa',
-                          style: const TextStyle(color: Colors.white, fontSize: 10)),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 10)),
                     ],
                   ),
                 ],

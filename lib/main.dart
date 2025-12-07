@@ -15,12 +15,12 @@ import 'utils/theme_utils.dart';
 /// Global navigation helper for external access (e.g., from push notifications)
 class AppNavigation {
   static void Function()? _navigateToAlerts;
-  
+
   /// Register the callback to navigate to alerts
   static void registerNavigateToAlerts(void Function() callback) {
     _navigateToAlerts = callback;
   }
-  
+
   /// Navigate to alerts tab (called from push notification service)
   static void navigateToAlerts() {
     _navigateToAlerts?.call();
@@ -99,7 +99,8 @@ class MyApp extends StatelessWidget {
         builder: (context, weatherProvider, child) {
           final isDay = weatherProvider.weatherData?.current.isDay ?? true;
           // Debug: Log theme decision
-          print('🎨 [Theme] isDay = $isDay, city = ${weatherProvider.cityName}');
+          print(
+              '🎨 [Theme] isDay = $isDay, city = ${weatherProvider.cityName}');
           return MaterialApp(
             title: 'Skypulse',
             debugShowCheckedModeBanner: false,
@@ -147,10 +148,10 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    
+
     // Register navigation callback for push notifications
     AppNavigation.registerNavigateToAlerts(_goToAlertsTab);
-    
+
     // Fetch weather on app start (urgent, high priority)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = Provider.of<WeatherProvider>(context, listen: false);
@@ -180,7 +181,7 @@ class _HomePageState extends State<HomePage> {
       }
     });
   }
-  
+
   void _goToAlertsTab() {
     setState(() {
       _selectedIndex = 0; // Alerts tab

@@ -565,9 +565,8 @@ class WeatherProvider extends ChangeNotifier {
         final title = (alert['title'] ?? '').toString();
         final message = (alert['message'] ?? '').toString();
         // Use title as primary ID if available, otherwise use title+message hash
-        messageId = title.isNotEmpty
-            ? title
-            : '${title}_$message'.hashCode.toString();
+        messageId =
+            title.isNotEmpty ? title : '${title}_$message'.hashCode.toString();
         alert['messageId'] = messageId;
       }
 
@@ -635,6 +634,23 @@ class WeatherProvider extends ChangeNotifier {
       print('📖 Alert "$alertTitle" marked as ${isRead ? 'read' : 'unread'}');
       print('📊 Unread alerts: $unreadCount');
     }
+  }
+
+  /// Delete a single alert by matching its properties
+  void deleteAlert(Map<String, dynamic> alert) {
+    _activeAlerts.removeWhere((a) =>
+        a['title'] == alert['title'] && a['timestamp'] == alert['timestamp']);
+    notifyListeners();
+    print('🗑️ Alert "${alert['title']}" deleted');
+    print('📊 Remaining alerts: ${_activeAlerts.length}');
+  }
+
+  /// Clear all alerts
+  void clearAllAlerts() {
+    final count = _activeAlerts.length;
+    _activeAlerts.clear();
+    notifyListeners();
+    print('🗑️ Cleared all $count alerts');
   }
 
   /// Ensure FCM token is fresh (called on app startup)

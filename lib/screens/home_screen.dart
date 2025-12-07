@@ -45,7 +45,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   WeatherData? _cachedInitialWeather;
   bool _isAnimatingToPage =
       false; // Flag to prevent intermediate fetches during animation
-  bool _isLocationGPSBased = true; // True if current location is from GPS, false if searched
+  bool _isLocationGPSBased =
+      true; // True if current location is from GPS, false if searched
 
   // Search autocomplete
   List<Map<String, dynamic>> _searchSuggestions = [];
@@ -181,16 +182,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   void _onSuggestionTap(Map<String, dynamic> suggestion) {
     final mainText = suggestion['mainText'] as String? ?? '';
-    
+
     // Close dropdown immediately and clear state
     setState(() {
       _showSuggestions = false;
       _searchSuggestions = [];
     });
-    
+
     // Unfocus keyboard first
     FocusScope.of(context).unfocus();
-    
+
     // Clear search text and fetch weather
     _searchController.clear();
     _isLocationGPSBased = false;

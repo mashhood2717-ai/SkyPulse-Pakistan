@@ -60,7 +60,8 @@ class MetarService {
   /// PRIORITY: Uses coordinates first (more accurate), then falls back to city name lookup
   Future<MetarData?> getMetarDataForCity(
       String cityName, double latitude, double longitude) async {
-    print('🔍 Attempting to find METAR data for $cityName at ($latitude, $longitude)');
+    print(
+        '🔍 Attempting to find METAR data for $cityName at ($latitude, $longitude)');
 
     // 1. FIRST: Search for nearby airports using coordinates (most reliable)
     print('   📍 Searching for nearby airports by coordinates...');
@@ -73,7 +74,8 @@ class MetarService {
     // 2. FALLBACK: Check if we have a known airport for this city name
     final knownIcao = _getKnownIcaoCode(cityName);
     if (knownIcao != null) {
-      print('   🔄 Fallback: trying known airport $knownIcao for city name "$cityName"');
+      print(
+          '   🔄 Fallback: trying known airport $knownIcao for city name "$cityName"');
       final metar = await _fetchMetarByIcao(knownIcao).timeout(
         const Duration(seconds: 2),
         onTimeout: () => null,
@@ -152,7 +154,10 @@ class MetarService {
     final airports = {
       // Pakistan - all major airports
       'OPIS': {'lat': 33.6167, 'lon': 73.0994}, // Islamabad International
-      'OPRN': {'lat': 33.6169, 'lon': 73.0991}, // Benazir Bhutto (old Islamabad)
+      'OPRN': {
+        'lat': 33.6169,
+        'lon': 73.0991
+      }, // Benazir Bhutto (old Islamabad)
       'OPKC': {'lat': 24.9065, 'lon': 67.1608}, // Karachi Jinnah
       'OPLA': {'lat': 31.5217, 'lon': 74.4036}, // Lahore Allama Iqbal
       'OPPS': {'lat': 33.9939, 'lon': 71.5146}, // Peshawar Bacha Khan

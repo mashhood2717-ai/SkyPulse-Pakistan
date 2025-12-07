@@ -362,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Prevent duplicate checks
     if (_checkingFavorite) return;
     _checkingFavorite = true;
-    
+
     final provider = context.read<WeatherProvider>();
     final favoritesService = context.read<FavoritesService>();
     final isFav = await favoritesService.isFavorite(
@@ -1036,9 +1036,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 // Flexible city name matching (first word comparison)
                 final providerCity = provider.cityName.toLowerCase().trim();
                 final cardCity = cityName.toLowerCase().trim();
-                final providerFirstWord = providerCity.split(RegExp(r'[\s,.]+')).first;
+                final providerFirstWord =
+                    providerCity.split(RegExp(r'[\s,.]+')).first;
                 final cardFirstWord = cardCity.split(RegExp(r'[\s,.]+')).first;
-                
+
                 final isSameCity = providerCity == cardCity ||
                     providerCity.contains(cardCity) ||
                     cardCity.contains(providerCity) ||
@@ -1106,19 +1107,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         builder: (context, provider, _) {
           // Show full weather info ONLY if data loaded AND it matches this city
           final current = provider.weatherData?.current;
-          
+
           // More flexible city matching - extract first word and compare
           final providerCity = provider.cityName.toLowerCase().trim();
           final cardCity = cityName.toLowerCase().trim();
-          
+
           // Extract first word from both city names for comparison
-          final providerFirstWord = providerCity.split(RegExp(r'[\s,.]+')).first;
+          final providerFirstWord =
+              providerCity.split(RegExp(r'[\s,.]+')).first;
           final cardFirstWord = cardCity.split(RegExp(r'[\s,.]+')).first;
-          
+
           final isCorrectCity = providerCity == cardCity ||
               providerCity.contains(cardCity) ||
               cardCity.contains(providerCity) ||
-              providerFirstWord == cardFirstWord;  // Match on first word
+              providerFirstWord == cardFirstWord; // Match on first word
 
           if (current != null && !provider.isLoading && isCorrectCity) {
             // Show data-loaded state with FULL weather info

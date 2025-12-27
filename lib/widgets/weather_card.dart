@@ -13,12 +13,6 @@ class WeatherCard extends StatelessWidget {
     required this.current,
   }) : super(key: key);
 
-  double get feelsLike {
-    return current.temperature -
-        ((current.windSpeed / 10) * 2) -
-        ((100 - current.humidity) / 20);
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -97,7 +91,7 @@ class WeatherCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 // Feels like
                 Text(
-                  'Feels ${feelsLike.round()}°C',
+                  'Feels ${current.feelsLike.round()}°C',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 10,
@@ -119,7 +113,8 @@ class WeatherCard extends StatelessWidget {
                   const Icon(Icons.opacity, size: 11, color: Colors.white70),
                   const SizedBox(width: 3),
                   Text('${current.humidity.round()}%',
-                      style: const TextStyle(color: Colors.white, fontSize: 10)),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 10)),
                 ],
               ),
               const SizedBox(height: 3),
@@ -129,7 +124,8 @@ class WeatherCard extends StatelessWidget {
                   const Icon(Icons.air, size: 11, color: Colors.white70),
                   const SizedBox(width: 3),
                   Text('${current.windSpeed.round()} km/h',
-                      style: const TextStyle(color: Colors.white, fontSize: 10)),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 10)),
                 ],
               ),
               const SizedBox(height: 3),
@@ -139,7 +135,8 @@ class WeatherCard extends StatelessWidget {
                   const Icon(Icons.compress, size: 11, color: Colors.white70),
                   const SizedBox(width: 3),
                   Text('${current.pressure.round()}hPa',
-                      style: const TextStyle(color: Colors.white, fontSize: 10)),
+                      style:
+                          const TextStyle(color: Colors.white, fontSize: 10)),
                 ],
               ),
             ],

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 
 class WeatherData {
@@ -169,6 +170,33 @@ class WeatherData {
 }
 
 class CurrentWeather {
+  /// Returns the "feels like" temperature using windchill (if <15°C) or heat index (if >=15°C)
+  double get feelsLike {
+    if (temperature < 15) {
+      // Windchill formula (°C):
+      // 13.12 + 0.6215*T - 11.37*V^0.16 + 0.3965*T*V^0.16
+      // T = temp (°C), V = wind speed (km/h)
+      final v = windSpeed > 0 ? windSpeed : 0.1; // avoid zero wind
+      return 13.12 +
+          0.6215 * temperature -
+          11.37 * pow(v, 0.16) +
+          0.3965 * temperature * pow(v, 0.16);
+    } else {
+      // Only apply heat index if temp >= 27°C and RH >= 40%
+      final tC = temperature;
+      final rh = humidity.toDouble();
+      if (tC < 27 || rh < 40) {
+        return tC;
+      }
+      final tF = tC * 9 / 5 + 32;
+      final hiF = -42.379 + 2.04901523 * tF + 10.14333127 * rh
+        - 0.22475541 * tF * rh - 0.00683783 * tF * tF
+        - 0.05481717 * rh * rh + 0.00122874 * tF * tF * rh
+        + 0.00085282 * tF * rh * rh - 0.00000199 * tF * tF * rh * rh;
+      return (hiF - 32) * 5 / 9;
+    }
+  }
+
   final double temperature;
   final int humidity;
   final double windSpeed;

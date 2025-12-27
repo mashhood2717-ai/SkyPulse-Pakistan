@@ -189,10 +189,15 @@ class CurrentWeather {
         return tC;
       }
       final tF = tC * 9 / 5 + 32;
-      final hiF = -42.379 + 2.04901523 * tF + 10.14333127 * rh
-        - 0.22475541 * tF * rh - 0.00683783 * tF * tF
-        - 0.05481717 * rh * rh + 0.00122874 * tF * tF * rh
-        + 0.00085282 * tF * rh * rh - 0.00000199 * tF * tF * rh * rh;
+      final hiF = -42.379 +
+          2.04901523 * tF +
+          10.14333127 * rh -
+          0.22475541 * tF * rh -
+          0.00683783 * tF * tF -
+          0.05481717 * rh * rh +
+          0.00122874 * tF * tF * rh +
+          0.00085282 * tF * rh * rh -
+          0.00000199 * tF * tF * rh * rh;
       return (hiF - 32) * 5 / 9;
     }
   }

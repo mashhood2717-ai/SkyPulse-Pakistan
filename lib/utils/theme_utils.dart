@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 class WeatherTheme {
   /// Day mode gradient colors (current blue theme)
   static const List<Color> dayGradient = [
-    Color(0xFF1e3c72),
-    Color(0xFF2a5298),
-    Color(0xFF1e3c72),
+    Color(0xFF16325A),
+    Color(0xFF1F4BA0),
+    Color(0xFF16325A),
   ];
 
   /// Night mode gradient colors (dark purple/navy theme)
@@ -17,13 +17,13 @@ class WeatherTheme {
   ];
 
   /// Day mode primary color
-  static const Color dayPrimary = Color(0xFF1e3c72);
+  static const Color dayPrimary = Color(0xFF10283F);
 
   /// Night mode primary color
   static const Color nightPrimary = Color(0xFF0f0c29);
 
   /// Day mode accent color
-  static const Color dayAccent = Color(0xFF2a5298);
+  static const Color dayAccent = Color(0xFF2160C1);
 
   /// Night mode accent color
   static const Color nightAccent = Color(0xFF302b63);
@@ -65,8 +65,8 @@ class WeatherTheme {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
+          Colors.white.withOpacity(0.18),
           Colors.white.withOpacity(0.12),
-          Colors.white.withOpacity(0.06),
         ],
       );
     } else {
@@ -74,8 +74,8 @@ class WeatherTheme {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
+          Colors.white.withOpacity(0.14),
           Colors.white.withOpacity(0.08),
-          Colors.white.withOpacity(0.03),
         ],
       );
     }
@@ -88,8 +88,8 @@ class WeatherTheme {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.blue.withOpacity(0.3),
-          Colors.purple.withOpacity(0.2),
+          Colors.blue.withOpacity(0.5),
+          Colors.purple.withOpacity(0.35),
         ],
       );
     } else {
@@ -97,8 +97,8 @@ class WeatherTheme {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Colors.indigo.withOpacity(0.3),
-          Colors.deepPurple.withOpacity(0.3),
+          Colors.indigo.withOpacity(0.45),
+          Colors.deepPurple.withOpacity(0.45),
         ],
       );
     }
@@ -111,41 +111,32 @@ class WeatherTheme {
 
   /// Get shimmer base color for skeleton loaders
   static Color getShimmerBase(bool isDay) {
-    return isDay
-        ? Colors.white.withOpacity(0.1)
-        : Colors.white.withOpacity(0.05);
+    return isDay ? Colors.white.withOpacity(0.14) : Colors.white.withOpacity(0.08);
   }
 
   /// Get shimmer highlight color for skeleton loaders
   static Color getShimmerHighlight(bool isDay) {
-    return isDay
-        ? Colors.white.withOpacity(0.2)
-        : Colors.white.withOpacity(0.1);
+    return isDay ? Colors.white.withOpacity(0.28) : Colors.white.withOpacity(0.18);
   }
 
   /// Get text color (always white for both modes)
   static Color getTextColor(bool isDay) {
-    return Colors.white;
+    // Use stronger contrast: near-white for dark backgrounds, dark text when backgrounds are light
+    return isDay ? Colors.white : Colors.white;
   }
 
   /// Get secondary text color
   static Color getSecondaryTextColor(bool isDay) {
-    return isDay
-        ? Colors.white.withOpacity(0.7)
-        : Colors.white.withOpacity(0.6);
+    return isDay ? Colors.white.withOpacity(0.92) : Colors.white.withOpacity(0.86);
   }
 
   /// Get border color for cards
   static Color getBorderColor(bool isDay) {
-    return isDay
-        ? Colors.white.withOpacity(0.25)
-        : Colors.white.withOpacity(0.15);
+    return isDay ? Colors.white.withOpacity(0.35) : Colors.white.withOpacity(0.22);
   }
 
   /// Get icon color
   static Color getIconColor(bool isDay) {
-    return isDay
-        ? Colors.white.withOpacity(0.9)
-        : Colors.white.withOpacity(0.8);
+    return isDay ? Colors.white.withOpacity(0.98) : Colors.white.withOpacity(0.92);
   }
 }

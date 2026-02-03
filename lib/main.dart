@@ -8,6 +8,7 @@ import 'services/favorites_service.dart';
 import 'services/favorites_cache_service.dart' show FavoritesCacheService;
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
+import 'screens/weather_on_way_tab_clean.dart';
 import 'screens/alerts_screen.dart';
 import 'services/push_notification_service.dart';
 import 'services/home_widget_service.dart';
@@ -228,9 +229,10 @@ class _HomePageState extends State<HomePage> {
         children: [
           const AlertsScreen(), // Index 0 - Alerts
           const HomeScreen(), // Index 1 - Weather/Home
+          const WeatherOnWayTab(), // Index 2 - On The Way
           _FavoritesScreenWrapper(
             onFavoriteSelected: switchToWeatherTabWithFavorite,
-          ), // Index 2 - Favorites
+          ), // Index 3 - Favorites
         ],
       ),
       bottomNavigationBar: Container(
@@ -308,6 +310,10 @@ class _HomePageState extends State<HomePage> {
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.cloud),
                   label: 'Weather',
+                ),
+                const BottomNavigationBarItem(
+                  icon: Icon(Icons.directions_car),
+                  label: 'On The Way',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.favorite),

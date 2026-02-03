@@ -1141,10 +1141,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildWeatherCardsSection(WeatherProvider provider,
       CurrentWeather currentWeather, WeatherData weather) {
     if (_favorites.isEmpty) {
-      return WeatherCard(
-        cityName: provider.cityName,
-        countryCode: provider.countryCode,
-        current: currentWeather,
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          WeatherCard(
+            cityName: provider.cityName,
+            countryCode: provider.countryCode,
+            current: currentWeather,
+          ),
+        ],
       );
     }
 
@@ -1209,12 +1214,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 300),
                   opacity: isActive ? 1.0 : 0.6,
-                  child: index == 0
+                            child: index == 0
                       ? // Current location card
-                      WeatherCard(
-                          cityName: provider.cityName,
-                          countryCode: provider.countryCode,
-                          current: currentWeather,
+                      Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            WeatherCard(
+                              cityName: provider.cityName,
+                              countryCode: provider.countryCode,
+                              current: currentWeather,
+                            ),
+                          ],
                         )
                       : // Favorite location cards
                       _buildGlassFavoriteCard(

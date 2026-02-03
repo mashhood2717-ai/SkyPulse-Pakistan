@@ -11,3 +11,4 @@ analyzer:
   errors:
     # Suppress deprecated_member_use for withOpacity (Flutter 3.18 migration)
     deprecated_member_use: ignore
+    prefer_const_declarations: ignore

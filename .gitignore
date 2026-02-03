@@ -11,10 +11,12 @@ build/
 android/.gradle
 android/local.properties
 android/.idea
+android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
 
 # iOS
 ios/Flutter/Flutter.podspec
 ios/Flutter/Flutter.framework
+ios/Runner/GeneratedPluginRegistrant.m
 
 # IDE
 .vscode/

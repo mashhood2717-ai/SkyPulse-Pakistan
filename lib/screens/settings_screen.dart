@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/settings_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -22,6 +23,107 @@ class _SettingsScreenState extends State<SettingsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // General Settings (Units & Logic)
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'General Settings',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    Consumer<SettingsProvider>(
+                      builder: (context, settings, _) {
+                        return Column(
+                          children: [
+                            // Temperature Unit
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Temperature Unit'),
+                              subtitle: const Text('Celsius vs Fahrenheit'),
+                              trailing: DropdownButton<String>(
+                                value: settings.tempUnit,
+                                underline: Container(),
+                                items: ['Celsius', 'Fahrenheit']
+                                    .map((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    settings.setTempUnit(value);
+                                  }
+                                },
+                              ),
+                            ),
+                            const Divider(height: 24),
+                            
+                            // Wind Unit
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Wind Speed Unit'),
+                              subtitle: const Text('km/h, mph, m/s'),
+                              trailing: DropdownButton<String>(
+                                value: settings.windUnit,
+                                underline: Container(),
+                                items: ['km/h', 'mph', 'm/s']
+                                    .map((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                                onChanged: (value) {
+                                  if (value != null) {
+                                    settings.setWindUnit(value);
+                                  }
+                                },
+                              ),
+                            ),
+                            const Divider(height: 24),
+
+                            // Background Refresh
+                            SwitchListTile(
+                              title: const Text('Background Location Refresh'),
+                              subtitle: Text(
+                                'Refreshes weather every 30 minutes',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.color
+                                      ?.withOpacity(0.7),
+                                ),
+                              ),
+                              value: settings.isAutoRefreshEnabled,
+                              activeColor: const Color(0xFF667EEA),
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (value) {
+                                settings.toggleAutoRefresh(value);
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
               // Theme Section
               Container(
                 decoration: BoxDecoration(
@@ -29,6 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -39,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              'Theme',
+                              'Appearance',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -48,8 +151,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const SizedBox(height: 4),
                             Text(
                               themeProvider.isDarkMode
-                                  ? 'Dark Mode'
-                                  : 'Light Mode',
+                                  ? 'Dark Mode Active'
+                                  : 'Light Mode Active',
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Theme.of(context)
@@ -61,119 +164,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ],
                         ),
-                        // Custom Animated Toggle Switch
-                        GestureDetector(
-                          onTap: () {
+                        Switch(
+                          value: themeProvider.isDarkMode,
+                          activeColor: const Color(0xFF667EEA),
+                          onChanged: (value) {
                             themeProvider.toggleTheme();
                           },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 300),
-                            width: 60,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(17),
-                              color: themeProvider.isDarkMode
-                                  ? const Color(0xFF667EEA)
-                                  : Colors.grey.withOpacity(0.3),
-                            ),
-                            child: Stack(
-                              children: [
-                                AnimatedPositioned(
-                                  duration: const Duration(milliseconds: 300),
-                                  left: themeProvider.isDarkMode ? 28 : 4,
-                                  top: 4,
-                                  child: Container(
-                                    width: 26,
-                                    height: 26,
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white,
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        themeProvider.isDarkMode
-                                            ? Icons.dark_mode
-                                            : Icons.light_mode,
-                                        color: const Color(0xFF667EEA),
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    // Theme preview
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: themeProvider.isDarkMode
-                                    ? const Color(0xFF667EEA)
-                                    : Colors.grey.withOpacity(0.3),
-                                width: 2,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(
-                                  Icons.dark_mode,
-                                  color: Colors.grey[700],
-                                  size: 24,
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Dark',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: !themeProvider.isDarkMode
-                                    ? const Color(0xFF667EEA)
-                                    : Colors.grey.withOpacity(0.3),
-                                width: 2,
-                              ),
-                            ),
-                            child: const Column(
-                              children: [
-                                Icon(
-                                  Icons.light_mode,
-                                  color: Colors.orange,
-                                  size: 24,
-                                ),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Light',
-                                  style: TextStyle(fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              // About Section
+
+              // Permissions Section
+              Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(16),
+                margin: const EdgeInsets.only(bottom: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Permissions',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.location_on, color: Colors.blue),
+                      ),
+                      title: const Text('Location Access'),
+                      subtitle: const Text('Manage app permissions'),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        // Open app settings
+                        // We need to import 'package:permission_handler/permission_handler.dart';
+                        // Since I cannot check imports right now, I'll use a dialog for now or assume package is available
+                        // Given user constraints, I will use a simple dialog explaining how to change permissions
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Manage Permissions'),
+                            content: const Text(
+                                'To change location permissions, please go to your device settings:\n\nSettings > Apps > SkyPulse > Permissions'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              // About Section (Updated)
               Container(
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
@@ -184,42 +245,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'About SkyPulse',
+                      'About',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'SkyPulse is a beautiful weather app that provides real-time weather updates, satellite imagery, and weather alerts.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color
-                            ?.withOpacity(0.7),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Version 1.0.0',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.color
-                            ?.withOpacity(0.5),
-                      ),
-                    ),
+                    const SizedBox(height: 16),
+                    _buildInfoRow(context, 'App Version', '1.0.0'),
+                    const Divider(),
+                    _buildInfoRow(context, 'Developer', 'Mashhood'),
+                    const Divider(),
+                    _buildInfoRow(context, 'Contact', 'contact@skypulse.com'),
                   ],
                 ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }

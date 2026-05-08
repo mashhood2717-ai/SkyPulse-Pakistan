@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/weather_model.dart';
+import '../providers/settings_provider.dart';
 
 class HourlyForecast extends StatelessWidget {
   final WeatherData weatherData;
@@ -11,7 +13,7 @@ class HourlyForecast extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hourlyData = _extractHourlyData();
+    final hourlyData = _extractHourlyData(context); // Pass context to get settings
 
     if (hourlyData.isEmpty) {
       return const SizedBox(
@@ -98,7 +100,7 @@ class HourlyForecast extends StatelessWidget {
 
           // Temperature (from API)
           Text(
-            '${hour['temp']}°',
+            '${hour['temp']}',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 13,
@@ -123,7 +125,8 @@ class HourlyForecast extends StatelessWidget {
   }
 
   /// Extract next 24 hours from current hour onwards
-  List<Map<String, dynamic>> _extractHourlyData() {
+  List<Map<String, dynamic>> _extractHourlyData(BuildContext context) {
+    final settings = Provider.of<SettingsProvider>(context);
     List<Map<String, dynamic>> hourly = [];
 
     try {
@@ -170,18 +173,29 @@ class HourlyForecast extends StatelessWidget {
             ? weatherData.hourlyWeatherCodes[apiIndex]
             : 0;
 
-        // Get weather icon (using hour from the actual API time)
-        int displayHour = now.hour + i;
-        String icon = _getWeatherIcon(weatherCode, displayHour);
-
         // Get precipitation
         int precipitation = apiIndex < weatherData.hourlyPrecipitation.length
             ? weatherData.hourlyPrecipitation[apiIndex]
             : 0;
 
+        // Get weather icon (using actual hour from API time when available)
+        int displayHour = now.hour + i;
+        if (apiIndex < weatherData.hourlyTimes.length) {
+          try {
+            displayHour =
+                DateTime.parse(weatherData.hourlyTimes[apiIndex]).hour;
+          } catch (_) {}
+        }
+        // Prefer the API's hourly is_day flag when available
+        bool? apiIsDay = apiIndex < weatherData.hourlyIsDay.length
+            ? weatherData.hourlyIsDay[apiIndex]
+            : null;
+        String icon = _getWeatherIcon(weatherCode, displayHour,
+            precipProb: precipitation, isDayOverride: apiIsDay);
+
         hourly.add({
           'time': timeStr,
-          'temp': temp.round(),
+          'temp': settings.getTempString(temp),
           'icon': icon,
           'precipitation': precipitation > 0 ? precipitation : null,
         });
@@ -193,19 +207,20 @@ class HourlyForecast extends StatelessWidget {
     return hourly;
   }
 
-  String _getWeatherIcon(int code, int hour) {
-    // Determine if day or night (6am-8pm is day in Pakistan)
-    final isDay = hour >= 6 && hour < 20;
-
-    if (!isDay) return '🌙';
+  String _getWeatherIcon(int code, int hour,
+      {int precipProb = 0, bool? isDayOverride}) {
+    // Determine if day or night.
+    // Prefer the API's is_day flag if provided; otherwise fall back to hour-based check.
+    final int h = ((hour % 24) + 24) % 24;
+    final bool isDay = isDayOverride ?? (h >= 6 && h < 20);
 
     switch (code) {
       case 0:
-        return '☀️';
+        return isDay ? '☀️' : '🌙';
       case 1:
-        return '🌤️';
+        return isDay ? '🌤️' : '🌙';
       case 2:
-        return '⛅';
+        return isDay ? '⛅' : '☁️';
       case 3:
         return '☁️';
       case 45:
@@ -236,7 +251,7 @@ class HourlyForecast extends StatelessWidget {
       case 99:
         return '⛈️';
       default:
-        return '🌤️';
+        return isDay ? '🌤️' : '🌙';
     }
   }
 }

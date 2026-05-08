@@ -536,6 +536,7 @@ class WeatherProvider extends ChangeNotifier {
             hourlyWeatherCodes: apiData.hourlyWeatherCodes,
             hourlyPrecipitation: apiData.hourlyPrecipitation,
             hourlyTimes: apiData.hourlyTimes,
+            hourlyIsDay: apiData.hourlyIsDay,
             aqiIndex: aqiInt,
           );
           print(
@@ -618,6 +619,7 @@ class WeatherProvider extends ChangeNotifier {
           hourlyWeatherCodes: apiData.hourlyWeatherCodes,
           hourlyPrecipitation: apiData.hourlyPrecipitation,
           hourlyTimes: apiData.hourlyTimes,
+          hourlyIsDay: apiData.hourlyIsDay,
           aqiIndex: _weatherData?.aqiIndex, // PRESERVE AQI INDEX
         );
         _usingMetar = true;

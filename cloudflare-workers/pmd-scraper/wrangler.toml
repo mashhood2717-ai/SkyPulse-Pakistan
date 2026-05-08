@@ -1,0 +1,24 @@
+name = "skypulse-pmd"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# Environment variables (set secrets via: wrangler secret put PMD_USERNAME)
+[vars]
+PMD_USERNAME = "paf"
+
+# Don't commit this - use: wrangler secret put PMD_PASSWORD
+# PMD_PASSWORD = "paf@051"
+
+# Routes (optional - configure in Cloudflare dashboard)
+# routes = [
+#   { pattern = "pmd.yourdomain.com/*", zone_name = "yourdomain.com" }
+# ]
+
+# Caching settings
+[triggers]
+crons = []
+
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"

@@ -13,18 +13,20 @@ class WeatherService {
       'https://maps.googleapis.com/maps/api/geocode/json';
 
   // Google API key (same as Google Maps)
-  static const String googleApiKey = 'AIzaSyDjZ0ZlSS19MP0uecz0XeyxriUCl-aNvMo';
+  static const String googleApiKey = 'AIzaSyCbTR4dknEOg9iTU5j4G6eSibMwKiRFJT4';
 
   // Fetch weather data by coordinates
   Future<WeatherData> getWeatherByCoordinates(
       double latitude, double longitude) async {
     try {
       final url = Uri.parse('$baseUrl?latitude=$latitude&longitude=$longitude'
-          '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max,apparent_temperature_max,apparent_temperature_min'
-          '&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,precipitation,visibility,weather_code,pressure_msl,cloud_cover_low,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day,precipitation_probability'
-          '&current=temperature_2m,relative_humidity_2m,dew_point_2m,is_day,precipitation,weather_code,pressure_msl,wind_direction_10m,cloud_cover,wind_gusts_10m,wind_speed_10m,visibility'
+          '&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,uv_index_max'
+          '&hourly=temperature_2m,weather_code,cloud_cover,precipitation_probability,wind_gusts_10m,wind_direction_10m,dew_point_2m,is_day,uv_index'
+          '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,rain,snowfall,weather_code,cloud_cover,pressure_msl,wind_gusts_10m,wind_direction_10m'
+          '&models=icon_seamless'
           '&timezone=auto'
-          '&forecast_days=15');
+          '&past_days=0'
+          '&forecast_days=7');
 
       print('🌐 [WeatherService] Fetching: $url');
       final response = await http.get(url).timeout(
@@ -37,6 +39,9 @@ class WeatherService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+
+        // metno_seamless may return null UV fields; fetch UV from default model as fallback.
+        await _applyUvFallbackIfMissing(data, latitude, longitude);
 
         print('✅ [WeatherService] Response received');
         print('📊 [WeatherService] Top-level keys: ${data.keys.toList()}');
@@ -54,6 +59,61 @@ class WeatherService {
     } catch (e) {
       print('❌ Error fetching weather: $e');
       throw Exception('Error fetching weather: $e');
+    }
+  }
+
+  Future<void> _applyUvFallbackIfMissing(
+    Map<String, dynamic> data,
+    double latitude,
+    double longitude,
+  ) async {
+    final hourly = data['hourly'] as Map<String, dynamic>?;
+    final daily = data['daily'] as Map<String, dynamic>?;
+
+    final hourlyUv = hourly?['uv_index'] as List?;
+    final dailyUvList = daily?['uv_index_max'] as List?;
+
+    final bool hourlyUvMissing = hourlyUv == null ||
+        hourlyUv.isEmpty ||
+        hourlyUv.every((v) => v == null);
+    final bool dailyUvMissing = dailyUvList == null ||
+        dailyUvList.isEmpty ||
+        dailyUvList.every((v) => v == null);
+    if (!hourlyUvMissing && !dailyUvMissing) return;
+
+    final fallbackUrl = Uri.parse(
+        '$baseUrl?latitude=$latitude&longitude=$longitude'
+        '&daily=uv_index_max'
+        '&hourly=uv_index'
+        '&timezone=auto'
+        '&forecast_days=7');
+
+    try {
+      print('🌤️ [WeatherService] UV fallback request: $fallbackUrl');
+      final fallbackResponse = await http.get(fallbackUrl).timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => throw TimeoutException('UV fallback request timeout'),
+      );
+
+      if (fallbackResponse.statusCode != 200) {
+        print(
+            '⚠️ [WeatherService] UV fallback failed: ${fallbackResponse.statusCode}');
+        return;
+      }
+
+      final fallbackData = json.decode(fallbackResponse.body);
+      final fallbackHourly = fallbackData['hourly'] as Map<String, dynamic>?;
+      final fallbackDaily = fallbackData['daily'] as Map<String, dynamic>?;
+
+      if (hourlyUvMissing && hourly != null && fallbackHourly != null) {
+        hourly['uv_index'] = fallbackHourly['uv_index'];
+      }
+      if (dailyUvMissing && daily != null && fallbackDaily != null) {
+        daily['uv_index_max'] = fallbackDaily['uv_index_max'];
+      }
+      print('✅ [WeatherService] UV fallback applied');
+    } catch (e) {
+      print('⚠️ [WeatherService] UV fallback error: $e');
     }
   }
 
@@ -97,12 +157,19 @@ class WeatherService {
   }
 
   // Get coordinates from city name using Google Geocoding API
+  // (with Open-Meteo geocoding fallback)
   Future<Map<String, dynamic>> getCoordinatesFromCity(String cityName) async {
+    final trimmed = cityName.trim();
+    if (trimmed.isEmpty) {
+      throw Exception('City name is empty');
+    }
+
+    // Try Google Geocoding first
     try {
       final url = Uri.parse(
-          '$googleGeocodingUrl?address=${Uri.encodeComponent(cityName)}&key=$googleApiKey');
+          '$googleGeocodingUrl?address=${Uri.encodeComponent(trimmed)}&key=$googleApiKey');
 
-      print('🔍 Searching for city: $cityName');
+      print('🔍 Searching for city (Google): $trimmed');
       final response = await http.get(url).timeout(
         const Duration(seconds: 10),
         onTimeout: () {
@@ -118,8 +185,8 @@ class WeatherService {
             data['results'] == null ||
             data['results'].isEmpty) {
           print(
-              '⚠️ [Google Geocoding] Status: ${data['status']}, Error: ${data['error_message'] ?? 'No results'}');
-          throw Exception('City not found');
+              '⚠️ [Google Geocoding] Status: ${data['status']}, Error: ${data['error_message'] ?? 'No results'} - falling back to Open-Meteo');
+          return await _openMeteoGeocode(trimmed);
         }
 
         final result = data['results'][0];
@@ -151,17 +218,17 @@ class WeatherService {
 
         // Use the most specific name, fall back to original search term
         // This ensures "Mailsi" stays as "Mailsi", not "Punjab"
-        String name = locality ?? sublocality ?? adminArea2 ?? cityName;
+        String name = locality ?? sublocality ?? adminArea2 ?? trimmed;
 
         // If the original search term looks like a specific place name (not a province),
         // prefer keeping it over a generic admin area
-        if (name != cityName &&
+        if (name != trimmed &&
             locality == null &&
-            !cityName.toLowerCase().contains('province') &&
-            !cityName.toLowerCase().contains('state')) {
+            !trimmed.toLowerCase().contains('province') &&
+            !trimmed.toLowerCase().contains('state')) {
           // The search term was specific but we only found admin areas
           // Keep the original search term as it's likely more specific
-          name = cityName;
+          name = trimmed;
         }
 
         print(
@@ -173,12 +240,56 @@ class WeatherService {
           'country': country,
         };
       } else {
-        throw Exception('Failed to find city: ${response.statusCode}');
+        print(
+            '⚠️ [Google Geocoding] HTTP ${response.statusCode} - falling back to Open-Meteo');
+        return await _openMeteoGeocode(trimmed);
       }
     } catch (e) {
-      print('❌ Error finding city: $e');
-      throw Exception('Error finding city: $e');
+      print('⚠️ [Google Geocoding] Failed: $e - falling back to Open-Meteo');
+      try {
+        return await _openMeteoGeocode(trimmed);
+      } catch (fallbackErr) {
+        print('❌ Error finding city (both providers failed): $fallbackErr');
+        throw Exception('City not found: $trimmed');
+      }
     }
+  }
+
+  // Open-Meteo free geocoding fallback (no API key required)
+  Future<Map<String, dynamic>> _openMeteoGeocode(String cityName) async {
+    final url = Uri.parse(
+        'https://geocoding-api.open-meteo.com/v1/search?name=${Uri.encodeComponent(cityName)}&count=1&language=en&format=json');
+    print('🔍 Searching for city (Open-Meteo): $cityName');
+    final response = await http.get(url).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () =>
+          throw TimeoutException('Open-Meteo geocoding timeout'),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Open-Meteo geocoding HTTP ${response.statusCode}');
+    }
+
+    final data = json.decode(response.body);
+    final results = data['results'] as List?;
+    if (results == null || results.isEmpty) {
+      throw Exception('City not found: $cityName');
+    }
+
+    final r = results.first as Map<String, dynamic>;
+    final name = (r['name'] as String?) ?? cityName;
+    final country = (r['country_code'] as String?) ?? '';
+    final lat = (r['latitude'] as num).toDouble();
+    final lon = (r['longitude'] as num).toDouble();
+
+    print('✅ Open-Meteo found: $name, $country ($lat, $lon)');
+    return {
+      'latitude': lat,
+      'longitude': lon,
+      'name': name,
+      'country': country,
+    };
   }
 
   // Fetch weather data by city name

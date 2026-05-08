@@ -4,15 +4,15 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'providers/weather_provider.dart';
+import 'providers/settings_provider.dart';
+import 'providers/theme_provider.dart';
 import 'services/favorites_service.dart';
 import 'services/favorites_cache_service.dart' show FavoritesCacheService;
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
-import 'screens/weather_on_way_tab_clean.dart';
 import 'screens/alerts_screen.dart';
 import 'services/push_notification_service.dart';
 import 'services/home_widget_service.dart';
-import 'utils/theme_utils.dart';
 
 /// Global navigation helper for external access (e.g., from push notifications)
 class AppNavigation {
@@ -100,36 +100,15 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WeatherProvider()),
         ChangeNotifierProvider(create: (_) => FavoritesService()),
         ChangeNotifierProvider(create: (_) => FavoritesCacheService()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: Consumer<WeatherProvider>(
-        builder: (context, weatherProvider, child) {
-          final isDay = weatherProvider.weatherData?.current.isDay ?? true;
-          // Debug: Log theme decision
-          print(
-              '🎨 [Theme] isDay = $isDay, city = ${weatherProvider.cityName}');
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
           return MaterialApp(
             title: 'Skypulse',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              useMaterial3: true,
-              brightness: isDay ? Brightness.light : Brightness.dark,
-              scaffoldBackgroundColor: WeatherTheme.getPrimaryColor(isDay),
-              appBarTheme: AppBarTheme(
-                backgroundColor: WeatherTheme.getAccentColor(isDay),
-                elevation: 0,
-              ),
-              colorScheme: isDay
-                  ? const ColorScheme.light(
-                      primary: WeatherTheme.dayPrimary,
-                      secondary: WeatherTheme.dayAccent,
-                      surface: WeatherTheme.dayPrimary,
-                    )
-                  : const ColorScheme.dark(
-                      primary: WeatherTheme.nightPrimary,
-                      secondary: WeatherTheme.nightAccent,
-                      surface: WeatherTheme.nightPrimary,
-                    ),
-            ),
+            theme: themeProvider.getTheme(),
             home: const HomePage(),
             routes: {
               '/favorites': (context) => const FavoritesScreen(),
@@ -229,10 +208,9 @@ class _HomePageState extends State<HomePage> {
         children: [
           const AlertsScreen(), // Index 0 - Alerts
           const HomeScreen(), // Index 1 - Weather/Home
-          const WeatherOnWayTab(), // Index 2 - On The Way
           _FavoritesScreenWrapper(
             onFavoriteSelected: switchToWeatherTabWithFavorite,
-          ), // Index 3 - Favorites
+          ), // Index 2 - Favorites (was 3)
         ],
       ),
       bottomNavigationBar: Container(
@@ -310,10 +288,6 @@ class _HomePageState extends State<HomePage> {
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.cloud),
                   label: 'Weather',
-                ),
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.directions_car),
-                  label: 'On The Way',
                 ),
                 const BottomNavigationBarItem(
                   icon: Icon(Icons.favorite),

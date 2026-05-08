@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/weather_model.dart';
 import '../providers/weather_provider.dart';
+import '../providers/settings_provider.dart';
 import 'wind_compass.dart';
 
 class WeatherDetails extends StatelessWidget {
@@ -16,6 +17,7 @@ class WeatherDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     // Get wind direction from METAR if available, otherwise from API
     final provider = Provider.of<WeatherProvider>(context, listen: false);
+    final settings = Provider.of<SettingsProvider>(context);
     final windDirection = provider.metarData?.windDirection?.toDouble() ??
         current.windDirection.toDouble();
 
@@ -39,7 +41,7 @@ class WeatherDetails extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: _buildWindTile(windDirection),
+              child: _buildWindTile(windDirection, settings),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -63,7 +65,7 @@ class WeatherDetails extends StatelessWidget {
                 icon: Icons.thermostat,
                 iconColor: const Color(0xFF81C784),
                 label: 'Dew Point',
-                value: '${current.dewPoint.toStringAsFixed(1)}°C',
+                value: settings.getTempString(current.dewPoint),
                 backgroundColor: const Color(0xFF81C784).withOpacity(0.1),
               ),
             ),
@@ -74,14 +76,14 @@ class WeatherDetails extends StatelessWidget {
                       icon: Icons.air,
                       iconColor: const Color(0xFF64B5F6),
                       label: 'Wind Gust',
-                      value: '${current.windGust.round()} km/h',
+                      value: settings.getWindSpeedString(current.windGust),
                       backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
                     )
                   : _buildDetailTile(
                       icon: Icons.air,
                       iconColor: const Color(0xFF64B5F6),
                       label: 'Wind Speed',
-                      value: '${current.windSpeed.round()} km/h',
+                      value: settings.getWindSpeedString(current.windSpeed),
                       backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
                     ),
             ),
@@ -143,7 +145,7 @@ class WeatherDetails extends StatelessWidget {
     );
   }
 
-  Widget _buildWindTile(double windDirection) {
+  Widget _buildWindTile(double windDirection, SettingsProvider settings) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -185,13 +187,24 @@ class WeatherDetails extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${current.windSpeed.round()} km/h',
+            settings.getWindSpeedString(current.windSpeed),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (current.windGust > 0) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Gust ${settings.getWindSpeedString(current.windGust)}',
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           if (windDirection > 0) ...[
             const SizedBox(height: 2),
             Text(

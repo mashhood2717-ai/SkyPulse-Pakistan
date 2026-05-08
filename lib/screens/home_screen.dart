@@ -15,6 +15,8 @@ import '../services/favorites_service.dart';
 import '../services/weather_service.dart';
 import '../services/push_notification_service.dart';
 import '../utils/theme_utils.dart';
+import '../providers/settings_provider.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -132,14 +134,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _startLocationRefreshTimer();
   }
 
-  /// Start timer to refresh location every 30 seconds when on main card (index 0)
+  /// Start timer to refresh location every 30 minutes when on main card (index 0)
   void _startLocationRefreshTimer() {
     _locationRefreshTimer?.cancel();
+    
+    // Check if auto-refresh is enabled
+    final settingsProvider = context.read<SettingsProvider>();
+    if (!settingsProvider.isAutoRefreshEnabled) {
+      print('Location auto-refresh is disabled in settings');
+      return;
+    }
+
+    print('Starting location refresh timer (30m)');
     _locationRefreshTimer =
-        Timer.periodic(const Duration(seconds: 30), (timer) {
+        Timer.periodic(const Duration(minutes: 30), (timer) {
+      // Re-check setting in case it changed (though provider listener would be better, this is a simple safety check)
+      if (!context.read<SettingsProvider>().isAutoRefreshEnabled) {
+        timer.cancel();
+        return;
+      }
+
       // Only refresh if on the main card AND location is GPS-based (not searched)
       if (_currentPage == 0 && mounted && _isLocationGPSBased) {
-        print('🔄 [30s Timer] Refreshing current location...');
+        print('🔄 [30m Timer] Refreshing current location...');
         final provider = context.read<WeatherProvider>();
         provider.fetchWeatherByLocation().then((_) {
           if (mounted) {
@@ -150,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             });
           }
         }).catchError((e) {
-          print('⚠️ [30s Timer] Refresh failed: $e');
+          print('⚠️ [30m Timer] Refresh failed: $e');
         });
       }
     });
@@ -791,6 +808,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       WeatherDetails(current: current),
                                       const SizedBox(height: 24),
                                       ...weather.forecast
+                                          .take(7)
                                           .map((day) => Padding(
                                                 padding: const EdgeInsets.only(
                                                     bottom: 12),
@@ -987,6 +1005,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         IconButton(
           icon: const Icon(Icons.my_location, color: Colors.white),
           onPressed: () => provider.fetchWeatherByLocation(),
+        ),
+        IconButton(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+            );
+          },
         ),
         const SizedBox(width: 8),
       ],

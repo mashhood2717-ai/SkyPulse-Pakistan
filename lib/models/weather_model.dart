@@ -7,8 +7,10 @@ class WeatherData {
   final List<double> hourlyTemperatures;
   final List<int> hourlyWeatherCodes;
   final List<int> hourlyPrecipitation;
-  final List<String> hourlyTimes; // NEW: Store hourly times from API
-  final int? aqiIndex; // NEW: AQI index
+  final List<String> hourlyTimes; // Store hourly times from API
+
+  final List<bool> hourlyIsDay; // is_day values per hour
+  final int? aqiIndex; // AQI index
 
   WeatherData({
     required this.current,
@@ -17,25 +19,92 @@ class WeatherData {
     this.hourlyWeatherCodes = const [],
     this.hourlyPrecipitation = const [],
     this.hourlyTimes = const [],
+
+    this.hourlyIsDay = const [],
     this.aqiIndex,
   });
 
   factory WeatherData.fromJson(Map<String, dynamic> json, {int? aqi}) {
     try {
-      final current = CurrentWeather.fromJson(json['current'] ?? {});
+      final hourlyData = json['hourly'] as Map<String, dynamic>? ?? {};
+      final dailyData = json['daily'] as Map<String, dynamic>? ?? {};
+
+      // Parse hourly lists first (needed for injection into current)
+      final hourlyTimes = _parseHourlyTimes(hourlyData);
+
+      final hourlyUvRaw = _parseHourlyDoubleList(hourlyData, 'uv_index');
+      final hourlyDew = _parseHourlyDoubleList(hourlyData, 'dew_point_2m');
+      final hourlyIsDay = _parseHourlyIsDay(hourlyData);
+      final hourlyCloudCover =
+          _parseHourlyDoubleList(hourlyData, 'cloud_cover');
+
+      // Rule: if cloud cover >= 75%, force UV to 0 for that hour
+      final hourlyUv = List<double>.generate(hourlyUvRaw.length, (i) {
+        if (i < hourlyCloudCover.length && hourlyCloudCover[i] >= 75) {
+          return 0.0;
+        }
+        return hourlyUvRaw[i];
+      });
+
+      // Find the index for the current hour
+      int currentHourIdx = -1;
+      final now = DateTime.now();
+      for (int i = 0; i < hourlyTimes.length; i++) {
+        try {
+          final t = DateTime.parse(hourlyTimes[i]);
+          if (t.year == now.year &&
+              t.month == now.month &&
+              t.day == now.day &&
+              t.hour == now.hour) {
+            currentHourIdx = i;
+            break;
+          }
+        } catch (_) {}
+      }
+
+      double? currentUv;
+      double? currentDew;
+      bool? currentIsDay;
+      if (currentHourIdx >= 0) {
+        if (currentHourIdx < hourlyUv.length) {
+          currentUv = hourlyUv[currentHourIdx];
+        }
+        if (currentHourIdx < hourlyDew.length) {
+          currentDew = hourlyDew[currentHourIdx];
+        }
+        if (currentHourIdx < hourlyIsDay.length) {
+          currentIsDay = hourlyIsDay[currentHourIdx];
+        }
+      }
+
+      // Parse current weather and inject hourly-derived values
+      final currentParsed = CurrentWeather.fromJson(json['current'] ?? {});
+      // Rule: if current cloud cover >= 75%, force UV to 0
+      final double? gatedCurrentUv =
+          currentParsed.cloudCover >= 75 ? 0.0 : currentUv;
+      final current = currentParsed.copyWith(
+        uvIndex: gatedCurrentUv,
+        dewPoint: currentDew,
+        isDay: currentIsDay,
+      );
+
       print('🌡️ [CurrentWeather] Parsed from API:');
       print('   Temperature: ${current.temperature}°C');
-      print('   Dew Point: ${current.dewPoint}°C');
-      print('   Wind Speed: ${current.windSpeed} km/h');
       print('   Wind Gust: ${current.windGust} km/h');
+      print('   UV (current hour): ${current.uvIndex}');
+      print('   Dew Point (current hour): ${current.dewPoint}°C');
+      print('   Is Day (current hour): ${current.isDay}');
+
+
 
       return WeatherData(
         current: current,
-        forecast: _parseDailyForecast(json['daily'] ?? {}),
-        hourlyTemperatures: _parseHourlyTemps(json['hourly'] ?? {}),
-        hourlyWeatherCodes: _parseHourlyWeatherCodes(json['hourly'] ?? {}),
-        hourlyPrecipitation: _parseHourlyPrecipitation(json['hourly'] ?? {}),
-        hourlyTimes: _parseHourlyTimes(json['hourly'] ?? {}),
+        forecast: _parseDailyForecast(dailyData, hourlyData, hourlyTimes),
+        hourlyTemperatures: _parseHourlyTemps(hourlyData),
+        hourlyWeatherCodes: _parseHourlyWeatherCodes(hourlyData),
+        hourlyPrecipitation: _parseHourlyPrecipitation(hourlyData),
+        hourlyTimes: hourlyTimes,
+        hourlyIsDay: hourlyIsDay,
         aqiIndex: aqi,
       );
     } catch (e) {
@@ -119,6 +188,40 @@ class WeatherData {
     }
   }
 
+
+
+  // Parse a generic hourly double list (e.g., uv_index, dew_point_2m)
+  static List<double> _parseHourlyDoubleList(
+      Map<String, dynamic> hourly, String key) {
+    try {
+      final list = hourly[key] as List?;
+      if (list == null) return [];
+      return list.map((v) => _toDouble(v)).toList();
+    } catch (e) {
+      print('❌ Error parsing hourly $key: $e');
+      return [];
+    }
+  }
+
+  // Parse hourly is_day flags (1/0)
+  static List<bool> _parseHourlyIsDay(Map<String, dynamic> hourly) {
+    try {
+      final list = hourly['is_day'] as List?;
+      if (list == null) return [];
+      return list.map((v) {
+        if (v is bool) return v;
+        if (v is num) return v == 1;
+        if (v is String) return v == '1' || v.toLowerCase() == 'true';
+        return true;
+      }).toList();
+    } catch (e) {
+      print('❌ Error parsing hourly is_day: $e');
+      return [];
+    }
+  }
+
+
+
   static double _toDouble(dynamic value) {
     if (value == null) return 0.0;
     if (value is double) return value;
@@ -135,7 +238,11 @@ class WeatherData {
     return 0;
   }
 
-  static List<DailyForecast> _parseDailyForecast(Map<String, dynamic> daily) {
+  static List<DailyForecast> _parseDailyForecast(
+    Map<String, dynamic> daily,
+    Map<String, dynamic> hourly,
+    List<String> hourlyTimes,
+  ) {
     final List<DailyForecast> forecasts = [];
     final times = daily['time'] as List?;
 
@@ -155,9 +262,26 @@ class WeatherData {
       return forecasts;
     }
 
+    // Compute per-day max values from hourly data as fallback
+    // (UKMO model doesn't provide precipitation_probability or wind_speed_10m_max in daily)
+    final dailyDates = times.map((t) => t.toString()).toList();
+    final hourlyPrecipProb = _parseHourlyIntList(hourly, 'precipitation_probability');
+    final hourlyWindGusts = _parseHourlyDoubleList(hourly, 'wind_gusts_10m');
+    final hourlyWindSpeed = _parseHourlyDoubleList(hourly, 'wind_speed_10m');
+
+    final fallbackPrecipProb = _computeDailyMax<int>(hourlyPrecipProb, hourlyTimes, dailyDates);
+    final fallbackWindGusts = _computeDailyMax<double>(hourlyWindGusts, hourlyTimes, dailyDates);
+    final fallbackWindSpeed = _computeDailyMax<double>(hourlyWindSpeed, hourlyTimes, dailyDates);
+
     for (int i = 0; i < times.length; i++) {
       try {
-        forecasts.add(DailyForecast.fromJson(daily, i));
+        forecasts.add(DailyForecast.fromJson(
+          daily,
+          i,
+          fallbackPrecipProb: i < fallbackPrecipProb.length ? fallbackPrecipProb[i] : null,
+          fallbackWindGust: i < fallbackWindGusts.length ? fallbackWindGusts[i] : null,
+          fallbackWindSpeed: i < fallbackWindSpeed.length ? fallbackWindSpeed[i] : null,
+        ));
       } catch (e) {
         print('❌ Error parsing forecast at index $i: $e');
       }
@@ -166,6 +290,48 @@ class WeatherData {
     print(
         '✅ [WeatherModel] Successfully parsed ${forecasts.length} forecast days');
     return forecasts;
+  }
+
+  /// Parse hourly int list (handles null values gracefully)
+  static List<int?> _parseHourlyIntList(Map<String, dynamic> hourly, String key) {
+    try {
+      final list = hourly[key] as List?;
+      if (list == null) return [];
+      return list.map((v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is double) return v.toInt();
+        if (v is String) return int.tryParse(v);
+        return null;
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Compute per-day max from hourly nullable data
+  static List<num?> _computeDailyMax<T extends num>(
+    List<T?> hourlyValues,
+    List<String> hourlyTimes,
+    List<String> dailyDates,
+  ) {
+    final result = List<num?>.filled(dailyDates.length, null);
+    for (int i = 0; i < hourlyTimes.length && i < hourlyValues.length; i++) {
+      final val = hourlyValues[i];
+      if (val == null) continue;
+      try {
+        final t = DateTime.parse(hourlyTimes[i]);
+        final dateStr =
+            '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+        final dayIndex = dailyDates.indexOf(dateStr);
+        if (dayIndex >= 0) {
+          if (result[dayIndex] == null || val > result[dayIndex]!) {
+            result[dayIndex] = val;
+          }
+        }
+      } catch (_) {}
+    }
+    return result;
   }
 }
 
@@ -205,40 +371,66 @@ class CurrentWeather {
   final double temperature;
   final int humidity;
   final double windSpeed;
-  final double windGust; // NEW: Wind gust speed
-  final int windDirection; // NEW: Added wind direction
-  final double dewPoint; // NEW: Dew point temperature
+  final double windGust; // Wind gust speed
+  final int windDirection; // Wind direction
+  final double dewPoint; // Dew point temperature
   final int weatherCode;
   final double pressure;
   final int cloudCover;
   final bool isDay;
   final double visibility;
   final double uvIndex;
-  final String? customDescription; // NEW: For METAR conditions like "Smoke"
+  final String? customDescription; // For METAR conditions like "Smoke"
+
 
   CurrentWeather({
     required this.temperature,
     required this.humidity,
     required this.windSpeed,
-    this.windGust = 0.0, // Default to 0
-    this.windDirection = 0, // Default to 0 (North)
-    this.dewPoint = 0.0, // Default to 0
+    this.windGust = 0.0,
+    this.windDirection = 0,
+    this.dewPoint = 0.0,
     required this.weatherCode,
     required this.pressure,
     required this.cloudCover,
     required this.isDay,
     this.visibility = 10.0,
     this.uvIndex = 0.0,
-    this.customDescription, // NEW: Custom description for METAR
+    this.customDescription,
+
   });
+
+  /// Return a copy of this CurrentWeather with optional overrides.
+  /// Pass null (the default) to keep the existing value.
+  CurrentWeather copyWith({
+    double? uvIndex,
+    double? dewPoint,
+    bool? isDay,
+  }) {
+    return CurrentWeather(
+      temperature: temperature,
+      humidity: humidity,
+      windSpeed: windSpeed,
+      windGust: windGust,
+      windDirection: windDirection,
+      dewPoint: dewPoint ?? this.dewPoint,
+      weatherCode: weatherCode,
+      pressure: pressure,
+      cloudCover: cloudCover,
+      isDay: isDay ?? this.isDay,
+      visibility: visibility,
+      uvIndex: uvIndex ?? this.uvIndex,
+      customDescription: customDescription,
+    );
+  }
+
+
 
   factory CurrentWeather.fromJson(Map<String, dynamic> json) {
     print(
         '🌡️ [CurrentWeather.fromJson] Input JSON keys: ${json.keys.toList()}');
     print(
-        '🌡️ [CurrentWeather.fromJson] dew_point_2m value: ${json['dew_point_2m']} (type: ${json['dew_point_2m']?.runtimeType})');
-    print(
-        '🌙 [CurrentWeather.fromJson] is_day value: ${json['is_day']} (type: ${json['is_day']?.runtimeType})');
+        '� [CurrentWeather.fromJson] is_day value: ${json['is_day']} (type: ${json['is_day']?.runtimeType})');
 
     final isDay = _toBool(json['is_day']);
     print('🌙 [CurrentWeather] Parsed isDay: $isDay');
@@ -247,16 +439,16 @@ class CurrentWeather {
       temperature: _toDouble(json['temperature_2m']),
       humidity: _toInt(json['relative_humidity_2m']),
       windSpeed: _toDouble(json['wind_speed_10m']),
-      windGust: _toDouble(json['wind_gusts_10m']), // NEW: Parse wind gust
-      windDirection:
-          _toInt(json['wind_direction_10m']), // NEW: Parse wind direction
-      dewPoint: _toDouble(json['dew_point_2m']), // NEW: Parse dew point
+      windGust: _toDouble(json['wind_gusts_10m']),
+      windDirection: _toInt(json['wind_direction_10m']),
+      dewPoint: _toDouble(json['dew_point_2m']),
       weatherCode: _toInt(json['weather_code']),
       pressure: _toDouble(json['pressure_msl']),
       cloudCover: _toInt(json['cloud_cover']),
       isDay: isDay,
       visibility: _toDouble(json['visibility']) / 1000,
       uvIndex: _toDouble(json['uv_index']),
+
     );
   }
 
@@ -300,6 +492,8 @@ class CurrentWeather {
     if (uvIndex <= 10) return Colors.red;
     return Colors.purple;
   }
+
+
 
   String get weatherDescription {
     // Use custom description if provided (e.g., from METAR "Smoke")
@@ -351,6 +545,7 @@ class CurrentWeather {
   }
 
   String get weatherIcon {
+
     switch (weatherCode) {
       case 0:
         return isDay ? '☀️' : '🌙';
@@ -359,36 +554,36 @@ class CurrentWeather {
       case 2:
         return isDay ? '⛅' : '🌙';
       case 3:
-        return isDay ? '☁️' : '☁️'; // Clouds visible at night too
+        return isDay ? '☁️' : '☁️';
       case 45:
       case 48:
-        return '🌫️'; // Fog visible at night
+        return '🌫️';
       case 51:
       case 53:
       case 55:
-        return '🌦️'; // Drizzle visible at night
+        return '🌦️';
       case 61:
       case 63:
       case 65:
-        return '🌧️'; // Rain visible at night
+        return '🌧️';
       case 71:
       case 73:
       case 75:
-        return '❄️'; // Snow visible at night
+        return '❄️';
       case 77:
-        return '🌨️'; // Snow grains visible at night
+        return '🌨️';
       case 80:
       case 81:
       case 82:
-        return '🌧️'; // Rain showers visible at night
+        return '🌧️';
       case 85:
       case 86:
-        return '🌨️'; // Snow showers visible at night
+        return '🌨️';
       case 95:
-        return '⛈️'; // Thunderstorm visible at night
+        return '⛈️';
       case 96:
       case 99:
-        return '⛈️'; // Thunderstorm with hail visible at night
+        return '⛈️';
       default:
         return isDay ? '🌤️' : '🌙';
     }
@@ -411,6 +606,7 @@ class DailyForecast {
   final double apparentTempMax;
   final double apparentTempMin;
 
+
   DailyForecast({
     required this.date,
     required this.maxTemp,
@@ -426,9 +622,14 @@ class DailyForecast {
     this.uvIndexMax = 0.0,
     this.apparentTempMax = 0.0,
     this.apparentTempMin = 0.0,
+
   });
 
-  factory DailyForecast.fromJson(Map<String, dynamic> json, int index) {
+  factory DailyForecast.fromJson(Map<String, dynamic> json, int index, {
+    num? fallbackPrecipProb,
+    num? fallbackWindGust,
+    num? fallbackWindSpeed,
+  }) {
     try {
       // Parse sunrise - handle both string and int timestamps
       int sunrise = 0;
@@ -453,16 +654,47 @@ class DailyForecast {
         }
       }
 
+      // Use daily value if non-null, otherwise fall back to hourly-computed max
+      final rawPrecipProb = json['precipitation_probability_max']?[index];
+      final rawWindGust = json['wind_gusts_10m_max']?[index];
+      final rawWindSpeed = json['wind_speed_10m_max']?[index];
+
+      // Parse precipitation sum first (needed for probability estimation)
+      final precipSum = _toDouble(json['precipitation_sum']?[index] ?? 0);
+
+      // Determine precipitation probability:
+      // 1. Use daily value if available
+      // 2. Use hourly-computed fallback if available
+      // 3. Estimate from precipitation_sum when model doesn't provide probability
+      int precipProb;
+      if (rawPrecipProb != null) {
+        precipProb = _toInt(rawPrecipProb);
+      } else if (fallbackPrecipProb != null) {
+        precipProb = _toInt(fallbackPrecipProb);
+      } else if (precipSum > 0) {
+        // Estimate from precipitation amount when probability is unavailable
+        if (precipSum < 1) {
+          precipProb = 30;
+        } else if (precipSum < 5) {
+          precipProb = 60;
+        } else if (precipSum < 15) {
+          precipProb = 80;
+        } else {
+          precipProb = 95;
+        }
+      } else {
+        precipProb = 0;
+      }
+
       final result = DailyForecast(
         date: _parseDate(json['time'][index]),
         maxTemp: _toDouble(json['temperature_2m_max'][index]),
         minTemp: _toDouble(json['temperature_2m_min'][index]),
         weatherCode: _toInt(json['weather_code'][index]),
-        precipitationProbability:
-            _toInt(json['precipitation_probability_max']?[index] ?? 0),
-        precipitationSum: _toDouble(json['precipitation_sum']?[index] ?? 0),
-        windSpeed: _toDouble(json['wind_speed_10m_max']?[index] ?? 0),
-        windGust: _toDouble(json['wind_gusts_10m_max']?[index] ?? 0),
+        precipitationProbability: precipProb,
+        precipitationSum: precipSum,
+        windSpeed: _toDouble(rawWindSpeed ?? fallbackWindSpeed ?? 0),
+        windGust: _toDouble(rawWindGust ?? fallbackWindGust ?? 0),
         windDirection: _toInt(json['wind_direction_10m_dominant']?[index] ?? 0),
         sunrise: sunrise,
         sunset: sunset,
@@ -512,7 +744,10 @@ class DailyForecast {
     return 0;
   }
 
+
+
   String get weatherIcon {
+
     switch (weatherCode) {
       case 0:
         return '☀️';
@@ -566,6 +801,7 @@ class DailyForecast {
   }
 
   String get weatherDescription {
+
     switch (weatherCode) {
       case 0:
         return 'Clear sky';

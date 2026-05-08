@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../models/weather_model.dart';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
 
 class ForecastCard extends StatelessWidget {
   final DailyForecast forecast;
@@ -20,6 +22,7 @@ class ForecastCard extends StatelessWidget {
   }
 
   Widget _buildDetailSheet(BuildContext context) {
+    final settings = Provider.of<SettingsProvider>(context);
     final sunriseTime =
         DateTime.fromMillisecondsSinceEpoch(forecast.sunrise * 1000);
     final sunsetTime =
@@ -103,7 +106,7 @@ class ForecastCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          '${forecast.maxTemp.round()}°',
+                          settings.getTempString(forecast.maxTemp),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 36,
@@ -111,7 +114,7 @@ class ForecastCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${forecast.minTemp.round()}°',
+                          settings.getTempString(forecast.minTemp),
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.6),
                             fontSize: 20,
@@ -138,7 +141,7 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.thermostat_outlined,
                               label: 'Feels Like High',
-                              value: '${forecast.apparentTempMax.round()}°C',
+                              value: settings.getTempString(forecast.apparentTempMax),
                               color: Colors.orange,
                             ),
                           ),
@@ -147,7 +150,7 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.thermostat_outlined,
                               label: 'Feels Like Low',
-                              value: '${forecast.apparentTempMin.round()}°C',
+                              value: settings.getTempString(forecast.apparentTempMin),
                               color: Colors.lightBlue,
                             ),
                           ),
@@ -162,7 +165,7 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.air,
                               label: 'Max Wind',
-                              value: '${forecast.windSpeed.round()} km/h',
+                              value: settings.getWindSpeedString(forecast.windSpeed),
                               color: Colors.teal,
                             ),
                           ),
@@ -171,7 +174,7 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.storm,
                               label: 'Wind Gust',
-                              value: '${forecast.windGust.round()} km/h',
+                              value: settings.getWindSpeedString(forecast.windGust),
                               color: Colors.deepPurple,
                             ),
                           ),
@@ -328,6 +331,8 @@ class ForecastCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = Provider.of<SettingsProvider>(context);
+
     return GestureDetector(
       onTap: () => _showDetailDialog(context),
       child: Container(
@@ -418,7 +423,7 @@ class ForecastCard extends StatelessWidget {
               children: [
                 // Min temp
                 Text(
-                  '${forecast.minTemp.round()}°',
+                  settings.getTempString(forecast.minTemp),
                   style: const TextStyle(
                     color: Colors.white60,
                     fontSize: 16,
@@ -442,7 +447,7 @@ class ForecastCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 // Max temp
                 Text(
-                  '${forecast.maxTemp.round()}°',
+                  settings.getTempString(forecast.maxTemp),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 17,

@@ -432,6 +432,8 @@ class WeatherProvider extends ChangeNotifier {
     _weatherData = cachedData;
     _cityName = cityName;
     _countryCode = countryCode;
+    _usingMetar = false; // Reset METAR state when loading old cache
+    _metarData = null;
     _isLoading = false;
     _error = null;
     notifyListeners();
@@ -541,6 +543,9 @@ class WeatherProvider extends ChangeNotifier {
           );
           print(
               '🌍 [AQI] Weather data updated. aqiIndex = ${_weatherData?.aqiIndex}');
+            
+        // 💾 Update local cache to preserve AQI when swiping through favorites
+        _cachedWeatherData = _weatherData;
           notifyListeners();
         } else {
           print('⚠️ [AQI] us_aqi and aqi both null in response');
@@ -564,7 +569,7 @@ class WeatherProvider extends ChangeNotifier {
     _metarService
         .getMetarDataForCity(targetCity, latitude, longitude)
         .timeout(
-          const Duration(seconds: 3),
+          const Duration(seconds: 10), // Increase timeout to allow airport search to complete
           onTimeout: () => null,
         )
         .then((metarData) {
@@ -624,7 +629,12 @@ class WeatherProvider extends ChangeNotifier {
         );
         _usingMetar = true;
 
-        print('✈️ Using METAR data for $cityName');
+        // 💾 Update cache so METAR data persists when swiping back and forth
+        _cachedWeatherData = _weatherData;
+        _cachedUsingMetar = _usingMetar;
+        _cachedMetarData = _metarData;
+
+        print('✈️ Using METAR data for $_cityName');
         print('   Airport: ${metarData.icaoCode}');
         print('   Temp: ${metarData.temperature}°C');
         print(

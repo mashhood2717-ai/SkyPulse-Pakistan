@@ -14,10 +14,12 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false">
         
-        <!-- Google Maps API Key -->
+        <!-- Google Maps API Key - Restrict to Android apps only in Google Cloud Console -->
+        <!-- For production, create a restricted API key in Google Cloud Console -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyCbTR4dknEOg9iTU5j4G6eSibMwKiRFJT4" />
+            android:value="AIzaSyCPwVis-FxNbbd367k-WPgFTPj_6_I4T3Q" />
+        
         
         <!-- Default Firebase Notification Channel -->
         <meta-data

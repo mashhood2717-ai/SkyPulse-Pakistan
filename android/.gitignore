@@ -1,0 +1,31 @@
+# Sensitive files - NEVER commit to Git
+keystore.properties
+*.keystore
+*.jks
+*.key
+google-services.json
+local.properties
+
+# Build outputs
+build/
+.gradle/
+gradlew
+gradlew.bat
+gradle/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+
+# Flutter
+.pub-cache/
+.pub/
+flutter_export_environment.sh
+
+# OS
+.DS_Store
+Thumbs.db

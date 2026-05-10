@@ -252,11 +252,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildInfoRow(context, 'App Version', '1.0.0'),
+                    _buildInfoRow(context, 'App Version', '1.1.0'),
                     const Divider(),
-                    _buildInfoRow(context, 'Developer', 'Pakistan Weather Team'),
+                    _buildInfoRow(context, 'Developer', 'SkyPulse Pakistan'),
                     const Divider(),
-                    _buildInfoRow(context, 'Contact', ''),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Privacy Policy'),
+                      trailing: const Icon(Icons.open_in_new, size: 16),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Privacy Policy'),
+                            content: const SingleChildScrollView(
+                              child: Text(
+                                'SkyPulse Pakistan collects location data to provide real-time weather forecasts and alerts. '
+                                'Your location is only used locally on your device and transmitted to weather APIs for data retrieval. '
+                                'We do not store, sell, or share your personal location data with third parties. '
+                                'Push notifications are opt-in. All data is handled securely under Firebase encryption protocols.'
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Close'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),

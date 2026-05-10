@@ -1,9 +1,9 @@
 name: skypulse_pakistan
-description: 'precise real-time weather and storm alerts for every city in Pakistan'
+description: 'SkyPulse Pakistan - Real-time weather forecasts, storm alerts, and METAR aviation data with precise location-based updates for all Pakistani cities. Get accurate weather predictions, hourly forecasts, and emergency notifications to stay prepared.'
 
 publish_to: 'none'
 
-version: 1.2.0+1
+version: 1.1.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

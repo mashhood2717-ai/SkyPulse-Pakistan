@@ -98,7 +98,8 @@ void main() async {
   runApp(const MyApp());
 
   // Let permissions and push init happen in background without blocking UI
-  Future.wait([permissionRequest, locationPermissionRequest, pushInit]).then((_) {
+  Future.wait([permissionRequest, locationPermissionRequest, pushInit])
+      .then((_) {
     print('✅ All background initializations complete!');
   }).catchError((e) {
     print('⚠️ Background init issue: $e');

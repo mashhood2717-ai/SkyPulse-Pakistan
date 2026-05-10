@@ -545,14 +545,27 @@ class CurrentWeather {
   }
 
   String get weatherIcon {
+    // If custom description exists (e.g., from METAR), use appropriate icon
+    if (customDescription != null && customDescription!.isNotEmpty) {
+      final desc = customDescription!.toUpperCase();
+      if (desc.contains('HAZE')) return '🌫️';
+      if (desc.contains('SMOKE')) return '💨';
+      if (desc.contains('DUST') || desc.contains('SAND')) return '🌪️';
+      if (desc.contains('VOLCANIC')) return '🌋';
+      if (desc.contains('FOG') || desc.contains('MIST')) return '🌫️';
+      if (desc.contains('TORNADO') || desc.contains('FUNNEL')) return '🌪️';
+      if (desc.contains('SANDSTORM') || desc.contains('DUSTSTORM')) return '🌪️';
+    }
 
     switch (weatherCode) {
       case 0:
         return isDay ? '☀️' : '🌙';
       case 1:
-        return isDay ? '🌤️' : '🌙';
+        // Mainly clear - show sun/partial stars at night instead of just moon
+        return isDay ? '🌤️' : '🌟';
       case 2:
-        return isDay ? '⛅' : '🌙';
+        // Partly cloudy - show appropriate night variant
+        return isDay ? '⛅' : '☁️';
       case 3:
         return isDay ? '☁️' : '☁️';
       case 45:
@@ -585,7 +598,7 @@ class CurrentWeather {
       case 99:
         return '⛈️';
       default:
-        return isDay ? '🌤️' : '🌙';
+        return isDay ? '🌤️' : '🌟';
     }
   }
 }

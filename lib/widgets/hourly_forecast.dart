@@ -218,8 +218,10 @@ class HourlyForecast extends StatelessWidget {
       case 0:
         return isDay ? '☀️' : '🌙';
       case 1:
-        return isDay ? '🌤️' : '🌙';
+        // Mainly clear - show partial stars at night instead of just moon
+        return isDay ? '🌤️' : '🌟';
       case 2:
+        // Partly cloudy - show appropriate night variant
         return isDay ? '⛅' : '☁️';
       case 3:
         return '☁️';
@@ -251,7 +253,7 @@ class HourlyForecast extends StatelessWidget {
       case 99:
         return '⛈️';
       default:
-        return isDay ? '🌤️' : '🌙';
+        return isDay ? '🌤️' : '🌟';
     }
   }
 }

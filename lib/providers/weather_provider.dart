@@ -23,8 +23,10 @@ class WeatherProvider extends ChangeNotifier {
   MetarData? _metarData;
   List<Map<String, dynamic>> _activeAlerts = [];
   Timer? _alertRefreshTimer;
-  double _currentLatitude = 33.6699; // Default: Islamabad (will update on app start)
-  double _currentLongitude = 73.0794; // Default: Islamabad (will update on app start)
+  double _currentLatitude =
+      33.6699; // Default: Islamabad (will update on app start)
+  double _currentLongitude =
+      73.0794; // Default: Islamabad (will update on app start)
 
   // Cache for instant refresh
   WeatherData? _cachedWeatherData;
@@ -54,7 +56,7 @@ class WeatherProvider extends ChangeNotifier {
   Future<void> _initializeLocation() async {
     try {
       print('📍 Initializing location...');
-      
+
       // Check if location service is enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -587,9 +589,9 @@ class WeatherProvider extends ChangeNotifier {
           );
           print(
               '🌍 [AQI] Weather data updated. aqiIndex = ${_weatherData?.aqiIndex}');
-            
-        // 💾 Update local cache to preserve AQI when swiping through favorites
-        _cachedWeatherData = _weatherData;
+
+          // 💾 Update local cache to preserve AQI when swiping through favorites
+          _cachedWeatherData = _weatherData;
           notifyListeners();
         } else {
           print('⚠️ [AQI] us_aqi and aqi both null in response');
@@ -613,7 +615,9 @@ class WeatherProvider extends ChangeNotifier {
     _metarService
         .getMetarDataForCity(targetCity, latitude, longitude)
         .timeout(
-          const Duration(seconds: 10), // Increase timeout to allow airport search to complete
+          const Duration(
+              seconds:
+                  10), // Increase timeout to allow airport search to complete
           onTimeout: () => null,
         )
         .then((metarData) {

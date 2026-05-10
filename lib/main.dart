@@ -42,44 +42,6 @@ void main() async {
     const Duration(seconds: 10),
   );
 
-  // Request notification permissions (Android 13+) - with timeout
-  print('📱 Requesting notification permissions...');
-  final permissionRequest = Permission.notification.request().timeout(
-    const Duration(seconds: 5),
-    onTimeout: () {
-      print('⚠️ Permission request timeout');
-      return PermissionStatus.denied;
-    },
-  ).then((status) {
-    if (status.isGranted) {
-      print('✅ Notification permission granted!');
-    } else {
-      print(
-          '⚠️ Notification permission: ${status.isDenied ? "DENIED" : status.isPermanentlyDenied ? "PERMANENTLY DENIED" : "OTHER"}');
-    }
-  }).catchError((e) {
-    print('⚠️ Permission error: $e');
-  });
-
-  // Request location permissions
-  print('📍 Requesting location permissions...');
-  final locationPermissionRequest = Future.wait([
-    Permission.location.request(),
-    Permission.locationAlways.request(),
-  ]).then((statuses) {
-    if (statuses.any((status) => status.isGranted)) {
-      print('✅ Location permission granted!');
-    } else {
-      print('⚠️ Location permission denied');
-    }
-  }).catchError((e) {
-    print('⚠️ Location permission error: $e');
-  });
-
-  // Initialize push notifications in parallel (NO TIMEOUT)
-  print('🔔 Initializing push notifications...');
-  final pushInit = PushNotificationService.initializePushNotifications();
-
   // Initialize home screen widget
   print('📱 Initializing home widget...');
   HomeWidgetService.initialize();
@@ -92,18 +54,21 @@ void main() async {
     print('⚠️ Firebase init issue (app will continue)');
   }
 
-  // Then run UI (don't wait for permissions or push init to complete)
-  // These will complete in background while app is loading
+  // Request permissions BEFORE starting UI
+  print('📱 Requesting notification permission...');
+  await Permission.notification.request();
+
+  print('📍 Requesting location permissions...');
+  await Permission.location.request();
+  await Permission.locationAlways.request();
+
+  // Initialize push notifications
+  print('🔔 Initializing push notifications...');
+  await PushNotificationService.initializePushNotifications();
+
+  // Then run UI with all permissions already requested
   print('✅ Starting app...');
   runApp(const MyApp());
-
-  // Let permissions and push init happen in background without blocking UI
-  Future.wait([permissionRequest, locationPermissionRequest, pushInit])
-      .then((_) {
-    print('✅ All background initializations complete!');
-  }).catchError((e) {
-    print('⚠️ Background init issue: $e');
-  });
 }
 
 class MyApp extends StatelessWidget {

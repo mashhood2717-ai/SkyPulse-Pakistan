@@ -36,8 +36,8 @@ class WeatherProvider extends ChangeNotifier {
   MetarData? _cachedMetarData;
 
   WeatherProvider() {
-    // Initialize current location and ensure FCM token is refreshed
-    _initializeLocation();
+    // Don't fetch location here - permissions not granted yet
+    // Instead, initialize FCM and fetch location when fetchWeatherByLocation is called
     _ensureFCMTokenFresh();
   }
 
@@ -277,6 +277,11 @@ class WeatherProvider extends ChangeNotifier {
         position.latitude,
         position.longitude,
       );
+
+      // 📍 Update current location coordinates
+      _currentLatitude = position.latitude;
+      _currentLongitude = position.longitude;
+      print('✅ Current location updated: $_currentLatitude, $_currentLongitude');
 
       // 🌐 URGENT: Fetch fresh weather data and cache it
       await _fetchWeatherWithMetarAttempt(

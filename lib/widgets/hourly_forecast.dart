@@ -92,7 +92,7 @@ class HourlyForecast extends StatelessWidget {
           ),
           const SizedBox(height: 4),
 
-          // Icon - Lottie animation
+          // Icon - Animated weather icon
           SizedBox(
             width: 35,
             height: 35,

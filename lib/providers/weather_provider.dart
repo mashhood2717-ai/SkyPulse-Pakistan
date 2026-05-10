@@ -23,8 +23,8 @@ class WeatherProvider extends ChangeNotifier {
   MetarData? _metarData;
   List<Map<String, dynamic>> _activeAlerts = [];
   Timer? _alertRefreshTimer;
-  final double _currentLatitude = 33.6699; // Default: Islamabad
-  final double _currentLongitude = 73.0794; // Default: Islamabad
+  double _currentLatitude = 33.6699; // Default: Islamabad (will update on app start)
+  double _currentLongitude = 73.0794; // Default: Islamabad (will update on app start)
 
   // Cache for instant refresh
   WeatherData? _cachedWeatherData;
@@ -34,7 +34,8 @@ class WeatherProvider extends ChangeNotifier {
   MetarData? _cachedMetarData;
 
   WeatherProvider() {
-    // Ensure FCM token is refreshed on app launch
+    // Initialize current location and ensure FCM token is refreshed
+    _initializeLocation();
     _ensureFCMTokenFresh();
   }
 
@@ -48,6 +49,49 @@ class WeatherProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get activeAlerts => _activeAlerts;
   double get latitude => _currentLatitude;
   double get longitude => _currentLongitude;
+
+  /// Initialize current location from device GPS
+  Future<void> _initializeLocation() async {
+    try {
+      print('📍 Initializing location...');
+      
+      // Check if location service is enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        print('⚠️ Location service is disabled');
+        return;
+      }
+
+      // Check permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        print('⚠️ Location permission not granted');
+        return;
+      }
+
+      // Get current position
+      try {
+        final Position position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+        ).timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            print('⚠️ Location fetch timeout - using default');
+            throw TimeoutException('Location request timeout');
+          },
+        );
+
+        _currentLatitude = position.latitude;
+        _currentLongitude = position.longitude;
+        print('✅ Location updated: $_currentLatitude, $_currentLongitude');
+      } catch (e) {
+        print('⚠️ Could not get location: $e - using defaults');
+      }
+    } catch (e) {
+      print('⚠️ Location initialization error: $e');
+    }
+  }
 
   /// Get count of unread alerts
   int get unreadAlertCount {

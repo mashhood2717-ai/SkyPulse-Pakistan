@@ -86,13 +86,12 @@ android {
     buildTypes {
         release {
             // For production: configure signing with keystore.properties
-            // For now: comment out to allow testing
-            // signingConfig signingConfigs.release
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
         }
         debug {
-            signingConfig signingConfigs.debug
+            // Use default debug signing
         }
     }
 }

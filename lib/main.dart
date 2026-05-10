@@ -61,6 +61,21 @@ void main() async {
     print('⚠️ Permission error: $e');
   });
 
+  // Request location permissions
+  print('📍 Requesting location permissions...');
+  final locationPermissionRequest = Future.wait([
+    Permission.location.request(),
+    Permission.locationAlways.request(),
+  ]).then((statuses) {
+    if (statuses.any((status) => status.isGranted)) {
+      print('✅ Location permission granted!');
+    } else {
+      print('⚠️ Location permission denied');
+    }
+  }).catchError((e) {
+    print('⚠️ Location permission error: $e');
+  });
+
   // Initialize push notifications in parallel (NO TIMEOUT)
   print('🔔 Initializing push notifications...');
   final pushInit = PushNotificationService.initializePushNotifications();
@@ -83,7 +98,7 @@ void main() async {
   runApp(const MyApp());
 
   // Let permissions and push init happen in background without blocking UI
-  Future.wait([permissionRequest, pushInit]).then((_) {
+  Future.wait([permissionRequest, locationPermissionRequest, pushInit]).then((_) {
     print('✅ All background initializations complete!');
   }).catchError((e) {
     print('⚠️ Background init issue: $e');

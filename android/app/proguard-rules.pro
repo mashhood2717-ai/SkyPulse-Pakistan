@@ -5,7 +5,9 @@
 
 # Google Play Core (required for split installs and deferred components)
 -keep class com.google.android.play.core.** { *; }
+-keep class com.google.android.play.** { *; }
 -dontwarn com.google.android.play.core.**
+-dontwarn com.google.android.play.**
 
 # Firebase
 -keep class com.google.firebase.** { *; }

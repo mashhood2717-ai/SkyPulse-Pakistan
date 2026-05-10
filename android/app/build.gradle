@@ -54,27 +54,42 @@ android {
     }
 
     signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+        }
         release {
             // Load keystore properties from keystore.properties file
             def keystorePropertiesFile = rootProject.file('keystore.properties')
             def keystoreProperties = new Properties()
+            def useDebugKey = true
+            
             if (keystorePropertiesFile.exists()) {
                 keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+                useDebugKey = false
             }
             
-            keyAlias keystoreProperties.getProperty('key.alias', '')
-            keyPassword keystoreProperties.getProperty('key.password', '')
-            storeFile keystoreProperties.getProperty('store.file') ? file(keystoreProperties.getProperty('store.file')) : null
-            storePassword keystoreProperties.getProperty('store.password', '')
+            if (!useDebugKey) {
+                keyAlias keystoreProperties.getProperty('key.alias', '')
+                keyPassword keystoreProperties.getProperty('key.password', '')
+                storeFile keystoreProperties.getProperty('store.file') ? file(keystoreProperties.getProperty('store.file')) : null
+                storePassword keystoreProperties.getProperty('store.password', '')
+            } else {
+                // Fallback to debug key for testing
+                keyAlias 'androiddebugkey'
+                keyPassword 'android'
+                storeFile file('debug.keystore')
+                storePassword 'android'
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
-            minifyEnabled true
-            shrinkResources true
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // For production: configure signing with keystore.properties
+            // For now: comment out to allow testing
+            // signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
         }
         debug {
             signingConfig signingConfigs.debug
@@ -89,6 +104,9 @@ flutter {
 dependencies {
     // Core library desugaring for Java 8+ API support
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+    
+    // Google Play Core for split installs and deferred components
+    implementation 'com.google.android.play:core:1.10.3'
     
     // Firebase BOM for version management
     implementation platform('com.google.firebase:firebase-bom:33.1.0')

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/weather_model.dart';
 import '../providers/settings_provider.dart';
+import 'weather_lottie_icon.dart';
 
 class HourlyForecast extends StatelessWidget {
   final WeatherData weatherData;
@@ -91,10 +92,15 @@ class HourlyForecast extends StatelessWidget {
           ),
           const SizedBox(height: 4),
 
-          // Icon
-          Text(
-            hour['icon'],
-            style: const TextStyle(fontSize: 24),
+          // Icon - Lottie animation
+          SizedBox(
+            width: 35,
+            height: 35,
+            child: WeatherLottieIcon(
+              weatherCode: hour['weatherCode'] ?? 0,
+              isDay: hour['isDay'] ?? true,
+              size: 35,
+            ),
           ),
           const SizedBox(height: 4),
 
@@ -196,7 +202,8 @@ class HourlyForecast extends StatelessWidget {
         hourly.add({
           'time': timeStr,
           'temp': settings.getTempString(temp),
-          'icon': icon,
+          'weatherCode': weatherCode,
+          'isDay': apiIsDay ?? (displayHour >= 6 && displayHour < 20),
           'precipitation': precipitation > 0 ? precipitation : null,
         });
       }

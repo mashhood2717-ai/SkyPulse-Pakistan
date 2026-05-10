@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/weather_model.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
+import 'weather_lottie_icon.dart';
 
 class WeatherCard extends StatelessWidget {
   final String cityName;
@@ -38,10 +39,16 @@ class WeatherCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Icon
-          Text(
-            current.weatherIcon,
-            style: const TextStyle(fontSize: 36),
+          // Icon - Lottie animation
+          SizedBox(
+            width: 50,
+            height: 50,
+            child: WeatherLottieIcon(
+              weatherCode: current.weatherCode,
+              isDay: current.isDay,
+              size: 50,
+              customDescription: current.customDescription,
+            ),
           ),
           const SizedBox(width: 12),
 

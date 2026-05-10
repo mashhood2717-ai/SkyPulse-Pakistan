@@ -3,6 +3,7 @@ import 'dart:ui';
 import '../models/weather_model.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
+import 'weather_lottie_icon.dart';
 
 class ForecastCard extends StatelessWidget {
   final DailyForecast forecast;
@@ -67,9 +68,15 @@ class ForecastCard extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
-                    Text(
-                      forecast.weatherIcon,
-                      style: const TextStyle(fontSize: 50),
+                    // Weather icon - Lottie animation
+                    SizedBox(
+                      width: 70,
+                      height: 70,
+                      child: WeatherLottieIcon(
+                        weatherCode: forecast.weatherCode,
+                        isDay: true, // Daily forecast always shows day icon
+                        size: 70,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -370,10 +377,15 @@ class ForecastCard extends StatelessWidget {
 
             const SizedBox(width: 8),
 
-            // Weather Icon
-            Text(
-              forecast.weatherIcon,
-              style: const TextStyle(fontSize: 30),
+            // Weather Icon - Lottie animation
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: WeatherLottieIcon(
+                weatherCode: forecast.weatherCode,
+                isDay: true, // Daily forecast always shows day icon
+                size: 40,
+              ),
             ),
 
             const SizedBox(width: 12),

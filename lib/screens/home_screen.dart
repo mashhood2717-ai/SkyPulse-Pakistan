@@ -11,6 +11,7 @@ import '../widgets/sun_arc_widget.dart';
 import '../widgets/weather_details.dart';
 import '../widgets/hourly_forecast.dart';
 import '../widgets/skeleton_loader.dart';
+import '../widgets/weather_lottie_icon.dart';
 import '../services/favorites_service.dart';
 import '../services/weather_service.dart';
 import '../services/push_notification_service.dart';
@@ -1603,9 +1604,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Weather icon
-              Text(
-                current.weatherIcon,
-                style: const TextStyle(fontSize: 36),
+              WeatherLottieIcon(
+                weatherCode: current.weatherCode,
+                isDay: current.isDay,
+                size: 50,
+                customDescription: current.customDescription,
               ),
               const SizedBox(width: 12),
 

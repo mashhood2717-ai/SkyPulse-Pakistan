@@ -148,7 +148,8 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.thermostat_outlined,
                               label: 'Feels Like High',
-                              value: settings.getTempString(forecast.apparentTempMax),
+                              value: settings
+                                  .getTempString(forecast.apparentTempMax),
                               color: Colors.orange,
                             ),
                           ),
@@ -157,7 +158,8 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.thermostat_outlined,
                               label: 'Feels Like Low',
-                              value: settings.getTempString(forecast.apparentTempMin),
+                              value: settings
+                                  .getTempString(forecast.apparentTempMin),
                               color: Colors.lightBlue,
                             ),
                           ),
@@ -172,7 +174,8 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.air,
                               label: 'Max Wind',
-                              value: settings.getWindSpeedString(forecast.windSpeed),
+                              value: settings
+                                  .getWindSpeedString(forecast.windSpeed),
                               color: Colors.teal,
                             ),
                           ),
@@ -181,7 +184,8 @@ class ForecastCard extends StatelessWidget {
                             child: _buildDetailTile(
                               icon: Icons.storm,
                               label: 'Wind Gust',
-                              value: settings.getWindSpeedString(forecast.windGust),
+                              value: settings
+                                  .getWindSpeedString(forecast.windGust),
                               color: Colors.deepPurple,
                             ),
                           ),

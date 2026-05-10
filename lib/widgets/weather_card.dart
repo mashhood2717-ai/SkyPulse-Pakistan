@@ -125,7 +125,8 @@ class WeatherCard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.opacity, size: 11, color: Colors.white70),
+                      const Icon(Icons.opacity,
+                          size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.humidity.round()}%',
                           style: const TextStyle(
@@ -147,7 +148,8 @@ class WeatherCard extends StatelessWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.compress, size: 11, color: Colors.white70),
+                      const Icon(Icons.compress,
+                          size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.pressure.round()}hPa',
                           style: const TextStyle(

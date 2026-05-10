@@ -138,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// Start timer to refresh location every 30 minutes when on main card (index 0)
   void _startLocationRefreshTimer() {
     _locationRefreshTimer?.cancel();
-    
+
     // Check if auto-refresh is enabled
     final settingsProvider = context.read<SettingsProvider>();
     if (!settingsProvider.isAutoRefreshEnabled) {
@@ -1242,7 +1242,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 300),
                   opacity: isActive ? 1.0 : 0.6,
-                            child: index == 0
+                  child: index == 0
                       ? // Current location card
                       Column(
                           mainAxisSize: MainAxisSize.min,

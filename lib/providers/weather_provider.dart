@@ -281,7 +281,8 @@ class WeatherProvider extends ChangeNotifier {
       // 📍 Update current location coordinates
       _currentLatitude = position.latitude;
       _currentLongitude = position.longitude;
-      print('✅ Current location updated: $_currentLatitude, $_currentLongitude');
+      print(
+          '✅ Current location updated: $_currentLatitude, $_currentLongitude');
 
       // 🌐 URGENT: Fetch fresh weather data and cache it
       await _fetchWeatherWithMetarAttempt(

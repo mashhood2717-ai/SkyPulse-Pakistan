@@ -14,7 +14,8 @@ class HourlyForecast extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hourlyData = _extractHourlyData(context); // Pass context to get settings
+    final hourlyData =
+        _extractHourlyData(context); // Pass context to get settings
 
     if (hourlyData.isEmpty) {
       return const SizedBox(

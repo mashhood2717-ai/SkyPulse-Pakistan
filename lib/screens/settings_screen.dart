@@ -42,7 +42,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
                     Consumer<SettingsProvider>(
                       builder: (context, settings, _) {
                         return Column(
@@ -70,7 +69,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                             ),
                             const Divider(height: 24),
-                            
+
                             // Wind Unit
                             ListTile(
                               contentPadding: EdgeInsets.zero,
@@ -79,8 +78,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               trailing: DropdownButton<String>(
                                 value: settings.windUnit,
                                 underline: Container(),
-                                items: ['km/h', 'mph', 'm/s']
-                                    .map((String value) {
+                                items:
+                                    ['km/h', 'mph', 'm/s'].map((String value) {
                                   return DropdownMenuItem<String>(
                                     value: value,
                                     child: Text(value),
@@ -204,7 +203,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: Colors.blue.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.location_on, color: Colors.blue),
+                        child:
+                            const Icon(Icons.location_on, color: Colors.blue),
                       ),
                       title: const Text('Location Access'),
                       subtitle: const Text('Manage app permissions'),
@@ -267,11 +267,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             title: const Text('Privacy Policy'),
                             content: const SingleChildScrollView(
                               child: Text(
-                                'SkyPulse Pakistan collects location data to provide real-time weather forecasts and alerts. '
-                                'Your location is only used locally on your device and transmitted to weather APIs for data retrieval. '
-                                'We do not store, sell, or share your personal location data with third parties. '
-                                'Push notifications are opt-in. All data is handled securely under Firebase encryption protocols.'
-                              ),
+                                  'SkyPulse Pakistan collects location data to provide real-time weather forecasts and alerts. '
+                                  'Your location is only used locally on your device and transmitted to weather APIs for data retrieval. '
+                                  'We do not store, sell, or share your personal location data with third parties. '
+                                  'Push notifications are opt-in. All data is handled securely under Firebase encryption protocols.'),
                             ),
                             actions: [
                               TextButton(
@@ -302,7 +301,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Text(
             label,
             style: TextStyle(
-              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+              color: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.color
+                  ?.withOpacity(0.7),
             ),
           ),
           Text(

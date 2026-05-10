@@ -86,7 +86,9 @@ class WeatherIconPainter extends CustomPainter {
         _paintSmoke(canvas, center, radius);
         return;
       }
-      if (desc.contains('DUST') || desc.contains('SAND') || desc.contains('TORNADO')) {
+      if (desc.contains('DUST') ||
+          desc.contains('SAND') ||
+          desc.contains('TORNADO')) {
         _paintDustStorm(canvas, center, radius);
         return;
       }
@@ -221,7 +223,8 @@ class WeatherIconPainter extends CustomPainter {
 
   void _paintPartlyCloudyDay(Canvas canvas, Offset center, double radius) {
     // Sun
-    final sunCenter = Offset(center.dx - radius * 0.2, center.dy - radius * 0.2);
+    final sunCenter =
+        Offset(center.dx - radius * 0.2, center.dy - radius * 0.2);
     final sunRadius = radius * 0.4;
     final sunPaint = Paint()
       ..color = const Color(0xFFFFD700)
@@ -229,12 +232,16 @@ class WeatherIconPainter extends CustomPainter {
     canvas.drawCircle(sunCenter, sunRadius, sunPaint);
 
     // Cloud
-    _paintCloudShape(canvas, Offset(center.dx + radius * 0.1, center.dy + radius * 0.1), radius * 0.7);
+    _paintCloudShape(
+        canvas,
+        Offset(center.dx + radius * 0.1, center.dy + radius * 0.1),
+        radius * 0.7);
   }
 
   void _paintPartlyCloudyNight(Canvas canvas, Offset center, double radius) {
     // Moon
-    final moonCenter = Offset(center.dx - radius * 0.2, center.dy - radius * 0.2);
+    final moonCenter =
+        Offset(center.dx - radius * 0.2, center.dy - radius * 0.2);
     final moonRadius = radius * 0.4;
     final moonPaint = Paint()
       ..color = const Color(0xFFE0E0E0)
@@ -242,7 +249,10 @@ class WeatherIconPainter extends CustomPainter {
     canvas.drawCircle(moonCenter, moonRadius, moonPaint);
 
     // Cloud
-    _paintCloudShape(canvas, Offset(center.dx + radius * 0.1, center.dy + radius * 0.1), radius * 0.7);
+    _paintCloudShape(
+        canvas,
+        Offset(center.dx + radius * 0.1, center.dy + radius * 0.1),
+        radius * 0.7);
   }
 
   void _paintCloudy(Canvas canvas, Offset center, double radius) {
@@ -256,9 +266,12 @@ class WeatherIconPainter extends CustomPainter {
 
     final path = Path();
     path.moveTo(center.dx - size * 0.4, center.dy + size * 0.1);
-    path.quadraticBezierTo(center.dx - size * 0.4, center.dy - size * 0.2, center.dx - size * 0.1, center.dy - size * 0.2);
-    path.quadraticBezierTo(center.dx, center.dy - size * 0.35, center.dx + size * 0.2, center.dy - size * 0.2);
-    path.quadraticBezierTo(center.dx + size * 0.4, center.dy - size * 0.2, center.dx + size * 0.4, center.dy + size * 0.1);
+    path.quadraticBezierTo(center.dx - size * 0.4, center.dy - size * 0.2,
+        center.dx - size * 0.1, center.dy - size * 0.2);
+    path.quadraticBezierTo(center.dx, center.dy - size * 0.35,
+        center.dx + size * 0.2, center.dy - size * 0.2);
+    path.quadraticBezierTo(center.dx + size * 0.4, center.dy - size * 0.2,
+        center.dx + size * 0.4, center.dy + size * 0.1);
     path.lineTo(center.dx - size * 0.4, center.dy + size * 0.1);
     canvas.drawPath(path, paint);
   }
@@ -365,7 +378,8 @@ class WeatherIconPainter extends CustomPainter {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromCenter(
-            center: Offset(center.dx, center.dy - radius * 0.2 + (i * radius * 0.2)),
+            center: Offset(
+                center.dx, center.dy - radius * 0.2 + (i * radius * 0.2)),
             width: radius * 1.4,
             height: radius * 0.2,
           ),
@@ -399,7 +413,8 @@ class WeatherIconPainter extends CustomPainter {
     for (int i = 0; i < 3; i++) {
       final yOffset = animationValue * radius * 0.3;
       canvas.drawCircle(
-        Offset(center.dx - radius * 0.2 + (i * radius * 0.2), center.dy - radius * 0.1 - yOffset),
+        Offset(center.dx - radius * 0.2 + (i * radius * 0.2),
+            center.dy - radius * 0.1 - yOffset),
         radius * (0.3 - i * 0.08),
         smokePaint,
       );
@@ -420,8 +435,10 @@ class WeatherIconPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(
-      Offset(center.dx - radius * 0.4 + radius * 0.2 * math.cos(angle), center.dy),
-      Offset(center.dx + radius * 0.4 + radius * 0.2 * math.cos(angle), center.dy),
+      Offset(
+          center.dx - radius * 0.4 + radius * 0.2 * math.cos(angle), center.dy),
+      Offset(
+          center.dx + radius * 0.4 + radius * 0.2 * math.cos(angle), center.dy),
       windPaint,
     );
   }

@@ -19,7 +19,6 @@ class WeatherData {
     this.hourlyWeatherCodes = const [],
     this.hourlyPrecipitation = const [],
     this.hourlyTimes = const [],
-
     this.hourlyIsDay = const [],
     this.aqiIndex,
   });
@@ -94,8 +93,6 @@ class WeatherData {
       print('   UV (current hour): ${current.uvIndex}');
       print('   Dew Point (current hour): ${current.dewPoint}°C');
       print('   Is Day (current hour): ${current.isDay}');
-
-
 
       return WeatherData(
         current: current,
@@ -188,8 +185,6 @@ class WeatherData {
     }
   }
 
-
-
   // Parse a generic hourly double list (e.g., uv_index, dew_point_2m)
   static List<double> _parseHourlyDoubleList(
       Map<String, dynamic> hourly, String key) {
@@ -219,8 +214,6 @@ class WeatherData {
       return [];
     }
   }
-
-
 
   static double _toDouble(dynamic value) {
     if (value == null) return 0.0;
@@ -265,22 +258,29 @@ class WeatherData {
     // Compute per-day max values from hourly data as fallback
     // (UKMO model doesn't provide precipitation_probability or wind_speed_10m_max in daily)
     final dailyDates = times.map((t) => t.toString()).toList();
-    final hourlyPrecipProb = _parseHourlyIntList(hourly, 'precipitation_probability');
+    final hourlyPrecipProb =
+        _parseHourlyIntList(hourly, 'precipitation_probability');
     final hourlyWindGusts = _parseHourlyDoubleList(hourly, 'wind_gusts_10m');
     final hourlyWindSpeed = _parseHourlyDoubleList(hourly, 'wind_speed_10m');
 
-    final fallbackPrecipProb = _computeDailyMax<int>(hourlyPrecipProb, hourlyTimes, dailyDates);
-    final fallbackWindGusts = _computeDailyMax<double>(hourlyWindGusts, hourlyTimes, dailyDates);
-    final fallbackWindSpeed = _computeDailyMax<double>(hourlyWindSpeed, hourlyTimes, dailyDates);
+    final fallbackPrecipProb =
+        _computeDailyMax<int>(hourlyPrecipProb, hourlyTimes, dailyDates);
+    final fallbackWindGusts =
+        _computeDailyMax<double>(hourlyWindGusts, hourlyTimes, dailyDates);
+    final fallbackWindSpeed =
+        _computeDailyMax<double>(hourlyWindSpeed, hourlyTimes, dailyDates);
 
     for (int i = 0; i < times.length; i++) {
       try {
         forecasts.add(DailyForecast.fromJson(
           daily,
           i,
-          fallbackPrecipProb: i < fallbackPrecipProb.length ? fallbackPrecipProb[i] : null,
-          fallbackWindGust: i < fallbackWindGusts.length ? fallbackWindGusts[i] : null,
-          fallbackWindSpeed: i < fallbackWindSpeed.length ? fallbackWindSpeed[i] : null,
+          fallbackPrecipProb:
+              i < fallbackPrecipProb.length ? fallbackPrecipProb[i] : null,
+          fallbackWindGust:
+              i < fallbackWindGusts.length ? fallbackWindGusts[i] : null,
+          fallbackWindSpeed:
+              i < fallbackWindSpeed.length ? fallbackWindSpeed[i] : null,
         ));
       } catch (e) {
         print('❌ Error parsing forecast at index $i: $e');
@@ -293,7 +293,8 @@ class WeatherData {
   }
 
   /// Parse hourly int list (handles null values gracefully)
-  static List<int?> _parseHourlyIntList(Map<String, dynamic> hourly, String key) {
+  static List<int?> _parseHourlyIntList(
+      Map<String, dynamic> hourly, String key) {
     try {
       final list = hourly[key] as List?;
       if (list == null) return [];
@@ -382,7 +383,6 @@ class CurrentWeather {
   final double uvIndex;
   final String? customDescription; // For METAR conditions like "Smoke"
 
-
   CurrentWeather({
     required this.temperature,
     required this.humidity,
@@ -397,7 +397,6 @@ class CurrentWeather {
     this.visibility = 10.0,
     this.uvIndex = 0.0,
     this.customDescription,
-
   });
 
   /// Return a copy of this CurrentWeather with optional overrides.
@@ -424,8 +423,6 @@ class CurrentWeather {
     );
   }
 
-
-
   factory CurrentWeather.fromJson(Map<String, dynamic> json) {
     print(
         '🌡️ [CurrentWeather.fromJson] Input JSON keys: ${json.keys.toList()}');
@@ -448,7 +445,6 @@ class CurrentWeather {
       isDay: isDay,
       visibility: _toDouble(json['visibility']) / 1000,
       uvIndex: _toDouble(json['uv_index']),
-
     );
   }
 
@@ -492,8 +488,6 @@ class CurrentWeather {
     if (uvIndex <= 10) return Colors.red;
     return Colors.purple;
   }
-
-
 
   String get weatherDescription {
     // Use custom description if provided (e.g., from METAR "Smoke")
@@ -554,7 +548,8 @@ class CurrentWeather {
       if (desc.contains('VOLCANIC')) return '🌋';
       if (desc.contains('FOG') || desc.contains('MIST')) return '🌫️';
       if (desc.contains('TORNADO') || desc.contains('FUNNEL')) return '🌪️';
-      if (desc.contains('SANDSTORM') || desc.contains('DUSTSTORM')) return '🌪️';
+      if (desc.contains('SANDSTORM') || desc.contains('DUSTSTORM'))
+        return '🌪️';
     }
 
     switch (weatherCode) {
@@ -619,7 +614,6 @@ class DailyForecast {
   final double apparentTempMax;
   final double apparentTempMin;
 
-
   DailyForecast({
     required this.date,
     required this.maxTemp,
@@ -635,10 +629,11 @@ class DailyForecast {
     this.uvIndexMax = 0.0,
     this.apparentTempMax = 0.0,
     this.apparentTempMin = 0.0,
-
   });
 
-  factory DailyForecast.fromJson(Map<String, dynamic> json, int index, {
+  factory DailyForecast.fromJson(
+    Map<String, dynamic> json,
+    int index, {
     num? fallbackPrecipProb,
     num? fallbackWindGust,
     num? fallbackWindSpeed,
@@ -757,10 +752,7 @@ class DailyForecast {
     return 0;
   }
 
-
-
   String get weatherIcon {
-
     switch (weatherCode) {
       case 0:
         return '☀️';
@@ -814,7 +806,6 @@ class DailyForecast {
   }
 
   String get weatherDescription {
-
     switch (weatherCode) {
       case 0:
         return 'Clear sky';

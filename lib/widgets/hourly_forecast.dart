@@ -197,12 +197,16 @@ class HourlyForecast extends StatelessWidget {
         bool? apiIsDay = apiIndex < weatherData.hourlyIsDay.length
             ? weatherData.hourlyIsDay[apiIndex]
             : null;
-        String icon = _getWeatherIcon(weatherCode, displayHour,
-            precipProb: precipitation, isDayOverride: apiIsDay);
-
+        final icon = _getWeatherIcon(
+          weatherCode,
+          displayHour,
+          precipProb: precipitation,
+          isDayOverride: apiIsDay,
+        );
         hourly.add({
           'time': timeStr,
           'temp': settings.getTempString(temp),
+          'icon': icon,
           'weatherCode': weatherCode,
           'isDay': apiIsDay ?? (displayHour >= 6 && displayHour < 20),
           'precipitation': precipitation > 0 ? precipitation : null,

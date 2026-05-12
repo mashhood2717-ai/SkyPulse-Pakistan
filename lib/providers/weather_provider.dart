@@ -3,14 +3,17 @@ import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import '../models/weather_model.dart';
 import '../services/weather_service.dart';
+import '../services/company_weather_service.dart';
 import '../services/metar_service.dart';
 import '../services/alert_service.dart';
 import '../services/push_notification_service.dart';
 import '../services/home_widget_service.dart';
+import '../models/company_weather_station.dart';
 import '../models/metar_model.dart';
 
 class WeatherProvider extends ChangeNotifier {
   final WeatherService _weatherService = WeatherService();
+  final CompanyWeatherService _companyWeatherService = CompanyWeatherService();
   final MetarService _metarService = MetarService();
   final AlertService _alertService = AlertService();
 
@@ -20,6 +23,8 @@ class WeatherProvider extends ChangeNotifier {
   String _cityName = '';
   String _countryCode = '';
   bool _usingMetar = false;
+  bool _usingCompanyStation = false;
+  CompanyWeatherStation? _companyStation;
   MetarData? _metarData;
   List<Map<String, dynamic>> _activeAlerts = [];
   Timer? _alertRefreshTimer;
@@ -33,6 +38,8 @@ class WeatherProvider extends ChangeNotifier {
   String _cachedCityName = '';
   String _cachedCountryCode = '';
   bool _cachedUsingMetar = false;
+  bool _cachedUsingCompanyStation = false;
+  CompanyWeatherStation? _cachedCompanyStation;
   MetarData? _cachedMetarData;
 
   WeatherProvider() {
@@ -47,53 +54,12 @@ class WeatherProvider extends ChangeNotifier {
   String get cityName => _cityName;
   String get countryCode => _countryCode;
   bool get usingMetar => _usingMetar;
+  bool get usingCompanyStation => _usingCompanyStation;
+  CompanyWeatherStation? get companyStation => _companyStation;
   MetarData? get metarData => _metarData;
   List<Map<String, dynamic>> get activeAlerts => _activeAlerts;
   double get latitude => _currentLatitude;
   double get longitude => _currentLongitude;
-
-  /// Initialize current location from device GPS
-  Future<void> _initializeLocation() async {
-    try {
-      print('📍 Initializing location...');
-
-      // Check if location service is enabled
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        print('⚠️ Location service is disabled');
-        return;
-      }
-
-      // Check permission
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        print('⚠️ Location permission not granted');
-        return;
-      }
-
-      // Get current position
-      try {
-        final Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.medium,
-        ).timeout(
-          const Duration(seconds: 15),
-          onTimeout: () {
-            print('⚠️ Location fetch timeout - using default');
-            throw TimeoutException('Location request timeout');
-          },
-        );
-
-        _currentLatitude = position.latitude;
-        _currentLongitude = position.longitude;
-        print('✅ Location updated: $_currentLatitude, $_currentLongitude');
-      } catch (e) {
-        print('⚠️ Could not get location: $e - using defaults');
-      }
-    } catch (e) {
-      print('⚠️ Location initialization error: $e');
-    }
-  }
 
   /// Get count of unread alerts
   int get unreadAlertCount {
@@ -215,6 +181,8 @@ class WeatherProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
+    _usingCompanyStation = false;
+    _companyStation = null;
 
     // 🚀 SHOW CACHE FIRST (instant)
     if (_cachedWeatherData != null) {
@@ -223,6 +191,8 @@ class WeatherProvider extends ChangeNotifier {
       _cityName = _cachedCityName;
       _countryCode = _cachedCountryCode;
       _usingMetar = _cachedUsingMetar;
+      _usingCompanyStation = _cachedUsingCompanyStation;
+      _companyStation = _cachedCompanyStation;
       _metarData = _cachedMetarData;
       _error = null;
       notifyListeners();
@@ -301,6 +271,8 @@ class WeatherProvider extends ChangeNotifier {
       _cachedCityName = _cityName;
       _cachedCountryCode = _countryCode;
       _cachedUsingMetar = _usingMetar;
+      _cachedUsingCompanyStation = _usingCompanyStation;
+      _cachedCompanyStation = _companyStation;
       _cachedMetarData = _metarData;
 
       _isLoading = false;
@@ -359,6 +331,8 @@ class WeatherProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
+    _usingCompanyStation = false;
+    _companyStation = null;
     notifyListeners();
 
     try {
@@ -372,6 +346,8 @@ class WeatherProvider extends ChangeNotifier {
         location['longitude'],
       );
 
+      _currentLatitude = location['latitude'];
+      _currentLongitude = location['longitude'];
       _cityName = location['name'];
       _countryCode = location['country'];
 
@@ -380,6 +356,8 @@ class WeatherProvider extends ChangeNotifier {
       _cachedCityName = _cityName;
       _cachedCountryCode = _countryCode;
       _cachedUsingMetar = _usingMetar;
+      _cachedUsingCompanyStation = _usingCompanyStation;
+      _cachedCompanyStation = _companyStation;
       _cachedMetarData = _metarData;
 
       _isLoading = false;
@@ -404,6 +382,8 @@ class WeatherProvider extends ChangeNotifier {
         _cityName = _cachedCityName;
         _countryCode = _cachedCountryCode;
         _usingMetar = _cachedUsingMetar;
+        _usingCompanyStation = _cachedUsingCompanyStation;
+        _companyStation = _cachedCompanyStation;
         _metarData = _cachedMetarData;
         _error = 'Using cached data - network unavailable';
       } else {
@@ -425,6 +405,8 @@ class WeatherProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
+    _usingCompanyStation = false;
+    _companyStation = null;
 
     // Update city/country if provided (for specific location searches)
     if (cityName != null) {
@@ -434,6 +416,8 @@ class WeatherProvider extends ChangeNotifier {
       _countryCode = countryCode;
     }
 
+    _currentLatitude = latitude;
+    _currentLongitude = longitude;
     notifyListeners();
 
     try {
@@ -456,6 +440,10 @@ class WeatherProvider extends ChangeNotifier {
         _weatherData = _cachedWeatherData;
         _cityName = _cachedCityName;
         _countryCode = _cachedCountryCode;
+        _usingMetar = _cachedUsingMetar;
+        _usingCompanyStation = _cachedUsingCompanyStation;
+        _companyStation = _cachedCompanyStation;
+        _metarData = _cachedMetarData;
         _error = 'Using cached data - network unavailable';
       } else {
         _error = e.toString();
@@ -485,6 +473,8 @@ class WeatherProvider extends ChangeNotifier {
     _cityName = cityName;
     _countryCode = countryCode;
     _usingMetar = false; // Reset METAR state when loading old cache
+    _usingCompanyStation = false;
+    _companyStation = null;
     _metarData = null;
     _isLoading = false;
     _error = null;
@@ -499,11 +489,8 @@ class WeatherProvider extends ChangeNotifier {
   ) async {
     try {
       // 🚀 URGENT: Fetch API data FIRST with timeout
-      final apiData = await _weatherService
-          .getWeatherByCoordinates(
-        latitude,
-        longitude,
-      )
+      final apiFuture = _weatherService
+          .getWeatherByCoordinates(latitude, longitude)
           .timeout(
         const Duration(seconds: 15),
         onTimeout: () {
@@ -512,9 +499,33 @@ class WeatherProvider extends ChangeNotifier {
         },
       );
 
+      final stationFuture = _companyWeatherService
+          .getNearestStation(latitude, longitude)
+          .timeout(
+            const Duration(seconds: 8),
+            onTimeout: () => null,
+          );
+
+      final apiData = await apiFuture;
+      final station = await stationFuture;
+      final displayData = station == null
+          ? apiData
+          : WeatherData(
+              current: station.toCurrentWeather(apiData.current),
+              forecast: apiData.forecast,
+              hourlyTemperatures: apiData.hourlyTemperatures,
+              hourlyWeatherCodes: apiData.hourlyWeatherCodes,
+              hourlyPrecipitation: apiData.hourlyPrecipitation,
+              hourlyTimes: apiData.hourlyTimes,
+              hourlyIsDay: apiData.hourlyIsDay,
+              aqiIndex: station.aqiIndex ?? apiData.aqiIndex,
+            );
+
       // Display API data right away (don't wait for METAR)
-      _weatherData = apiData;
+      _weatherData = displayData;
       _usingMetar = false;
+      _usingCompanyStation = station != null;
+      _companyStation = station;
       _metarData = null;
       _cityName = cityName;
       _error = null;
@@ -522,12 +533,21 @@ class WeatherProvider extends ChangeNotifier {
       print('🌐 Weather API data loaded for $cityName');
 
       // 📱 Update home screen widget
+      if (station != null) {
+        print(
+          '[CompanyWeather] Station data loaded for $cityName from ${station.name}',
+        );
+      }
       _updateHomeWidget();
 
       // 📡 BACKGROUND: Fetch METAR and AQI in background without blocking UI
       // Pass cityName to ensure background tasks validate against the correct city
-      _fetchMetarInBackground(cityName, latitude, longitude, apiData);
-      _fetchAQIInBackground(cityName, latitude, longitude, apiData);
+      if (station == null) {
+        _fetchMetarInBackground(cityName, latitude, longitude, apiData);
+      }
+      if (station == null) {
+        _fetchAQIInBackground(cityName, latitude, longitude, displayData);
+      }
     } catch (e) {
       print('❌ [_fetchWeatherWithMetarAttempt] Failed: $e');
       _error = 'Failed to fetch weather: $e';
@@ -584,7 +604,9 @@ class WeatherProvider extends ChangeNotifier {
           print('✅ [AQI] AQI Index: $aqiInt - Updating weather data');
           // Update weather data with AQI - preserve current data if METAR is active
           _weatherData = WeatherData(
-            current: _usingMetar ? _weatherData!.current : apiData.current,
+            current: (_usingMetar || _usingCompanyStation)
+                ? _weatherData!.current
+                : apiData.current,
             forecast: apiData.forecast,
             hourlyTemperatures: apiData.hourlyTemperatures,
             hourlyWeatherCodes: apiData.hourlyWeatherCodes,
@@ -598,6 +620,8 @@ class WeatherProvider extends ChangeNotifier {
 
           // 💾 Update local cache to preserve AQI when swiping through favorites
           _cachedWeatherData = _weatherData;
+          _cachedUsingCompanyStation = _usingCompanyStation;
+          _cachedCompanyStation = _companyStation;
           notifyListeners();
         } else {
           print('⚠️ [AQI] us_aqi and aqi both null in response');
@@ -667,6 +691,7 @@ class WeatherProvider extends ChangeNotifier {
           isDay: metarCurrent.isDay,
           visibility: metarCurrent.visibility,
           uvIndex: apiData.current.uvIndex,
+          rainRate: apiData.current.rainRate,
           customDescription:
               metarCurrent.customDescription, // Pass METAR condition
         );
@@ -892,6 +917,12 @@ class WeatherProvider extends ChangeNotifier {
 
   /// Get data source badge text
   String getDataSource() {
+    if (_usingCompanyStation && _companyStation != null) {
+      final distance = _companyStation!.distanceKm;
+      final distanceText =
+          distance == null ? '' : ' - ${distance.toStringAsFixed(1)} km away';
+      return 'Station: ${_companyStation!.name}$distanceText';
+    }
     if (_metarData != null) {
       return '✈️ METAR (${_metarData?.icaoCode ?? 'Airport'})';
     }

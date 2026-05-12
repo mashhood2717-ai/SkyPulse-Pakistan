@@ -276,6 +276,7 @@ class MetarData {
       isDay: isDay,
       visibility: visibility ?? 10.0, // Already in km
       uvIndex: 0, // METAR doesn't provide UV index - will be replaced by API
+      rainRate: 0.0,
       customDescription: _getCustomDescription(), // NEW: Pass METAR condition
     );
   }

@@ -789,8 +789,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       _buildWeatherCardsSection(
                                           provider, current, weather),
                                       const SizedBox(height: 24),
-                                      if (provider.usingMetar) ...[
-                                        _buildGlassMetarBadge(provider),
+                                      if (provider.usingCompanyStation ||
+                                          provider.usingMetar) ...[
+                                        _buildGlassDataSourceBadge(provider),
                                         const SizedBox(height: 24),
                                       ],
                                       if (weather.aqiIndex != null)
@@ -1388,7 +1389,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildGlassMetarBadge(WeatherProvider provider) {
+  Widget _buildGlassDataSourceBadge(WeatherProvider provider) {
+    final isStation = provider.usingCompanyStation &&
+        provider.companyStation != null;
+    final accentColor =
+        isStation ? const Color(0xFF2196F3) : const Color(0xFF4CAF50);
+    final darkAccent =
+        isStation ? const Color(0xFF1565C0) : const Color(0xFF2E7D32);
+    final icon =
+        isStation ? Icons.sensors_rounded : Icons.flight_takeoff_rounded;
+    final title = isStation
+        ? 'Live WeatherWalay Station'
+        : 'Live Airport Weather (METAR)';
+    final station = provider.companyStation;
+    final distance = station?.distanceKm;
+    final subtitle = isStation
+        ? [
+            station?.name ?? 'Weather Station',
+            if (distance != null) '${distance.toStringAsFixed(1)} km away',
+            if (station?.id.isNotEmpty ?? false) 'ID ${station!.id}',
+          ].join(' - ')
+        : provider.metarData?.icaoCode ?? 'Airport Data';
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
@@ -1398,13 +1420,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                const Color(0xFF4CAF50).withOpacity(0.3),
-                const Color(0xFF2E7D32).withOpacity(0.2),
+                accentColor.withOpacity(0.3),
+                darkAccent.withOpacity(0.2),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: const Color(0xFF4CAF50).withOpacity(0.5),
+              color: accentColor.withOpacity(0.5),
               width: 1.5,
             ),
           ),
@@ -1413,12 +1435,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50).withOpacity(0.3),
+                  color: accentColor.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.flight_takeoff_rounded,
-                  color: Color(0xFF4CAF50),
+                child: Icon(
+                  icon,
+                  color: accentColor,
                   size: 24,
                 ),
               ),
@@ -1427,9 +1449,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Live Airport Weather (METAR)',
-                      style: TextStyle(
+                    Text(
+                      title,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -1437,11 +1459,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      provider.metarData?.icaoCode ?? 'Airport Data',
+                      subtitle,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.7),
                         fontSize: 12,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -1450,11 +1474,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4CAF50),
+                  color: accentColor,
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF4CAF50).withOpacity(0.4),
+                      color: accentColor.withOpacity(0.4),
                       blurRadius: 8,
                       spreadRadius: 1,
                     ),

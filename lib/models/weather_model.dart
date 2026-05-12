@@ -381,6 +381,7 @@ class CurrentWeather {
   final bool isDay;
   final double visibility;
   final double uvIndex;
+  final double rainRate;
   final String? customDescription; // For METAR conditions like "Smoke"
 
   CurrentWeather({
@@ -396,6 +397,7 @@ class CurrentWeather {
     required this.isDay,
     this.visibility = 10.0,
     this.uvIndex = 0.0,
+    this.rainRate = 0.0,
     this.customDescription,
   });
 
@@ -419,6 +421,7 @@ class CurrentWeather {
       isDay: isDay ?? this.isDay,
       visibility: visibility,
       uvIndex: uvIndex ?? this.uvIndex,
+      rainRate: rainRate,
       customDescription: customDescription,
     );
   }
@@ -445,6 +448,7 @@ class CurrentWeather {
       isDay: isDay,
       visibility: _toDouble(json['visibility']) / 1000,
       uvIndex: _toDouble(json['uv_index']),
+      rainRate: _toDouble(json['rain']),
     );
   }
 
@@ -548,8 +552,9 @@ class CurrentWeather {
       if (desc.contains('VOLCANIC')) return '🌋';
       if (desc.contains('FOG') || desc.contains('MIST')) return '🌫️';
       if (desc.contains('TORNADO') || desc.contains('FUNNEL')) return '🌪️';
-      if (desc.contains('SANDSTORM') || desc.contains('DUSTSTORM'))
+      if (desc.contains('SANDSTORM') || desc.contains('DUSTSTORM')) {
         return '🌪️';
+      }
     }
 
     switch (weatherCode) {

@@ -141,6 +141,24 @@ class WeatherDetails extends StatelessWidget {
             ),
           ],
         ),
+        if (provider.usingCompanyStation) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildDetailTile(
+                  icon: Icons.grain,
+                  iconColor: const Color(0xFF42A5F5),
+                  label: 'Rain Rate',
+                  value: '${current.rainRate.toStringAsFixed(1)} mm/h',
+                  backgroundColor: const Color(0xFF42A5F5).withOpacity(0.1),
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(child: SizedBox.shrink()),
+            ],
+          ),
+        ],
       ],
     );
   }

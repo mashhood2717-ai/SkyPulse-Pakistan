@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../services/favorites_service.dart';
 import '../services/favorites_cache_service.dart';
 import '../widgets/weather_lottie_icon.dart';
-import '../widgets/weather_lottie_icon.dart';
 import '../providers/weather_provider.dart';
 import '../services/weather_service.dart';
 import '../models/weather_model.dart';

@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyPulse Home Screen Wireframe</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-top: #243b55;
+      --bg-bottom: #101827;
+      --surface: rgba(255, 255, 255, 0.11);
+      --surface-strong: rgba(255, 255, 255, 0.17);
+      --stroke: rgba(255, 255, 255, 0.24);
+      --text: #f8fbff;
+      --muted: rgba(248, 251, 255, 0.68);
+      --faint: rgba(248, 251, 255, 0.42);
+      --accent: #79c7ff;
+      --warning: #ffd166;
+      --danger: #ff8f70;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(121, 199, 255, 0.24), transparent 32%),
+        linear-gradient(160deg, var(--bg-top), var(--bg-bottom));
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      padding: 28px;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(320px, 390px) minmax(260px, 360px);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .phone {
+      width: min(390px, 100%);
+      height: 844px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 34px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(35, 73, 114, 0.96), rgba(15, 25, 41, 0.98)),
+        var(--bg-bottom);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+    }
+
+    .screen {
+      height: 100%;
+      overflow: hidden;
+      padding: 18px 18px 28px;
+    }
+
+    .status {
+      height: 22px;
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0;
+      margin-bottom: 10px;
+    }
+
+    .app-bar,
+    .search,
+    .hero-card,
+    .source,
+    .section,
+    .day-row,
+    .note-panel {
+      border: 1px solid var(--stroke);
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+    }
+
+    .app-bar {
+      height: 58px;
+      border-radius: 18px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(145deg, #79c7ff, #fff0a8);
+    }
+
+    .brand-title {
+      font-weight: 760;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    .brand-subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .icon-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-button {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .search {
+      height: 48px;
+      margin-top: 14px;
+      border-radius: 16px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .hero-card {
+      min-height: 278px;
+      margin-top: 16px;
+      border-radius: 24px;
+      padding: 22px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.08)),
+        linear-gradient(165deg, rgba(54, 126, 190, 0.62), rgba(23, 37, 58, 0.5));
+      position: relative;
+    }
+
+    .hero-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .location {
+      min-width: 0;
+    }
+
+    .city {
+      font-size: 26px;
+      font-weight: 780;
+      line-height: 1.08;
+      max-width: 210px;
+    }
+
+    .meta {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .weather-mark {
+      width: 86px;
+      height: 86px;
+      border-radius: 24px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      font-size: 42px;
+      flex: 0 0 auto;
+    }
+
+    .temperature {
+      margin-top: 22px;
+      display: flex;
+      align-items: end;
+      gap: 12px;
+    }
+
+    .temp-main {
+      font-size: 84px;
+      line-height: 0.86;
+      font-weight: 820;
+      letter-spacing: 0;
+    }
+
+    .condition {
+      padding-bottom: 8px;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 680;
+    }
+
+    .feels {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .hero-stats {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 9px;
+    }
+
+    .stat {
+      min-height: 66px;
+      border-radius: 16px;
+      padding: 11px 10px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.17);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .stat-value {
+      margin-top: 8px;
+      font-size: 17px;
+      font-weight: 760;
+    }
+
+    .source {
+      height: 54px;
+      margin-top: 14px;
+      border-radius: 16px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .source-title {
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .source-subtitle {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .live-pill {
+      padding: 6px 9px;
+      border-radius: 9px;
+      background: rgba(121, 199, 255, 0.24);
+      color: #bfe7ff;
+      font-size: 10px;
+      font-weight: 760;
+    }
+
+    .section {
+      margin-top: 16px;
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 720;
+    }
+
+    .section-caption {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .hours {
+      display: grid;
+      grid-template-columns: repeat(5, 58px);
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .hour {
+      height: 92px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 9px 7px;
+      text-align: center;
+    }
+
+    .hour-time {
+      color: var(--muted);
+      font-size: 10px;
+    }
+
+    .hour-icon {
+      margin-top: 8px;
+      font-size: 23px;
+    }
+
+    .hour-temp {
+      margin-top: 7px;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .detail-tile {
+      min-height: 86px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 12px;
+    }
+
+    .detail-label {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .detail-value {
+      margin-top: 12px;
+      font-size: 19px;
+      font-weight: 760;
+    }
+
+    .days {
+      margin-top: 16px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .day-row {
+      min-height: 48px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 64px 36px 1fr 82px;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .temp-bar {
+      height: 5px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #79c7ff, #ffd166, #ff8f70);
+    }
+
+    .notes {
+      position: sticky;
+      top: 28px;
+    }
+
+    .note-panel {
+      border-radius: 22px;
+      padding: 22px;
+      background: rgba(10, 18, 30, 0.72);
+    }
+
+    .note-panel h1 {
+      margin: 0 0 8px;
+      font-size: 25px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .note-panel p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 14px;
+    }
+
+    .note-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .note {
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+    }
+
+    .note strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13px;
+    }
+
+    .note span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 840px) {
+      body {
+        padding: 16px;
+        place-items: start center;
+      }
+
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .notes {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage" aria-label="SkyPulse redesigned home screen wireframe">
+    <section class="phone" aria-label="Mobile wireframe preview">
+      <div class="screen">
+        <div class="status">
+          <span>9:41</span>
+          <span>5G 100%</span>
+        </div>
+
+        <header class="app-bar">
+          <div class="brand">
+            <div class="logo" aria-hidden="true"></div>
+            <div>
+              <div class="brand-title">SkyPulse</div>
+              <div class="brand-subtitle">Current location</div>
+            </div>
+          </div>
+          <div class="icon-buttons">
+            <div class="icon-button" aria-label="Favorites">☆</div>
+            <div class="icon-button" aria-label="Settings">⚙</div>
+          </div>
+        </header>
+
+        <div class="search">⌕ Search city, town, or area</div>
+
+        <section class="hero-card" aria-label="Main weather card">
+          <div class="hero-top">
+            <div class="location">
+              <div class="city">Lahore</div>
+              <div class="meta">Updated 4:32 AM · Pakistan</div>
+            </div>
+            <div class="weather-mark" aria-hidden="true">☀</div>
+          </div>
+
+          <div class="temperature">
+            <div class="temp-main">31°</div>
+            <div class="condition">Clear</div>
+          </div>
+          <div class="feels">Feels like 34° · High 37° / Low 25°</div>
+
+          <div class="hero-stats">
+            <div class="stat">
+              <div class="stat-label">Wind</div>
+              <div class="stat-value">13 km/h</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Humidity</div>
+              <div class="stat-value">46%</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">AQI</div>
+              <div class="stat-value">82</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="source" aria-label="Weather data source">
+          <div>
+            <div class="source-title">Live Airport Weather</div>
+            <div class="source-subtitle">METAR · OPLA · 8 km away</div>
+          </div>
+          <div class="live-pill">LIVE</div>
+        </section>
+
+        <section class="section" aria-label="Hourly forecast">
+          <div class="section-header">
+            <div class="section-title">Next 24 hours</div>
+            <div class="section-caption">Rain 12%</div>
+          </div>
+          <div class="hours">
+            <div class="hour"><div class="hour-time">Now</div><div class="hour-icon">☀</div><div class="hour-temp">31°</div></div>
+            <div class="hour"><div class="hour-time">5:00</div><div class="hour-icon">☀</div><div class="hour-temp">30°</div></div>
+            <div class="hour"><div class="hour-time">6:00</div><div class="hour-icon">◐</div><div class="hour-temp">29°</div></div>
+            <div class="hour"><div class="hour-time">7:00</div><div class="hour-icon">☁</div><div class="hour-temp">28°</div></div>
+            <div class="hour"><div class="hour-time">8:00</div><div class="hour-icon">☁</div><div class="hour-temp">27°</div></div>
+          </div>
+        </section>
+
+        <section class="section" aria-label="Current conditions">
+          <div class="section-header">
+            <div class="section-title">Current conditions</div>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-tile">
+              <div class="detail-label">UV Index</div>
+              <div class="detail-value">6 High</div>
+            </div>
+            <div class="detail-tile">
+              <div class="detail-label">Pressure</div>
+              <div class="detail-value">1008 hPa</div>
+            </div>
+          </div>
+        </section>
+
+        <div class="days" aria-label="Seven day forecast">
+          <div class="day-row">
+            <strong>Today</strong><span>☀</span><div class="temp-bar"></div><span>25° / 37°</span>
+          </div>
+          <div class="day-row">
+            <strong>Thu</strong><span>☁</span><div class="temp-bar"></div><span>24° / 35°</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="notes" aria-label="Wireframe notes">
+      <div class="note-panel">
+        <h1>Main Weather Card Wireframe</h1>
+        <p>This keeps your current home screen order, but turns the main weather card into a large readable hero section.</p>
+
+        <div class="note-list">
+          <div class="note">
+            <strong>Primary readability fix</strong>
+            <span>Temperature moves from a small row into an 80px hero number. City, condition, and feels-like are promoted above quick stats.</span>
+          </div>
+          <div class="note">
+            <strong>Better weather-app feel</strong>
+            <span>The card uses a tall glass panel, big weather animation area, and three glanceable stats: wind, humidity, and AQI.</span>
+          </div>
+          <div class="note">
+            <strong>Development direction</strong>
+            <span>Replace the compact `WeatherCard` with a hero component, then reuse it inside the favorite `PageView` with a taller height.</span>
+          </div>
+          <div class="note">
+            <strong>Recommended next step</strong>
+            <span>Once approved, update `lib/widgets/weather_card.dart` and increase `_buildWeatherCardsSection` height in `home_screen.dart`.</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</body>
+</html>

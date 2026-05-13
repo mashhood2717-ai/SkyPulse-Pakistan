@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/weather_model.dart';
-import '../providers/weather_provider.dart';
 import '../providers/settings_provider.dart';
-import 'wind_compass.dart';
+import '../providers/weather_provider.dart';
 
 class WeatherDetails extends StatelessWidget {
   final CurrentWeather current;
@@ -15,11 +15,17 @@ class WeatherDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get wind direction from METAR if available, otherwise from API
     final provider = Provider.of<WeatherProvider>(context, listen: false);
     final settings = Provider.of<SettingsProvider>(context);
-    final windDirection = provider.metarData?.windDirection?.toDouble() ??
-        current.windDirection.toDouble();
+    final windDirection = provider.usingCompanyStation
+        ? current.windDirection.toDouble()
+        : provider.metarData?.windDirection?.toDouble() ??
+            current.windDirection.toDouble();
+    final tiles = _buildTiles(
+      settings: settings,
+      windDirection: windDirection,
+      showStationRain: provider.usingCompanyStation,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,205 +42,122 @@ class WeatherDetails extends StatelessWidget {
             ),
           ),
         ),
-
-        // Row 1: Wind (with compass) and Humidity
-        Row(
-          children: [
-            Expanded(
-              child: _buildWindTile(windDirection, settings),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.water_drop,
-                iconColor: const Color(0xFF4FC3F7),
-                label: 'Humidity',
-                value: '${current.humidity}%',
-                backgroundColor: const Color(0xFF4FC3F7).withOpacity(0.1),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Row 2: Dew Point and Wind Gust (hide gust if 0, show wind speed instead)
-        Row(
-          children: [
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.thermostat,
-                iconColor: const Color(0xFF81C784),
-                label: 'Dew Point',
-                value: settings.getTempString(current.dewPoint),
-                backgroundColor: const Color(0xFF81C784).withOpacity(0.1),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: current.windGust > 0
-                  ? _buildDetailTile(
-                      icon: Icons.air,
-                      iconColor: const Color(0xFF64B5F6),
-                      label: 'Wind Gust',
-                      value: settings.getWindSpeedString(current.windGust),
-                      backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
-                    )
-                  : _buildDetailTile(
-                      icon: Icons.air,
-                      iconColor: const Color(0xFF64B5F6),
-                      label: 'Wind Speed',
-                      value: settings.getWindSpeedString(current.windSpeed),
-                      backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
-                    ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Row 3: UV Index and Visibility
-        Row(
-          children: [
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.wb_sunny,
-                iconColor: _getUVColor(current.uvIndex),
-                label: 'UV Index',
-                value: '${current.uvIndex.round()}\n${current.uvIndexCategory}',
-                backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.visibility,
-                iconColor: const Color(0xFF9C27B0),
-                label: 'Visibility',
-                value: '${current.visibility.toStringAsFixed(1)} km',
-                backgroundColor: const Color(0xFF9C27B0).withOpacity(0.1),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Row 4: Pressure and Cloud Cover
-        Row(
-          children: [
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.compress,
-                iconColor: const Color(0xFFFF7043),
-                label: 'Pressure',
-                value: '${current.pressure.round()} hPa',
-                backgroundColor: const Color(0xFFFF7043).withOpacity(0.1),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildDetailTile(
-                icon: Icons.cloud,
-                iconColor: const Color(0xFF78909C),
-                label: 'Cloud Cover',
-                value: '${current.cloudCover}%',
-                backgroundColor: const Color(0xFF78909C).withOpacity(0.1),
-              ),
-            ),
-          ],
-        ),
-        if (provider.usingCompanyStation) ...[
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildDetailTile(
-                  icon: Icons.grain,
-                  iconColor: const Color(0xFF42A5F5),
-                  label: 'Rain Rate',
-                  value: '${current.rainRate.toStringAsFixed(1)} mm/h',
-                  backgroundColor: const Color(0xFF42A5F5).withOpacity(0.1),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(child: SizedBox.shrink()),
-            ],
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: tiles.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+            mainAxisExtent: 116,
           ),
-        ],
+          itemBuilder: (context, index) => tiles[index],
+        ),
       ],
     );
   }
 
-  Widget _buildWindTile(double windDirection, SettingsProvider settings) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF66BB6A).withOpacity(0.15),
-            const Color(0xFF66BB6A).withOpacity(0.05),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
+  List<Widget> _buildTiles({
+    required SettingsProvider settings,
+    required double windDirection,
+    required bool showStationRain,
+  }) {
+    return [
+      _buildWindTile(windDirection, settings),
+      _buildDetailTile(
+        icon: Icons.water_drop_rounded,
+        iconColor: const Color(0xFF4FC3F7),
+        label: 'Humidity',
+        value: '${current.humidity}%',
+        backgroundColor: const Color(0xFF4FC3F7).withOpacity(0.1),
       ),
-      child: Column(
-        children: [
-          // Wind Compass
-          SizedBox(
-            height: 80,
-            width: 80,
-            child: WindCompass(
-              windSpeed: current.windSpeed,
-              windDirection: windDirection,
-            ),
-          ),
-          const SizedBox(height: 12),
+      _buildDetailTile(
+        icon: Icons.thermostat_rounded,
+        iconColor: const Color(0xFF81C784),
+        label: 'Dew Point',
+        value: settings.getTempString(current.dewPoint),
+        backgroundColor: const Color(0xFF81C784).withOpacity(0.1),
+      ),
+      _buildDetailTile(
+        icon: Icons.air_rounded,
+        iconColor: const Color(0xFF64B5F6),
+        label: 'Wind Gust',
+        value: settings.getWindSpeedString(current.windGust),
+        backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
+      ),
+      _buildDetailTile(
+        icon: Icons.wb_sunny_rounded,
+        iconColor: _getUVColor(current.uvIndex),
+        label: 'UV Index',
+        value: '${current.uvIndex.round()}',
+        subValue: current.uvIndexCategory,
+        backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
+      ),
+      _buildDetailTile(
+        icon: Icons.visibility_rounded,
+        iconColor: const Color(0xFF9C27B0),
+        label: 'Visibility',
+        value: current.visibility > 0
+            ? '${current.visibility.toStringAsFixed(1)} km'
+            : '--',
+        backgroundColor: const Color(0xFF9C27B0).withOpacity(0.1),
+      ),
+      _buildDetailTile(
+        icon: Icons.compress_rounded,
+        iconColor: const Color(0xFFFF7043),
+        label: 'Pressure',
+        value: '${current.pressure.round()}',
+        subValue: 'hPa',
+        backgroundColor: const Color(0xFFFF7043).withOpacity(0.1),
+      ),
+      _buildDetailTile(
+        icon: Icons.cloud_rounded,
+        iconColor: const Color(0xFF78909C),
+        label: 'Cloud Cover',
+        value: '${current.cloudCover}%',
+        backgroundColor: const Color(0xFF78909C).withOpacity(0.1),
+      ),
+      if (showStationRain) ...[
+        _buildDetailTile(
+          icon: Icons.grain_rounded,
+          iconColor: const Color(0xFF42A5F5),
+          label: 'Rain Rate',
+          value: current.rainRate > 0
+              ? current.rainRate.toStringAsFixed(1)
+              : '0.0',
+          subValue: 'mm/h',
+          backgroundColor: const Color(0xFF42A5F5).withOpacity(0.1),
+        ),
+        _buildDetailTile(
+          icon: Icons.water_rounded,
+          iconColor: const Color(0xFF29B6F6),
+          label: 'Daily Rain',
+          value: current.dailyRain != null
+              ? current.dailyRain!.toStringAsFixed(1)
+              : '--',
+          subValue: 'mm today',
+          backgroundColor: const Color(0xFF29B6F6).withOpacity(0.1),
+        ),
+      ],
+    ];
+  }
 
-          // Label and Value
-          const Text(
-            'Wind Speed',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            settings.getWindSpeedString(current.windSpeed),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (current.windGust > 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              'Gust ${settings.getWindSpeedString(current.windGust)}',
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-          if (windDirection > 0) ...[
-            const SizedBox(height: 2),
-            Text(
-              '${windDirection.round()}°',
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ],
-      ),
+  Widget _buildWindTile(double windDirection, SettingsProvider settings) {
+    final directionLabel = _getWindDirectionLabel(windDirection);
+    final directionValue =
+        windDirection > 0 ? '${windDirection.round()} deg' : '';
+
+    return _buildDetailTile(
+      icon: Icons.explore_rounded,
+      iconColor: const Color(0xFF66BB6A),
+      label: 'Wind',
+      value: directionLabel,
+      subValue: directionValue.isNotEmpty
+          ? '$directionValue - ${settings.getWindSpeedString(current.windSpeed)}'
+          : settings.getWindSpeedString(current.windSpeed),
+      backgroundColor: const Color(0xFF66BB6A).withOpacity(0.1),
+      isPrimary: true,
     );
   }
 
@@ -244,74 +167,99 @@ class WeatherDetails extends StatelessWidget {
     required String label,
     required String value,
     required Color backgroundColor,
+    String? subValue,
+    bool isPrimary = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            backgroundColor.withOpacity(0.3),
+            backgroundColor.withOpacity(isPrimary ? 0.42 : 0.3),
             backgroundColor.withOpacity(0.1),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: isPrimary
+              ? iconColor.withOpacity(0.38)
+              : Colors.white.withOpacity(0.2),
           width: 1,
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon with colored background
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.2),
-              shape: BoxShape.circle,
+              color: iconColor.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
               color: iconColor,
-              size: 28,
+              size: 18,
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Label
+          const Spacer(),
           Text(
             label,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.1,
             ),
-            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 4),
-
-          // Value
+          const SizedBox(height: 5),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              height: 1.2,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              height: 1.05,
             ),
-            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
+          if (subValue != null && subValue.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              subValue,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.62),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                height: 1.15,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ],
       ),
     );
   }
 
+  String _getWindDirectionLabel(double degrees) {
+    if (degrees <= 0) return 'Calm';
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    final index = ((degrees + 22.5) / 45).floor() % 8;
+    return directions[index];
+  }
+
   Color _getUVColor(double uvIndex) {
-    if (uvIndex <= 2) return const Color(0xFF66BB6A); // Green
-    if (uvIndex <= 5) return const Color(0xFFFDD835); // Yellow
-    if (uvIndex <= 7) return const Color(0xFFFF9800); // Orange
-    if (uvIndex <= 10) return const Color(0xFFF44336); // Red
-    return const Color(0xFF9C27B0); // Purple
+    if (uvIndex <= 2) return const Color(0xFF66BB6A);
+    if (uvIndex <= 5) return const Color(0xFFFDD835);
+    if (uvIndex <= 7) return const Color(0xFFFF9800);
+    if (uvIndex <= 10) return const Color(0xFFF44336);
+    return const Color(0xFF9C27B0);
   }
 }

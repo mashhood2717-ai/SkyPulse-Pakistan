@@ -467,15 +467,19 @@ class WeatherProvider extends ChangeNotifier {
   void restoreCachedWeather(
     WeatherData cachedData,
     String cityName,
-    String countryCode,
-  ) {
+    String countryCode, {
+    bool usingMetar = false,
+    bool usingCompanyStation = false,
+    CompanyWeatherStation? companyStation,
+    MetarData? metarData,
+  }) {
     _weatherData = cachedData;
     _cityName = cityName;
     _countryCode = countryCode;
-    _usingMetar = false; // Reset METAR state when loading old cache
-    _usingCompanyStation = false;
-    _companyStation = null;
-    _metarData = null;
+    _usingMetar = usingMetar;
+    _usingCompanyStation = usingCompanyStation;
+    _companyStation = companyStation;
+    _metarData = metarData;
     _isLoading = false;
     _error = null;
     notifyListeners();
@@ -489,9 +493,8 @@ class WeatherProvider extends ChangeNotifier {
   ) async {
     try {
       // 🚀 URGENT: Fetch API data FIRST with timeout
-      final apiFuture = _weatherService
-          .getWeatherByCoordinates(latitude, longitude)
-          .timeout(
+      final apiFuture =
+          _weatherService.getWeatherByCoordinates(latitude, longitude).timeout(
         const Duration(seconds: 15),
         onTimeout: () {
           print('⏱️ [API Timeout] Weather API took too long');
@@ -499,12 +502,11 @@ class WeatherProvider extends ChangeNotifier {
         },
       );
 
-      final stationFuture = _companyWeatherService
-          .getNearestStation(latitude, longitude)
-          .timeout(
-            const Duration(seconds: 8),
-            onTimeout: () => null,
-          );
+      final stationFuture =
+          _companyWeatherService.getNearestStation(latitude, longitude).timeout(
+                const Duration(seconds: 8),
+                onTimeout: () => null,
+              );
 
       final apiData = await apiFuture;
       final station = await stationFuture;
@@ -692,6 +694,7 @@ class WeatherProvider extends ChangeNotifier {
           visibility: metarCurrent.visibility,
           uvIndex: apiData.current.uvIndex,
           rainRate: apiData.current.rainRate,
+          dailyRain: apiData.current.dailyRain,
           customDescription:
               metarCurrent.customDescription, // Pass METAR condition
         );

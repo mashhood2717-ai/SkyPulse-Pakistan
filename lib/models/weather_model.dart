@@ -382,6 +382,7 @@ class CurrentWeather {
   final double visibility;
   final double uvIndex;
   final double rainRate;
+  final double? dailyRain;
   final String? customDescription; // For METAR conditions like "Smoke"
 
   CurrentWeather({
@@ -398,6 +399,7 @@ class CurrentWeather {
     this.visibility = 10.0,
     this.uvIndex = 0.0,
     this.rainRate = 0.0,
+    this.dailyRain,
     this.customDescription,
   });
 
@@ -422,6 +424,7 @@ class CurrentWeather {
       visibility: visibility,
       uvIndex: uvIndex ?? this.uvIndex,
       rainRate: rainRate,
+      dailyRain: dailyRain,
       customDescription: customDescription,
     );
   }
@@ -449,6 +452,7 @@ class CurrentWeather {
       visibility: _toDouble(json['visibility']) / 1000,
       uvIndex: _toDouble(json['uv_index']),
       rainRate: _toDouble(json['rain']),
+      dailyRain: null,
     );
   }
 

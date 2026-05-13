@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/weather_provider.dart';
 import '../models/weather_model.dart';
+import '../models/company_weather_station.dart';
+import '../models/metar_model.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/forecast_card.dart';
 import '../widgets/sun_arc_widget.dart';
@@ -40,6 +42,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   final PageController _pageController = PageController();
+  final ScrollController _scrollController = ScrollController();
   final WeatherService _weatherService = WeatherService();
 
   bool _isFavorite = false;
@@ -47,7 +50,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentPage = 0;
   String? _initialLocationCity;
   String? _initialLocationCountry;
+  double? _initialLocationLatitude;
+  double? _initialLocationLongitude;
   WeatherData? _cachedInitialWeather;
+  bool _cachedInitialUsingMetar = false;
+  bool _cachedInitialUsingCompanyStation = false;
+  CompanyWeatherStation? _cachedInitialCompanyStation;
+  MetarData? _cachedInitialMetarData;
   bool _isAnimatingToPage =
       false; // Flag to prevent intermediate fetches during animation
   bool _isLocationGPSBased =
@@ -109,9 +118,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (mounted) {
           final provider = context.read<WeatherProvider>();
           setState(() {
-            _initialLocationCity = provider.cityName;
-            _initialLocationCountry = provider.countryCode;
-            _cachedInitialWeather = provider.weatherData;
+            _cacheInitialLocationSnapshot(provider);
           });
           _fadeController.forward();
           _slideController.forward();
@@ -121,9 +128,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         if (mounted) {
           final provider = context.read<WeatherProvider>();
           setState(() {
-            _initialLocationCity = provider.cityName;
-            _initialLocationCountry = provider.countryCode;
-            _cachedInitialWeather = provider.weatherData;
+            _cacheInitialLocationSnapshot(provider);
           });
           _fadeController.forward();
           _slideController.forward();
@@ -162,9 +167,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         provider.fetchWeatherByLocation().then((_) {
           if (mounted) {
             setState(() {
-              _initialLocationCity = provider.cityName;
-              _initialLocationCountry = provider.countryCode;
-              _cachedInitialWeather = provider.weatherData;
+              _cacheInitialLocationSnapshot(provider);
             });
           }
         }).catchError((e) {
@@ -181,6 +184,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _tapResetTimer?.cancel();
     _searchController.dispose();
     _pageController.dispose();
+    _scrollController.dispose();
     _fadeController.dispose();
     _slideController.dispose();
     super.dispose();
@@ -537,18 +541,36 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     await provider.fetchWeatherByCity(cityName);
   }
 
+  void _cacheInitialLocationSnapshot(WeatherProvider provider) {
+    _initialLocationCity = provider.cityName;
+    _initialLocationCountry = provider.countryCode;
+    _initialLocationLatitude = provider.latitude;
+    _initialLocationLongitude = provider.longitude;
+    _cachedInitialWeather = provider.weatherData;
+    _cachedInitialUsingMetar = provider.usingMetar;
+    _cachedInitialUsingCompanyStation = provider.usingCompanyStation;
+    _cachedInitialCompanyStation = provider.companyStation;
+    _cachedInitialMetarData = provider.metarData;
+  }
+
   void _restoreInitialLocation(WeatherProvider provider) {
     if (_cachedInitialWeather != null && _initialLocationCity != null) {
       provider.restoreCachedWeather(
         _cachedInitialWeather!,
         _initialLocationCity!,
         _initialLocationCountry ?? '',
+        usingMetar: _cachedInitialUsingMetar,
+        usingCompanyStation: _cachedInitialUsingCompanyStation,
+        companyStation: _cachedInitialCompanyStation,
+        metarData: _cachedInitialMetarData,
       );
     }
   }
 
   /// Go to the first page (current location)
   void _goToFirstPage() {
+    FocusManager.instance.primaryFocus?.unfocus();
+
     final provider = context.read<WeatherProvider>();
 
     // Clear search field and suggestions
@@ -582,8 +604,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     }
 
+    _scrollToTop();
+
     // Fetch fresh data in background (includes AQI)
     _fetchFreshCurrentLocation(provider);
+  }
+
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   /// Fetch fresh data for current location
@@ -591,12 +625,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (_initialLocationCity != null) {
       print(
           '🔄 [HomeScreen] Fetching fresh data for current location: $_initialLocationCity');
-      await provider.fetchWeatherByCity(_initialLocationCity!);
+      if (_initialLocationLatitude != null &&
+          _initialLocationLongitude != null) {
+        await provider.fetchWeatherByCoordinates(
+          _initialLocationLatitude!,
+          _initialLocationLongitude!,
+          cityName: _initialLocationCity,
+          countryCode: _initialLocationCountry,
+        );
+      } else {
+        await provider.fetchWeatherByLocation();
+      }
 
       // Update cached data with fresh data
       if (mounted && provider.weatherData != null) {
         setState(() {
-          _cachedInitialWeather = provider.weatherData;
+          _cacheInitialLocationSnapshot(provider);
         });
       }
     }
@@ -761,10 +805,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               await provider.fetchWeatherByLocation();
                               if (mounted) {
                                 setState(() {
-                                  _initialLocationCity = provider.cityName;
-                                  _initialLocationCountry =
-                                      provider.countryCode;
-                                  _cachedInitialWeather = provider.weatherData;
+                                  _cacheInitialLocationSnapshot(provider);
                                 });
                               }
                             } else {
@@ -774,6 +815,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           color: Colors.white,
                           backgroundColor: const Color(0xFF1e3c72),
                           child: CustomScrollView(
+                            controller: _scrollController,
                             physics: const BouncingScrollPhysics(),
                             slivers: [
                               _buildGlassAppBar(provider),
@@ -809,6 +851,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                       const SizedBox(height: 24),
                                       WeatherDetails(current: current),
                                       const SizedBox(height: 24),
+                                      if (weather.forecast.isNotEmpty) ...[
+                                        const Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Padding(
+                                            padding: EdgeInsets.only(
+                                                left: 4, bottom: 12),
+                                            child: Text(
+                                              'Weekly Forecast',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                       ...weather.forecast
                                           .take(7)
                                           .map((day) => Padding(
@@ -1010,11 +1070,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         IconButton(
           icon: const Icon(Icons.settings, color: Colors.white),
-          onPressed: () {
-            Navigator.push(
+          onPressed: () async {
+            FocusManager.instance.primaryFocus?.unfocus();
+
+            await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const SettingsScreen()),
             );
+
+            FocusManager.instance.primaryFocus?.unfocus();
           },
         ),
         const SizedBox(width: 8),
@@ -1169,6 +1233,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildWeatherCardsSection(WeatherProvider provider,
       CurrentWeather currentWeather, WeatherData weather) {
+    final todayForecast =
+        weather.forecast.isNotEmpty ? weather.forecast[0] : null;
+
     if (_favorites.isEmpty) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -1177,13 +1244,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             cityName: provider.cityName,
             countryCode: provider.countryCode,
             current: currentWeather,
+            dailyHigh: todayForecast?.maxTemp,
+            dailyLow: todayForecast?.minTemp,
           ),
         ],
       );
     }
 
     return SizedBox(
-      height: 130,
+      height: 350,
       child: Stack(
         children: [
           PageView.builder(
@@ -1252,6 +1321,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               cityName: provider.cityName,
                               countryCode: provider.countryCode,
                               current: currentWeather,
+                              dailyHigh: todayForecast?.maxTemp,
+                              dailyLow: todayForecast?.minTemp,
                             ),
                           ],
                         )
@@ -1291,72 +1362,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           if (current != null && !provider.isLoading) {
             // Show data-loaded state with FULL weather info
             // Use the card's cityName for display, provider's data for weather
-            return _buildFavoriteCachedCard(cityName, countryCode, current);
+            return _buildFavoriteHeroCard(cityName, countryCode, current);
           }
           // Show loading state if still loading
-          return _buildFavoriteLoadingCard(cityName, countryCode);
+          return _buildFavoriteHeroLoadingCard(cityName, countryCode);
         },
       );
     }
 
     // When inactive, just show glass card with skeleton shimmer
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.blue.withOpacity(0.3),
-                Colors.purple.withOpacity(0.2),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.3),
-              width: 1.5,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Skeleton shimmer instead of spinner
-              SkeletonLoader(
-                width: 28,
-                height: 28,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                cityName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (countryCode.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  countryCode,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    return _buildFavoriteHeroLoadingCard(
+      cityName,
+      countryCode,
+      statusText: 'Swipe to view forecast',
+      showSpinner: false,
     );
   }
 
@@ -1390,8 +1409,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildGlassDataSourceBadge(WeatherProvider provider) {
-    final isStation = provider.usingCompanyStation &&
-        provider.companyStation != null;
+    final isStation =
+        provider.usingCompanyStation && provider.companyStation != null;
     final accentColor =
         isStation ? const Color(0xFF2196F3) : const Color(0xFF4CAF50);
     final darkAccent =
@@ -1595,7 +1614,147 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildFavoriteHeroCard(
+      String cityName, String countryCode, CurrentWeather current) {
+    final weather = context.read<WeatherProvider>().weatherData;
+    final todayForecast = weather != null && weather.forecast.isNotEmpty
+        ? weather.forecast[0]
+        : null;
+
+    return WeatherCard(
+      cityName: cityName,
+      countryCode: countryCode,
+      current: current,
+      dailyHigh: todayForecast?.maxTemp,
+      dailyLow: todayForecast?.minTemp,
+    );
+  }
+
+  Widget _buildFavoriteHeroLoadingCard(
+    String cityName,
+    String countryCode, {
+    String statusText = 'Fetching latest conditions...',
+    bool showSpinner = true,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 286),
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.18),
+                Colors.white.withOpacity(0.08),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.28),
+              width: 1.2,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          cityName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            height: 1.08,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          countryCode.isNotEmpty
+                              ? 'Saved location - $countryCode'
+                              : 'Saved location',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.72),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  _buildPulsingLoader(size: 88),
+                ],
+              ),
+              const SizedBox(height: 30),
+              _buildShimmerBar(width: 150, height: 54),
+              const SizedBox(height: 14),
+              _buildShimmerBar(width: 240, height: 16),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildShimmerBar(width: double.infinity, height: 72),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: _buildShimmerBar(width: double.infinity, height: 72),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: _buildShimmerBar(width: double.infinity, height: 72),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  if (showSpinner) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.6,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Colors.white70),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                  ],
+                  Expanded(
+                    child: Text(
+                      statusText,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.66),
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Build a favorite card showing full weather data (icon, temp, description, humidity, wind, pressure)
+  // ignore: unused_element
   Widget _buildFavoriteCachedCard(
       String cityName, String countryCode, CurrentWeather current) {
     // Calculate feels like temperature
@@ -1744,6 +1903,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   /// Build a favorite card showing loading spinner
+  // ignore: unused_element
   Widget _buildFavoriteLoadingCard(String cityName, String countryCode) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),

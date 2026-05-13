@@ -13,13 +13,17 @@ class ForecastCard extends StatelessWidget {
     required this.forecast,
   }) : super(key: key);
 
-  void _showDetailDialog(BuildContext context) {
-    showModalBottomSheet(
+  Future<void> _showDetailDialog(BuildContext context) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => _buildDetailSheet(context),
     );
+
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   Widget _buildDetailSheet(BuildContext context) {

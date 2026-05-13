@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyPulse Current Conditions Wireframe</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101827;
+      --panel: rgba(255, 255, 255, 0.11);
+      --panel-strong: rgba(255, 255, 255, 0.16);
+      --stroke: rgba(255, 255, 255, 0.22);
+      --text: #f8fbff;
+      --muted: rgba(248, 251, 255, 0.68);
+      --accent: #79c7ff;
+      --green: #76e4b1;
+      --yellow: #ffd166;
+      --violet: #c7a6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 20% 15%, rgba(121, 199, 255, 0.22), transparent 34%),
+        linear-gradient(160deg, #243b55, var(--bg));
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 28px;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: minmax(320px, 390px) minmax(280px, 380px);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .phone {
+      width: min(390px, 100%);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 34px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(35, 73, 114, 0.96), rgba(15, 25, 41, 0.98));
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+    }
+
+    .screen {
+      padding: 22px 18px 28px;
+    }
+
+    .hero-placeholder {
+      height: 210px;
+      border-radius: 26px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.08));
+      border: 1px solid var(--stroke);
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
+    .forecast-preview {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .forecast-row {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 64px 1fr 68px;
+      gap: 10px;
+      align-items: center;
+      margin-top: 8px;
+      padding: 9px 11px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .bar {
+      height: 5px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #79c7ff, #ffd166, #ff8f70);
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding: 0 2px;
+    }
+
+    .title {
+      font-size: 19px;
+      font-weight: 780;
+      letter-spacing: 0;
+    }
+
+    .caption {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .station-pill {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 9px;
+      background: rgba(121, 199, 255, 0.16);
+      border: 1px solid rgba(121, 199, 255, 0.28);
+      color: #bfe7ff;
+      font-size: 10px;
+      font-weight: 760;
+    }
+
+    .conditions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .tile {
+      min-height: 106px;
+      padding: 11px 9px;
+      border-radius: 16px;
+      background: var(--panel);
+      border: 1px solid var(--stroke);
+      overflow: hidden;
+    }
+
+    .tile.primary {
+      background: linear-gradient(150deg, rgba(121, 199, 255, 0.23), rgba(255, 255, 255, 0.08));
+      border-color: rgba(121, 199, 255, 0.36);
+    }
+
+    .icon {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.11);
+      color: var(--accent);
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 650;
+      line-height: 1.15;
+      min-height: 24px;
+    }
+
+    .value {
+      margin-top: 8px;
+      font-size: 17px;
+      font-weight: 800;
+      line-height: 1.05;
+    }
+
+    .subvalue {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1.2;
+    }
+
+    .notes {
+      position: sticky;
+      top: 28px;
+      border-radius: 22px;
+      border: 1px solid var(--stroke);
+      background: rgba(10, 18, 30, 0.72);
+      padding: 22px;
+    }
+
+    .notes h1 {
+      margin: 0 0 8px;
+      font-size: 25px;
+      line-height: 1.1;
+    }
+
+    .notes p {
+      margin: 0 0 16px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .note {
+      padding: 13px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      background: rgba(255, 255, 255, 0.08);
+      margin-top: 10px;
+    }
+
+    .note strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    .note span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 840px) {
+      body {
+        padding: 16px;
+        place-items: start center;
+      }
+
+      .stage {
+        grid-template-columns: 1fr;
+      }
+
+      .notes {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage" aria-label="Current conditions wireframe">
+    <section class="phone" aria-label="Mobile preview">
+      <div class="screen">
+        <div class="hero-placeholder">Main weather card above</div>
+
+        <div class="section-header">
+          <div>
+            <div class="title">Current Conditions</div>
+            <div class="caption">Compact 3-column grid</div>
+          </div>
+          <div class="station-pill">STATION DATA</div>
+        </div>
+
+        <section class="conditions-grid" aria-label="Current condition tiles">
+          <article class="tile primary">
+            <div class="icon">NE</div>
+            <div class="label">Wind</div>
+            <div class="value">NE</div>
+            <div class="subvalue">13 km/h</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon" style="color: var(--green)">H</div>
+            <div class="label">Humidity</div>
+            <div class="value">46%</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon" style="color: var(--green)">DP</div>
+            <div class="label">Dew Point</div>
+            <div class="value">18 deg</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon">WG</div>
+            <div class="label">Wind Gust</div>
+            <div class="value">24</div>
+            <div class="subvalue">km/h</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon" style="color: var(--yellow)">UV</div>
+            <div class="label">UV Index</div>
+            <div class="value">6</div>
+            <div class="subvalue">High</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon" style="color: var(--violet)">V</div>
+            <div class="label">Visibility</div>
+            <div class="value">10.0</div>
+            <div class="subvalue">km</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon" style="color: #ffb088">P</div>
+            <div class="label">Pressure</div>
+            <div class="value">1008</div>
+            <div class="subvalue">hPa</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon">CC</div>
+            <div class="label">Cloud Cover</div>
+            <div class="value">22%</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon" style="color: var(--accent)">RR</div>
+            <div class="label">Rain Rate</div>
+            <div class="value">0.0</div>
+            <div class="subvalue">mm/h</div>
+          </article>
+
+          <article class="tile">
+            <div class="icon" style="color: var(--accent)">24h</div>
+            <div class="label">Daily Rain</div>
+            <div class="value">4.8</div>
+            <div class="subvalue">mm today</div>
+          </article>
+        </section>
+
+        <section class="forecast-preview" aria-label="Weekly forecast heading preview">
+          <div class="section-header">
+            <div>
+              <div class="title">Weekly Forecast</div>
+              <div class="caption">7-day outlook</div>
+            </div>
+          </div>
+          <div class="forecast-row">
+            <strong>Today</strong>
+            <div class="bar"></div>
+            <span>25 / 37</span>
+          </div>
+          <div class="forecast-row">
+            <strong>Thu</strong>
+            <div class="bar"></div>
+            <span>24 / 35</span>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <aside class="notes" aria-label="Wireframe notes">
+      <h1>Current Conditions Update</h1>
+      <p>This layout reduces vertical scrolling now and leaves more room for future charts and graphs.</p>
+
+      <div class="note">
+        <strong>Wind tile behavior</strong>
+        <span>Wind shows direction and wind speed only. Gust is removed from this tile because it has its own separate tile.</span>
+      </div>
+
+      <div class="note">
+        <strong>Grid behavior</strong>
+        <span>Use 3 tiles per row instead of 2. Each tile becomes shorter, tighter, and easier to scan.</span>
+      </div>
+
+      <div class="note">
+        <strong>Tile order</strong>
+        <span>Recommended station order: Wind, Humidity, Dew Point, Gust, UV, Visibility, Pressure, Cloud Cover, Rain Rate, Daily Rain.</span>
+      </div>
+
+      <div class="note">
+        <strong>Station rain data</strong>
+        <span>When WeatherWalay station data is active, show both current rain rate and daily rain accumulation. Daily Rain is hidden for METAR/API-only data unless a reliable value is available.</span>
+      </div>
+
+      <div class="note">
+        <strong>Fallback</strong>
+        <span>If station daily accumulation is unavailable from the payload, show -- mm today rather than guessing from forecast precipitation.</span>
+      </div>
+
+      <div class="note">
+        <strong>Forecast labels</strong>
+        <span>The horizontal hourly section keeps the Hourly Forecast label. The 7-day forecast list must have a separate Weekly Forecast heading.</span>
+      </div>
+    </aside>
+  </main>
+</body>
+</html>

@@ -175,8 +175,11 @@ class CompanyWeatherStation {
           'dewPoint',
           'dew_point',
           'dewpoint',
+          'dew',
           'current.dewPoint',
+          'current.dew',
           'weather.dewPoint',
+          'weather.dew',
         ]) ??
         fallback.dewPoint;
 
@@ -233,6 +236,34 @@ class CompanyWeatherStation {
         ]) ??
         fallback.rainRate;
 
+    final dailyRain = _readDouble(raw, const [
+      'dailyRain',
+      'daily_rain',
+      'rainDaily',
+      'rain_daily',
+      'rainToday',
+      'rain_today',
+      'rainfall',
+      'rainFall',
+      'rain_fall',
+      'todayRain',
+      'today_rain',
+      'rainAccumulation',
+      'rain_accumulation',
+      'rainAccumulationToday',
+      'rain_accumulation_today',
+      'precipitationToday',
+      'precipitation_today',
+      'dailyPrecipitation',
+      'daily_precipitation',
+      'current.dailyRain',
+      'current.rainToday',
+      'current.rainfall',
+      'weather.dailyRain',
+      'weather.rainToday',
+      'weather.rainfall',
+    ]);
+
     final weatherCode = _readInt(raw, const [
           'weatherCode',
           'weather_code',
@@ -260,6 +291,7 @@ class CompanyWeatherStation {
       visibility: visibility,
       uvIndex: uvIndex,
       rainRate: rainRate,
+      dailyRain: dailyRain ?? fallback.dailyRain,
       customDescription: _readString(raw, const [
         'condition',
         'weather',
@@ -331,6 +363,10 @@ class CompanyWeatherStation {
     if (condition.contains('clear') ||
         condition.contains('sunny') ||
         condition.contains('calm') ||
+        condition.contains('wind') ||
+        condition.contains('breeze') ||
+        condition.contains('breezy') ||
+        condition.contains('gust') ||
         condition.contains('hot')) {
       return 0;
     }

@@ -217,6 +217,8 @@ class _HomePageState extends State<HomePage> {
               selectedItemColor: const Color(0xFF667EEA),
               unselectedItemColor: Colors.white54,
               onTap: (index) {
+                FocusManager.instance.primaryFocus?.unfocus();
+
                 if (index == 0) {
                   // Home button - navigate to home and go to first page
                   goToHome();

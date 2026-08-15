@@ -23,6 +23,33 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+// Release signing material. Kept out of version control, so a fresh clone has
+// no keystore.properties and must still be able to build and run debug.
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
+// Fail only when a release artifact is actually requested. There is
+// deliberately no debug-key fallback: falling back produced a debug-signed AAB
+// that looked like a release build on any machine without the keystore.
+gradle.taskGraph.whenReady { taskGraph ->
+    def buildingRelease = taskGraph.allTasks.any { task ->
+        task.project.path == ':app' &&
+            task.name ==~ /(?i)(assemble|bundle|package).*Release/
+    }
+    if (buildingRelease && !hasReleaseKeystore) {
+        // IllegalStateException rather than GradleException purely so IDEs that
+        // lack the Gradle API on their Groovy classpath do not flag this line;
+        // Gradle fails the build on either.
+        throw new IllegalStateException(
+            "android/keystore.properties is missing - cannot sign a release build. " +
+            "Copy keystore.properties.template and fill in the signing details.")
+    }
+}
+
 android {
     namespace "com.mashhood.skypulsepk"
     compileSdk 36
@@ -58,35 +85,22 @@ android {
             storeFile file('debug.keystore')
         }
         release {
-            // Load keystore properties from keystore.properties file
-            def keystorePropertiesFile = rootProject.file('keystore.properties')
-            def keystoreProperties = new Properties()
-            def useDebugKey = true
-            
-            if (keystorePropertiesFile.exists()) {
-                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-                useDebugKey = false
-            }
-            
-            if (!useDebugKey) {
+            // Only populated when the keystore is present; the task-graph check
+            // above stops an unsigned release from getting as far as an upload.
+            if (hasReleaseKeystore) {
                 keyAlias keystoreProperties.getProperty('key.alias', '')
                 keyPassword keystoreProperties.getProperty('key.password', '')
-                storeFile keystoreProperties.getProperty('store.file') ? file(keystoreProperties.getProperty('store.file')) : null
+                storeFile file(keystoreProperties.getProperty('store.file'))
                 storePassword keystoreProperties.getProperty('store.password', '')
-            } else {
-                // Fallback to debug key for testing
-                keyAlias 'androiddebugkey'
-                keyPassword 'android'
-                storeFile file('debug.keystore')
-                storePassword 'android'
             }
         }
     }
 
     buildTypes {
         release {
-            // For production: configure signing with keystore.properties
-            signingConfig signingConfigs.release
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -104,20 +118,9 @@ flutter {
 dependencies {
     // Core library desugaring for Java 8+ API support
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
-    
-    // Google Play Core - new modular libraries (replaces deprecated com.google.android.play:core for SDK 34+)
-    implementation 'com.google.android.play:app-update:2.1.0'
-    implementation 'com.google.android.play:asset-delivery:2.2.2'
-    implementation 'com.google.android.play:feature-delivery:2.1.0'
-    implementation 'com.google.android.play:review:2.0.2'
-    
-    // Firebase BOM for version management
-    implementation platform('com.google.firebase:firebase-bom:33.1.0')
-    
-    // Firebase libraries (versions managed by BOM)
-    implementation 'com.google.firebase:firebase-core:21.1.1'
-    implementation 'com.google.firebase:firebase-messaging:23.4.1'
-    
-    // AndroidX for background work
-    implementation 'androidx.work:work-runtime-ktx:2.8.1'
+
+    // Firebase and WorkManager are pulled in transitively, at matching
+    // versions, by firebase_core / firebase_messaging / workmanager. Pinning
+    // them here previously forced firebase-messaging back to 23.4.1, below what
+    // the Flutter plugin needs, and dragged in four unused Play Core modules.
 }

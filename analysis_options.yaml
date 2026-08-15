@@ -2,8 +2,8 @@ include: package:flutter_lints/flutter.yaml
 
 linter:
   rules:
-    # Disabled rules for weather app - debug logging is essential
-    avoid_print: false
+    # avoid_print stays ON: print() is not stripped from release builds.
+    # Use logDebug() from lib/utils/log.dart instead.
     # Some dynamic construction is necessary
     prefer_const_constructors: false
 

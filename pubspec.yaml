@@ -3,7 +3,7 @@ description: 'SkyPulse Pakistan - Real-time weather forecasts, storm alerts, and
 
 publish_to: 'none'
 
-version: 1.2.0+6
+version: 1.2.0+7
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -29,27 +29,21 @@ dependencies:
   
   # UI
   intl: ^0.18.1
-  flutter_svg: ^2.0.9
-  
   cupertino_icons: ^1.0.2
 
-  # Maps
-  google_maps_flutter: ^2.5.0
-  url_launcher: ^6.1.10
-  
-  # WebView for embedded Windy
-  webview_flutter: ^4.4.0
-  
   # Firebase - Push Notifications
-  firebase_core: ^2.24.0
-  firebase_messaging: ^14.7.10
-  cloud_firestore: ^4.14.0
-  
+  firebase_core: ^4.8.0
+  firebase_messaging: ^16.2.1
+
   # Local notifications for background/terminated state
   flutter_local_notifications: ^17.2.1
-  
-  # Home screen widget
+
+  # Home screen widget + its background refresh
   home_widget: ^0.6.0
+  workmanager: ^0.10.0
+
+  # App version shown in Settings
+  package_info_plus: ^8.0.2
 
 dev_dependencies:
   flutter_test:

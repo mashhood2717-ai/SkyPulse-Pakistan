@@ -9,9 +9,9 @@ local.properties
 # Build outputs
 build/
 .gradle/
-gradlew
-gradlew.bat
-gradle/
+
+# The Gradle wrapper IS committed: it pins the Gradle version so CI and
+# every developer build the project identically.
 
 # IDE
 .idea/

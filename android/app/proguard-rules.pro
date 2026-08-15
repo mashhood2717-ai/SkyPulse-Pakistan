@@ -3,11 +3,8 @@
 -keep class io.flutter.plugins.** { *; }
 -keep class io.flutter.embedding.** { *; }
 
-# Google Play Core (required for split installs and deferred components)
--keep class com.google.android.play.core.** { *; }
--keep class com.google.android.play.** { *; }
+# Play Core is referenced by Flutter's deferred-components stubs only.
 -dontwarn com.google.android.play.core.**
--dontwarn com.google.android.play.**
 
 # Firebase
 -keep class com.google.firebase.** { *; }
@@ -28,14 +25,12 @@
 # Permission Handler
 -keep class com.baseflow.permissionhandler.** { *; }
 
-# Google Maps Flutter
--keep class com.google.android.libraries.maps.** { *; }
-
-# Webview Flutter
--keep class io.flutter.plugins.webviewflutter.** { *; }
+# WorkManager (home screen widget background refresh)
+-keep class androidx.work.** { *; }
+-keep class dev.fluttercommunity.workmanager.** { *; }
 
 # Home Widget
--keep class es.antonbordes.homewidget.** { *; }
+-keep class es.antonborri.home_widget.** { *; }
 
 # AndroidX Libraries
 -keep class androidx.** { *; }
@@ -100,14 +95,12 @@
 # Permission Handler
 -keep class com.baseflow.permissionhandler.** { *; }
 
-# Google Maps Flutter
--keep class com.google.android.libraries.maps.** { *; }
-
-# Webview Flutter
--keep class io.flutter.plugins.webviewflutter.** { *; }
+# WorkManager (home screen widget background refresh)
+-keep class androidx.work.** { *; }
+-keep class dev.fluttercommunity.workmanager.** { *; }
 
 # Home Widget
--keep class es.antonbordes.homewidget.** { *; }
+-keep class es.antonborri.home_widget.** { *; }
 
 # Keep all native methods
 -keepclasseswithmembernames class * {

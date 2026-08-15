@@ -5,7 +5,9 @@ build/
 .flutter-plugins-dependencies
 .packages
 *.iml
-*.lock
+
+# pubspec.lock is committed on purpose: an app release must be
+# rebuildable from a tag with the exact same dependency versions.
 
 # Android
 android/.gradle
@@ -29,3 +31,7 @@ Thumbs.db
 
 # Environment
 .env
+
+# Local run logs
+flutter_*_run.log
+flutter_*_run.err.log

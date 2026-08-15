@@ -2,55 +2,65 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsProvider extends ChangeNotifier {
-  bool _isAutoRefreshEnabled = true;
-  late SharedPreferences _prefs;
+  static const List<String> tempUnits = ['Celsius', 'Fahrenheit'];
+  static const List<String> windUnits = ['km/h', 'mph', 'm/s'];
 
-  // Default refresh interval is 30 minutes
+  /// Default refresh interval is 30 minutes
   static const Duration refreshInterval = Duration(minutes: 30);
 
-  bool get isAutoRefreshEnabled => _isAutoRefreshEnabled;
+  SharedPreferences? _prefs;
+
+  /// Completes once preferences have loaded. Setters await this instead of
+  /// touching a `late` field that may not be assigned yet — flipping a switch
+  /// during the first frames used to throw LateInitializationError.
+  late final Future<void> _ready = _initPreferences();
+
+  bool _isAutoRefreshEnabled = true;
+  String _tempUnit = 'Celsius';
+  String _windUnit = 'km/h';
 
   SettingsProvider() {
-    _initPreferences();
+    // Kick off loading; _ready is what everything else waits on.
+    _ready;
   }
 
-  Future<void> _initPreferences() async {
-    _prefs = await SharedPreferences.getInstance();
-    _isAutoRefreshEnabled = _prefs.getBool('isAutoRefreshEnabled') ?? true;
-    
-    // Validate Temp Unit
-    String loadedTemp = _prefs.getString('tempUnit') ?? 'Celsius';
-    if (!['Celsius', 'Fahrenheit'].contains(loadedTemp)) {
-      loadedTemp = 'Celsius';
-    }
-    _tempUnit = loadedTemp;
+  bool get isAutoRefreshEnabled => _isAutoRefreshEnabled;
+  String get tempUnit => _tempUnit;
+  String get windUnit => _windUnit;
 
-    // Validate Wind Unit
-    String loadedWind = _prefs.getString('windUnit') ?? 'km/h';
-    if (!['km/h', 'mph', 'm/s'].contains(loadedWind)) {
-      loadedWind = 'km/h';
-    }
-    _windUnit = loadedWind;
+  Future<void> _initPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    _prefs = prefs;
+
+    _isAutoRefreshEnabled = prefs.getBool('isAutoRefreshEnabled') ?? true;
+
+    final loadedTemp = prefs.getString('tempUnit') ?? 'Celsius';
+    _tempUnit = tempUnits.contains(loadedTemp) ? loadedTemp : 'Celsius';
+
+    final loadedWind = prefs.getString('windUnit') ?? 'km/h';
+    _windUnit = windUnits.contains(loadedWind) ? loadedWind : 'km/h';
 
     notifyListeners();
   }
 
   Future<void> toggleAutoRefresh(bool value) async {
+    if (_isAutoRefreshEnabled == value) return;
     _isAutoRefreshEnabled = value;
-    await _prefs.setBool('isAutoRefreshEnabled', value);
     notifyListeners();
+
+    await _ready;
+    await _prefs?.setBool('isAutoRefreshEnabled', value);
   }
 
   // --- Temperature Unit ---
-  String _tempUnit = 'Celsius'; // Celsius, Fahrenheit
-  String get tempUnit => _tempUnit;
 
   Future<void> setTempUnit(String value) async {
-    if (_tempUnit != value) {
-      _tempUnit = value;
-      await _prefs.setString('tempUnit', value);
-      notifyListeners();
-    }
+    if (_tempUnit == value || !tempUnits.contains(value)) return;
+    _tempUnit = value;
+    notifyListeners();
+
+    await _ready;
+    await _prefs?.setString('tempUnit', value);
   }
 
   String getTempString(double celsius) {
@@ -62,15 +72,14 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   // --- Wind Speed Unit ---
-  String _windUnit = 'km/h'; // km/h, mph, m/s
-  String get windUnit => _windUnit;
 
   Future<void> setWindUnit(String value) async {
-    if (_windUnit != value) {
-      _windUnit = value;
-      await _prefs.setString('windUnit', value);
-      notifyListeners();
-    }
+    if (_windUnit == value || !windUnits.contains(value)) return;
+    _windUnit = value;
+    notifyListeners();
+
+    await _ready;
+    await _prefs?.setString('windUnit', value);
   }
 
   String getWindSpeedString(double kmh) {

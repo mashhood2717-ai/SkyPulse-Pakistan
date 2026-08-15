@@ -40,6 +40,9 @@ class _AlertsScreenState extends State<AlertsScreen>
     super.dispose();
   }
 
+  /// Theme-aware colours for the weather surfaces.
+  AppPalette get p => AppPalette.of(context);
+
   @override
   Widget build(BuildContext context) {
     final weatherProvider = Provider.of<WeatherProvider>(context);
@@ -48,7 +51,7 @@ class _AlertsScreenState extends State<AlertsScreen>
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: WeatherTheme.getBackgroundGradient(isDay),
+          gradient: WeatherTheme.getBackgroundGradient(isDay, isLight: p.isLight),
         ),
         child: SafeArea(
           child: Column(
@@ -68,8 +71,8 @@ class _AlertsScreenState extends State<AlertsScreen>
                       opacity: _fadeAnimation,
                       child: RefreshIndicator(
                         onRefresh: () => provider.refresh(),
-                        color: Colors.white,
-                        backgroundColor: const Color(0xFF1A1F3A),
+                        color: p.text,
+                        backgroundColor: p.surface,
                         child: ListView.builder(
                           controller: _scrollController,
                           physics: const BouncingScrollPhysics(),
@@ -126,11 +129,11 @@ class _AlertsScreenState extends State<AlertsScreen>
                 ),
               ),
               const SizedBox(width: 14),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Weather Alerts',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: p.text,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
@@ -180,14 +183,14 @@ class _AlertsScreenState extends State<AlertsScreen>
                               color: Colors.white.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.3),
+                                color: p.border,
                                 width: 1,
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'Clear All',
                               style: TextStyle(
-                                color: Colors.white70,
+                                color: p.textSecondary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -207,6 +210,11 @@ class _AlertsScreenState extends State<AlertsScreen>
   }
 
   Widget _buildEmptyState(WeatherProvider provider) {
+    // "All Clear" must only be shown when we actually heard back. If the alert
+    // service was unreachable, say so — during severe weather the difference
+    // between "no alerts" and "couldn't check" is the whole point.
+    final unreachable = provider.alertsUnavailable;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -230,20 +238,25 @@ class _AlertsScreenState extends State<AlertsScreen>
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.15),
+                      color: (unreachable ? Colors.orange : Colors.green)
+                          .withOpacity(0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      Icons.check_circle_outline_rounded,
+                      unreachable
+                          ? Icons.cloud_off_rounded
+                          : Icons.check_circle_outline_rounded,
                       size: 60,
-                      color: Colors.green.shade300,
+                      color: unreachable
+                          ? Colors.orange.shade300
+                          : Colors.green.shade300,
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'All Clear!',
+                  Text(
+                    unreachable ? 'Alerts unavailable' : 'All Clear!',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: p.text,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -253,7 +266,7 @@ class _AlertsScreenState extends State<AlertsScreen>
                     'No active alerts for\n${provider.cityName}',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: p.textSecondary,
                       fontSize: 16,
                       height: 1.5,
                     ),
@@ -311,9 +324,9 @@ class _AlertsScreenState extends State<AlertsScreen>
           ),
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 20),
-          child: const Icon(
+          child: Icon(
             Icons.delete_rounded,
-            color: Colors.white,
+            color: p.text,
             size: 28,
           ),
         ),
@@ -449,7 +462,7 @@ class _AlertsScreenState extends State<AlertsScreen>
                           Text(
                             message,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.85),
+                              color: p.textSecondary,
                               fontSize: 14,
                               height: 1.5,
                             ),
@@ -466,13 +479,13 @@ class _AlertsScreenState extends State<AlertsScreen>
                                   Icon(
                                     Icons.access_time_rounded,
                                     size: 14,
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: p.textMuted,
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
                                     _formatTimestamp(timestamp),
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.5),
+                                      color: p.textMuted,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -492,7 +505,7 @@ class _AlertsScreenState extends State<AlertsScreen>
                                     Text(
                                       'View',
                                       style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
+                                        color: p.textSecondary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500,
                                       ),
@@ -501,7 +514,7 @@ class _AlertsScreenState extends State<AlertsScreen>
                                     Icon(
                                       Icons.arrow_forward_ios_rounded,
                                       size: 12,
-                                      color: Colors.white.withOpacity(0.5),
+                                      color: p.textMuted,
                                     ),
                                   ],
                                 ),
@@ -525,21 +538,21 @@ class _AlertsScreenState extends State<AlertsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1F3A),
+        backgroundColor: p.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        title: const Text(
+        title: Text(
           'Clear All Alerts',
           style: TextStyle(
-            color: Colors.white,
+            color: p.text,
             fontWeight: FontWeight.bold,
           ),
         ),
-        content: const Text(
+        content: Text(
           'Are you sure you want to clear all alerts? This action cannot be undone.',
           style: TextStyle(
-            color: Colors.white70,
+            color: p.textSecondary,
           ),
         ),
         actions: [
@@ -584,7 +597,7 @@ class _AlertsScreenState extends State<AlertsScreen>
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1F3A).withOpacity(0.95),
+            color: p.surface.withOpacity(0.97),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             border: Border.all(
               color: color.withOpacity(0.3),
@@ -664,9 +677,9 @@ class _AlertsScreenState extends State<AlertsScreen>
                         color: Colors.white.withOpacity(0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.close_rounded,
-                        color: Colors.white70,
+                        color: p.textSecondary,
                         size: 20,
                       ),
                     ),
@@ -678,7 +691,7 @@ class _AlertsScreenState extends State<AlertsScreen>
               Text(
                 'Details',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
+                  color: p.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1,
@@ -698,7 +711,7 @@ class _AlertsScreenState extends State<AlertsScreen>
                 child: Text(
                   description,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: p.text,
                     fontSize: 15,
                     height: 1.6,
                   ),

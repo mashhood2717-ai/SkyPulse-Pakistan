@@ -18,8 +18,10 @@ import '../services/favorites_service.dart';
 import '../services/weather_service.dart';
 import '../services/push_notification_service.dart';
 import '../utils/theme_utils.dart';
+import '../utils/city_areas.dart';
 import '../providers/settings_provider.dart';
 import 'settings_screen.dart';
+import '../utils/log.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -68,8 +70,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _showSuggestions = false;
   Timer? _debounceTimer;
 
-  // Location refresh timer - refreshes every 30 seconds when on main card
+  // Location refresh timer - honours the auto-refresh setting
   Timer? _locationRefreshTimer;
+  SettingsProvider? _settingsProvider;
 
   // Easter egg: tap counter to show FCM token
   int _appNameTapCount = 0;
@@ -109,60 +112,63 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     ));
 
     _loadFavorites();
+
+    // The launch fetch is owned by HomePage (main.dart). This screen only waits
+    // for whatever is already in flight so it can snapshot the result — issuing
+    // a second fetchWeatherByLocation() here used to race the first one.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context
           .read<WeatherProvider>()
-          .fetchWeatherByLocation()
-          .timeout(const Duration(seconds: 15))
-          .then((_) {
-        if (mounted) {
-          final provider = context.read<WeatherProvider>();
-          setState(() {
-            _cacheInitialLocationSnapshot(provider);
-          });
-          _fadeController.forward();
-          _slideController.forward();
-        }
-      }).catchError((e) {
-        print('⚠️ Error fetching location: $e');
-        if (mounted) {
-          final provider = context.read<WeatherProvider>();
-          setState(() {
-            _cacheInitialLocationSnapshot(provider);
-          });
-          _fadeController.forward();
-          _slideController.forward();
-        }
+          .currentLocationFetch
+          .timeout(const Duration(seconds: 20))
+          .catchError((Object e) => logDebug('⚠️ Location fetch not ready: $e'))
+          .whenComplete(() {
+        if (!mounted) return;
+        final provider = context.read<WeatherProvider>();
+        setState(() {
+          _cacheInitialLocationSnapshot(provider);
+        });
+        _fadeController.forward();
+        _slideController.forward();
       });
     });
 
-    // Start 30-second location refresh timer
+    // Follow the setting for the lifetime of the screen. Previously the timer
+    // was only ever started once here: switching auto-refresh off cancelled it
+    // and switching it back on did nothing until the app was restarted.
+    _settingsProvider = context.read<SettingsProvider>();
+    _settingsProvider!.addListener(_onSettingsChanged);
     _startLocationRefreshTimer();
+  }
+
+  void _onSettingsChanged() {
+    if (!mounted) return;
+    final enabled = _settingsProvider?.isAutoRefreshEnabled ?? false;
+    final running = _locationRefreshTimer?.isActive ?? false;
+    if (enabled && !running) {
+      _startLocationRefreshTimer();
+    } else if (!enabled && running) {
+      _locationRefreshTimer?.cancel();
+      _locationRefreshTimer = null;
+      logDebug('Location auto-refresh disabled');
+    }
   }
 
   /// Start timer to refresh location every 30 minutes when on main card (index 0)
   void _startLocationRefreshTimer() {
     _locationRefreshTimer?.cancel();
 
-    // Check if auto-refresh is enabled
-    final settingsProvider = context.read<SettingsProvider>();
-    if (!settingsProvider.isAutoRefreshEnabled) {
-      print('Location auto-refresh is disabled in settings');
+    if (!(_settingsProvider?.isAutoRefreshEnabled ?? false)) {
+      logDebug('Location auto-refresh is disabled in settings');
       return;
     }
 
-    print('Starting location refresh timer (30m)');
+    logDebug('Starting location refresh timer (30m)');
     _locationRefreshTimer =
-        Timer.periodic(const Duration(minutes: 30), (timer) {
-      // Re-check setting in case it changed (though provider listener would be better, this is a simple safety check)
-      if (!context.read<SettingsProvider>().isAutoRefreshEnabled) {
-        timer.cancel();
-        return;
-      }
-
+        Timer.periodic(SettingsProvider.refreshInterval, (timer) {
       // Only refresh if on the main card AND location is GPS-based (not searched)
       if (_currentPage == 0 && mounted && _isLocationGPSBased) {
-        print('🔄 [30m Timer] Refreshing current location...');
+        logDebug('🔄 [30m Timer] Refreshing current location...');
         final provider = context.read<WeatherProvider>();
         provider.fetchWeatherByLocation().then((_) {
           if (mounted) {
@@ -171,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             });
           }
         }).catchError((e) {
-          print('⚠️ [30m Timer] Refresh failed: $e');
+          logDebug('⚠️ [30m Timer] Refresh failed: $e');
         });
       }
     });
@@ -179,6 +185,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    if (identical(HomeScreen._instance, this)) {
+      HomeScreen._instance = null;
+    }
+    _settingsProvider?.removeListener(_onSettingsChanged);
     _locationRefreshTimer?.cancel();
     _debounceTimer?.cancel();
     _tapResetTimer?.cancel();
@@ -199,7 +209,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
       return;
     }
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () async {
+    // 600 ms rather than 300: the free Nominatim tier is capped at ~1 req/sec,
+    // so a tighter debounce just queues keystrokes behind the rate limiter.
+    _debounceTimer = Timer(const Duration(milliseconds: 600), () async {
+      if (!mounted) return;
       final suggestions = await _weatherService.getPlaceSuggestions(query);
       if (mounted) {
         setState(() {
@@ -208,6 +221,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         });
       }
     });
+  }
+
+  Future<void> _showMainCardForSearch() async {
+    final visualPage =
+        _pageController.hasClients ? (_pageController.page?.round() ?? 0) : 0;
+    final shouldMoveToMainCard = _currentPage != 0 || visualPage != 0;
+
+    if (!shouldMoveToMainCard) return;
+
+    _isAnimatingToPage = true;
+    setState(() => _currentPage = 0);
+
+    if (_pageController.hasClients) {
+      try {
+        await _pageController.animateToPage(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      } finally {
+        _isAnimatingToPage = false;
+      }
+    } else {
+      _isAnimatingToPage = false;
+    }
   }
 
   void _onSuggestionTap(Map<String, dynamic> suggestion) async {
@@ -227,15 +265,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _searchController.clear();
     _isLocationGPSBased = false;
 
-    // Navigate back to main card (index 0) when searching
-    if (_currentPage != 0 && _pageController.hasClients) {
-      setState(() => _currentPage = 0);
-      _pageController.animateToPage(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
-    }
+    // Navigate back to main card without triggering favorite page fetches.
+    await _showMainCardForSearch();
+    if (!mounted) return;
 
     // Capture provider before async gap to avoid BuildContext warning
     final provider = context.read<WeatherProvider>();
@@ -243,15 +275,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // Use place_id to get accurate coordinates for specific locations
     // This ensures "Model Town Lahore" gets precise coordinates, not just "Lahore"
     if (placeId.isNotEmpty) {
-      final placeDetails = await _weatherService.getPlaceDetails(placeId);
+      final placeDetails =
+          await _weatherService.getPlaceDetails(placeId, name: mainText);
       if (!mounted) return;
       if (placeDetails != null) {
-        print('📍 [Search] Using precise coordinates for: $mainText');
+        logDebug('📍 [Search] Using precise coordinates for: $mainText');
         provider.fetchWeatherByCoordinates(
           placeDetails['latitude'],
           placeDetails['longitude'],
           cityName: mainText,
           countryCode: placeDetails['country'] ?? '',
+          alertCity: placeDetails['city'] as String?,
         );
         return;
       }
@@ -271,24 +305,18 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _searchCity() {
+  void _searchCity() async {
     if (_searchController.text.isNotEmpty) {
       // Mark as searched location, not GPS-based (disables auto-refresh)
       _isLocationGPSBased = false;
 
-      // Navigate back to main card (index 0) when searching
-      if (_currentPage != 0 && _pageController.hasClients) {
-        setState(() => _currentPage = 0);
-        _pageController.animateToPage(
-          0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
+      final query = _searchController.text;
 
-      context
-          .read<WeatherProvider>()
-          .fetchWeatherByCity(_searchController.text);
+      // Navigate back to main card without triggering favorite page fetches.
+      await _showMainCardForSearch();
+      if (!mounted) return;
+
+      context.read<WeatherProvider>().fetchWeatherByCity(query);
       FocusScope.of(context).unfocus();
     }
   }
@@ -319,15 +347,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1F3A),
+        backgroundColor: p.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.key, color: Color(0xFF667EEA)),
             SizedBox(width: 8),
             Text(
               'FCM Token',
-              style: TextStyle(color: Colors.white, fontSize: 18),
+              style: TextStyle(color: p.text, fontSize: 18),
             ),
           ],
         ),
@@ -338,13 +366,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.black26,
+                color: p.glass(0.35),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SelectableText(
                 token ?? 'No token found',
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: p.textSecondary,
                   fontSize: 11,
                   fontFamily: 'monospace',
                 ),
@@ -391,131 +419,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // 🔔 Save to storage in background (non-blocking)
     if (_isFavorite) {
       favoritesService.addFavorite(provider.cityName, provider.countryCode);
-      print('✅ [HomeScreen] Added favorite: ${provider.cityName}');
+      logDebug('✅ [HomeScreen] Added favorite: ${provider.cityName}');
     } else {
       favoritesService.removeFavorite(provider.cityName, provider.countryCode);
-      print('❌ [HomeScreen] Removed favorite: ${provider.cityName}');
+      logDebug('❌ [HomeScreen] Removed favorite: ${provider.cityName}');
     }
 
     // 🔄 Reload favorites list to keep in sync
     _loadFavorites();
-  }
-
-  /// Check if two city names likely refer to the same area
-  /// Handles neighborhoods within major cities (e.g., Samanabad in Lahore)
-  bool _isSameCityArea(String providerCity, String cardCity) {
-    // Pakistan major cities and their neighborhoods/areas
-    const cityAreas = {
-      'lahore': [
-        'samanabad',
-        'model town',
-        'gulberg',
-        'dha',
-        'johar town',
-        'iqbal town',
-        'allama iqbal town',
-        'garden town',
-        'faisal town',
-        'township',
-        'cantt',
-        'cantonment',
-        'bahria',
-        'wapda town',
-        'valencia',
-        'raiwind'
-      ],
-      'karachi': [
-        'dha',
-        'clifton',
-        'gulshan',
-        'nazimabad',
-        'north nazimabad',
-        'korangi',
-        'malir',
-        'saddar',
-        'bahria',
-        'pechs',
-        'tariq road'
-      ],
-      'islamabad': [
-        'f-6',
-        'f-7',
-        'f-8',
-        'f-10',
-        'f-11',
-        'g-6',
-        'g-7',
-        'g-8',
-        'g-9',
-        'g-10',
-        'g-11',
-        'i-8',
-        'i-9',
-        'i-10',
-        'e-7',
-        'e-11',
-        'dha',
-        'bahria',
-        'blue area'
-      ],
-      'rawalpindi': [
-        'saddar',
-        'cantt',
-        'cantonment',
-        'chaklala',
-        'satellite town',
-        'bahria',
-        'commercial market'
-      ],
-      'faisalabad': [
-        'dha',
-        'peoples colony',
-        'madina town',
-        'ghulam muhammad abad'
-      ],
-      'multan': ['dha', 'cantt', 'cantonment', 'bosan road'],
-      'peshawar': ['hayatabad', 'university town', 'cantt', 'cantonment'],
-    };
-
-    // Find which major city each location belongs to
-    String? providerMajorCity;
-    String? cardMajorCity;
-
-    for (final entry in cityAreas.entries) {
-      final majorCity = entry.key;
-      final areas = entry.value;
-
-      // Check if providerCity is this major city or one of its areas
-      if (providerCity.contains(majorCity)) {
-        providerMajorCity = majorCity;
-      } else {
-        for (final area in areas) {
-          if (providerCity.contains(area)) {
-            providerMajorCity = majorCity;
-            break;
-          }
-        }
-      }
-
-      // Check if cardCity is this major city or one of its areas
-      if (cardCity.contains(majorCity)) {
-        cardMajorCity = majorCity;
-      } else {
-        for (final area in areas) {
-          if (cardCity.contains(area)) {
-            cardMajorCity = majorCity;
-            break;
-          }
-        }
-      }
-    }
-
-    // If both belong to the same major city, they're in the same area
-    if (providerMajorCity != null && cardMajorCity != null) {
-      return providerMajorCity == cardMajorCity;
-    }
-
-    return false;
   }
 
   Future<void> _checkFavorite() async {
@@ -623,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   /// Fetch fresh data for current location
   Future<void> _fetchFreshCurrentLocation(WeatherProvider provider) async {
     if (_initialLocationCity != null) {
-      print(
+      logDebug(
           '🔄 [HomeScreen] Fetching fresh data for current location: $_initialLocationCity');
       if (_initialLocationLatitude != null &&
           _initialLocationLongitude != null) {
@@ -660,7 +571,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     if (favoriteIndex >= 0 && _pageController.hasClients) {
       final targetPage = favoriteIndex + 1;
-      print(
+      logDebug(
           '🎯 [HomeScreen] Navigating to favorite card: $cityName at index $targetPage');
 
       // Set flag to prevent onPageChanged from fetching during animation
@@ -681,7 +592,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         _isAnimatingToPage = false;
       });
     } else {
-      print(
+      logDebug(
           '⚠️ [HomeScreen] Could not find favorite: $cityName in $_favorites');
     }
   }
@@ -702,12 +613,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     if (favoriteIndex >= 0) {
       // Always fetch fresh weather data
-      print('🔄 [HomeScreen] Fetching fresh data for $cityName');
+      logDebug('🔄 [HomeScreen] Fetching fresh data for $cityName');
       await provider.fetchWeatherByCity(cityName);
 
       // Auto-swipe to the favorite card (index + 1 because index 0 is current location)
       if (mounted) {
-        print(
+        logDebug(
             '📱 [HomeScreen] Auto-swiping to favorite at index ${favoriteIndex + 1}');
         await _pageController.animateToPage(
           favoriteIndex + 1,
@@ -718,6 +629,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     }
   }
 
+  /// Theme-aware colours for the weather surfaces.
+  AppPalette get p => AppPalette.of(context);
+
   @override
   Widget build(BuildContext context) {
     // Get isDay from provider for dynamic theme
@@ -727,7 +641,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: WeatherTheme.getBackgroundGradient(isDay),
+          gradient: WeatherTheme.getBackgroundGradient(isDay, isLight: p.isLight),
         ),
         child: SafeArea(
           child: Consumer2<WeatherProvider, FavoritesService>(
@@ -812,8 +726,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               await provider.refresh();
                             }
                           },
-                          color: Colors.white,
-                          backgroundColor: const Color(0xFF1e3c72),
+                          color: p.text,
+                          backgroundColor: p.refreshBackground,
                           child: CustomScrollView(
                             controller: _scrollController,
                             physics: const BouncingScrollPhysics(),
@@ -847,12 +761,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         SunArcWidget(
                                           sunrise: weather.forecast[0].sunrise,
                                           sunset: weather.forecast[0].sunset,
+                                          utcOffsetSeconds:
+                                              weather.utcOffsetSeconds,
                                         ),
                                       const SizedBox(height: 24),
                                       WeatherDetails(current: current),
                                       const SizedBox(height: 24),
                                       if (weather.forecast.isNotEmpty) ...[
-                                        const Align(
+                                        Align(
                                           alignment: Alignment.centerLeft,
                                           child: Padding(
                                             padding: EdgeInsets.only(
@@ -860,7 +776,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                             child: Text(
                                               'Weekly Forecast',
                                               style: TextStyle(
-                                                color: Colors.white,
+                                                color: p.text,
                                                 fontSize: 20,
                                                 fontWeight: FontWeight.w600,
                                                 letterSpacing: 0.5,
@@ -890,7 +806,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       // Show loading overlay when fetching favorite location data
                       if (isLoadingFavorite)
                         Container(
-                          color: Colors.black.withOpacity(0.5),
+                          color: p.scrim,
                           child: const Padding(
                             padding: EdgeInsets.all(20),
                             child: WeatherSkeletonCard(),
@@ -925,16 +841,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           Icon(
             Icons.location_off_rounded,
             size: 60,
-            color: Colors.white.withOpacity(0.6),
+            color: p.textMuted,
           ),
           const SizedBox(height: 24),
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(horizontal: 32),
             child: Text(
               'Unable to find location',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white,
+                color: p.text,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -947,7 +863,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               provider.error ?? 'Please check the spelling and try again',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: p.textMuted,
                 fontSize: 14,
               ),
               maxLines: 2,
@@ -970,7 +886,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                  color: Colors.white.withOpacity(0.3),
+                  color: p.border,
                   width: 1,
                 ),
               ),
@@ -1015,12 +931,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Color(0xFF81D4FA)
                 ],
               ).createShader(bounds),
-              child: const Text(
+              child: Text(
                 'Sky',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w300,
-                  color: Colors.white,
+                  color: p.text,
                   letterSpacing: 1.2,
                 ),
               ),
@@ -1033,12 +949,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Color(0xFFFECE47)
                 ],
               ).createShader(bounds),
-              child: const Text(
+              child: Text(
                 'Pulse',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: p.text,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -1065,8 +981,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           },
         ),
         IconButton(
-          icon: const Icon(Icons.my_location, color: Colors.white),
-          onPressed: () => provider.fetchWeatherByLocation(),
+          icon: Icon(Icons.my_location, color: p.icon),
+          tooltip: 'Back to my location',
+          onPressed: _goToFirstPage,
         ),
         IconButton(
           icon: const Icon(Icons.settings, color: Colors.white),
@@ -1099,7 +1016,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 color: Colors.white.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.25),
+                  color: p.border,
                   width: 1.5,
                 ),
                 boxShadow: [
@@ -1112,15 +1029,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               child: TextField(
                 controller: _searchController,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: p.text,
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Search city...',
                   hintStyle: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
+                    color: p.textMuted,
                     fontWeight: FontWeight.w400,
                   ),
                   border: InputBorder.none,
@@ -1130,12 +1047,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   ),
                   prefixIcon: Icon(
                     Icons.search_rounded,
-                    color: Colors.white.withOpacity(0.6),
+                    color: p.textMuted,
                   ),
                   suffixIcon: IconButton(
                     icon: Icon(
                       Icons.arrow_forward_rounded,
-                      color: Colors.white.withOpacity(0.8),
+                      color: p.textSecondary,
                     ),
                     onPressed: _searchCity,
                   ),
@@ -1159,10 +1076,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.7),
+        color: p.surface.withOpacity(0.85),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: p.border,
           width: 1,
         ),
       ),
@@ -1193,7 +1110,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     children: [
                       Icon(
                         Icons.location_on_outlined,
-                        color: Colors.white.withOpacity(0.6),
+                        color: p.textMuted,
                         size: 20,
                       ),
                       const SizedBox(width: 12),
@@ -1203,8 +1120,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           children: [
                             Text(
                               suggestion['mainText'] ?? '',
-                              style: const TextStyle(
-                                color: Colors.white,
+                              style: TextStyle(
+                                color: p.text,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -1213,7 +1130,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               Text(
                                 suggestion['secondaryText'],
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.6),
+                                  color: p.textMuted,
                                   fontSize: 12,
                                 ),
                               ),
@@ -1285,7 +1202,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     providerCity.contains(cardCity) ||
                     cardCity.contains(providerCity) ||
                     providerFirstWord == cardFirstWord ||
-                    _isSameCityArea(providerCity, cardCity);
+                    CityAreas.isSameArea(providerCity, cardCity);
 
                 // Only fetch if we're not already showing this city's data
                 if (!isSameCity) {
@@ -1354,18 +1271,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (isActive) {
       return Consumer<WeatherProvider>(
         builder: (context, provider, _) {
-          // ACTIVE CARD: Show whatever data is available
-          // The fetch was already triggered when navigating to this card
-          // No need for strict city matching - just show the data!
           final current = provider.weatherData?.current;
 
-          if (current != null && !provider.isLoading) {
-            // Show data-loaded state with FULL weather info
-            // Use the card's cityName for display, provider's data for weather
+          // The card must prove the loaded data is actually this city's before
+          // rendering it. The provider holds one location at a time and its
+          // error path silently falls back to the previously cached city, so
+          // an unchecked card would print, say, Islamabad's temperature under
+          // the heading "Multan".
+          final showsThisCity =
+              CityAreas.isSameArea(provider.cityName, cityName);
+
+          if (current != null && !provider.isLoading && showsThisCity) {
             return _buildFavoriteHeroCard(cityName, countryCode, current);
           }
-          // Show loading state if still loading
-          return _buildFavoriteHeroLoadingCard(cityName, countryCode);
+
+          return _buildFavoriteHeroLoadingCard(
+            cityName,
+            countryCode,
+            statusText: provider.isLoading
+                ? 'Fetching latest conditions...'
+                : provider.error != null
+                    ? 'Could not load ${cityName.trim()} - pull to retry'
+                    : 'Fetching latest conditions...',
+            showSpinner: provider.isLoading,
+          );
         },
       );
     }
@@ -1422,11 +1351,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         : 'Live Airport Weather (METAR)';
     final station = provider.companyStation;
     final distance = station?.distanceKm;
+    final age = station?.age;
     final subtitle = isStation
         ? [
             station?.name ?? 'Weather Station',
             if (distance != null) '${distance.toStringAsFixed(1)} km away',
-            if (station?.id.isNotEmpty ?? false) 'ID ${station!.id}',
+            // Observation age, so "LIVE" is verifiable rather than asserted.
+            if (age != null) _formatAge(age),
           ].join(' - ')
         : provider.metarData?.icaoCode ?? 'Airport Data';
 
@@ -1470,8 +1401,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: p.text,
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1480,7 +1411,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: p.textSecondary,
                         fontSize: 12,
                       ),
                       maxLines: 2,
@@ -1503,10 +1434,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ],
                 ),
-                child: const Text(
+                child: Text(
                   'LIVE',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: p.text,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
@@ -1518,6 +1449,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  /// Human-readable age of a station observation.
+  String _formatAge(Duration age) {
+    if (age.inSeconds < 90) return 'just now';
+    if (age.inMinutes < 60) return '${age.inMinutes} min ago';
+    if (age.inHours < 24) return '${age.inHours} h ago';
+    return '${age.inDays} d ago';
   }
 
   /// Build AQI (Air Quality Index) card
@@ -1569,9 +1508,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Air Quality Index',
+                'Air Quality Index (US AQI)',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: p.textSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -1654,7 +1593,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             borderRadius: BorderRadius.circular(26),
             border: Border.all(
-              color: Colors.white.withOpacity(0.28),
+              color: p.border,
               width: 1.2,
             ),
           ),
@@ -1670,8 +1609,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       children: [
                         Text(
                           cityName,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: p.text,
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
                             height: 1.08,
@@ -1685,7 +1624,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               ? 'Saved location - $countryCode'
                               : 'Saved location',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.72),
+                            color: p.textSecondary,
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1721,13 +1660,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               Row(
                 children: [
                   if (showSpinner) ...[
-                    const SizedBox(
+                    SizedBox(
                       width: 14,
                       height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.6,
                         valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white70),
+                            AlwaysStoppedAnimation<Color>(p.textSecondary),
                       ),
                     ),
                     const SizedBox(width: 9),
@@ -1736,7 +1675,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: Text(
                       statusText,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.66),
+                        color: p.textMuted,
                         fontSize: 12,
                         fontStyle: FontStyle.italic,
                       ),
@@ -1779,7 +1718,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.25),
+              color: p.border,
               width: 1,
             ),
           ),
@@ -1807,8 +1746,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Expanded(
                           child: Text(
                             cityName,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: p.text,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1821,8 +1760,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             padding: const EdgeInsets.only(left: 6),
                             child: Text(
                               countryCode,
-                              style: const TextStyle(
-                                color: Colors.white70,
+                              style: TextStyle(
+                                color: p.textSecondary,
                                 fontSize: 9,
                               ),
                             ),
@@ -1833,8 +1772,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     // Temp & Description
                     Text(
                       '${current.temperature.round()}° • ${current.weatherDescription}',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: p.text,
                         fontSize: 12,
                       ),
                       maxLines: 1,
@@ -1844,8 +1783,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     // Feels like
                     Text(
                       'Feels ${feelsLike.round()}°C',
-                      style: const TextStyle(
-                        color: Colors.white70,
+                      style: TextStyle(
+                        color: p.textSecondary,
                         fontSize: 10,
                       ),
                     ),
@@ -1866,8 +1805,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.humidity.round()}%',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 10)),
+                          style: TextStyle(
+                              color: p.text, fontSize: 10)),
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -1877,8 +1816,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       const Icon(Icons.air, size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.windSpeed.round()} km/h',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 10)),
+                          style: TextStyle(
+                              color: p.text, fontSize: 10)),
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -1889,8 +1828,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           size: 11, color: Colors.white70),
                       const SizedBox(width: 3),
                       Text('${current.pressure.round()}hPa',
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 10)),
+                          style: TextStyle(
+                              color: p.text, fontSize: 10)),
                     ],
                   ),
                 ],
@@ -1922,7 +1861,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: Colors.white.withOpacity(0.25),
+              color: p.border,
               width: 1,
             ),
           ),
@@ -1945,8 +1884,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         Expanded(
                           child: Text(
                             cityName,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: p.text,
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1959,8 +1898,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             padding: const EdgeInsets.only(left: 6),
                             child: Text(
                               countryCode,
-                              style: const TextStyle(
-                                color: Colors.white70,
+                              style: TextStyle(
+                                color: p.textSecondary,
                                 fontSize: 9,
                               ),
                             ),
@@ -1977,14 +1916,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: CircularProgressIndicator(
                             strokeWidth: 1.5,
                             valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white70),
+                                AlwaysStoppedAnimation<Color>(p.textSecondary),
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Loading weather...',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.7),
+                            color: p.textSecondary,
                             fontSize: 11,
                             fontStyle: FontStyle.italic,
                           ),

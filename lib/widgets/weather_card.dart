@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../models/weather_model.dart';
 import '../providers/settings_provider.dart';
 import 'weather_lottie_icon.dart';
+import '../utils/theme_utils.dart';
 
 class WeatherCard extends StatelessWidget {
   final String cityName;
@@ -29,6 +30,7 @@ class WeatherCard extends StatelessWidget {
       builder: (context, settings, _) {
         return LayoutBuilder(
           builder: (context, constraints) {
+            final p = AppPalette.of(context);
             final compact = constraints.maxWidth < 340;
             final tempSize = compact ? 66.0 : 78.0;
             final iconSize = compact ? 82.0 : 96.0;
@@ -64,7 +66,7 @@ class WeatherCard extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(26),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.28),
+                      color: p.border,
                       width: 1.2,
                     ),
                     boxShadow: [
@@ -89,7 +91,7 @@ class WeatherCard extends StatelessWidget {
                                 Text(
                                   cityName,
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: p.text,
                                     fontSize: citySize,
                                     fontWeight: FontWeight.w800,
                                     height: 1.08,
@@ -103,7 +105,7 @@ class WeatherCard extends StatelessWidget {
                                       ? 'Current weather - $countryCode'
                                       : 'Current weather',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.72),
+                                    color: p.textSecondary,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -144,7 +146,7 @@ class WeatherCard extends StatelessWidget {
                           Text(
                             settings.getTempString(current.temperature),
                             style: TextStyle(
-                              color: Colors.white,
+                              color: p.text,
                               fontSize: tempSize,
                               fontWeight: FontWeight.w800,
                               height: 0.88,
@@ -155,7 +157,7 @@ class WeatherCard extends StatelessWidget {
                             child: Text(
                               current.weatherDescription,
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.96),
+                                color: p.text,
                                 fontSize: compact ? 17 : 19,
                                 fontWeight: FontWeight.w700,
                                 height: 1.15,
@@ -168,7 +170,7 @@ class WeatherCard extends StatelessWidget {
                       Text(
                         feelsText,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.72),
+                          color: p.textSecondary,
                           fontSize: compact ? 13 : 15,
                           fontWeight: FontWeight.w500,
                           height: 1.3,
@@ -236,6 +238,7 @@ class _QuickStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     return Container(
       constraints: const BoxConstraints(minHeight: 72),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
@@ -256,7 +259,7 @@ class _QuickStat extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.68),
+                    color: p.textMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -269,8 +272,8 @@ class _QuickStat extends StatelessWidget {
           const SizedBox(height: 9),
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: p.text,
               fontSize: 14,
               fontWeight: FontWeight.w800,
               height: 1.15,

@@ -11,6 +11,12 @@ class CompanyWeatherStation {
   final double? distanceKm;
   final int? aqiIndex;
 
+  /// When the reading was taken, if the payload says.
+  ///
+  /// Used to reject stale stations: a station that stopped reporting still
+  /// passed the "active" check and was rendered under a green LIVE badge.
+  final DateTime? observedAt;
+
   CompanyWeatherStation({
     required this.id,
     required this.name,
@@ -19,6 +25,7 @@ class CompanyWeatherStation {
     required this.raw,
     this.distanceKm,
     this.aqiIndex,
+    this.observedAt,
   });
 
   CompanyWeatherStation copyWithDistance(double distanceKm) {
@@ -30,6 +37,7 @@ class CompanyWeatherStation {
       raw: raw,
       distanceKm: distanceKm,
       aqiIndex: aqiIndex,
+      observedAt: observedAt,
     );
   }
 
@@ -101,14 +109,115 @@ class CompanyWeatherStation {
       latitude: latitude,
       longitude: longitude,
       raw: raw,
+      // US AQI is read first on purpose: the card that renders this uses the
+      // US EPA breakpoints (50/100/150/200/300). Preferring aqiPak scored a
+      // Pakistani-scale number against US bands and mislabelled the category.
       aqiIndex: _readInt(raw, const [
+        'aqiUSA',
+        'aqiParams.aqiUSA',
         'aqi',
         'aqiPak',
-        'aqiUSA',
         'aqiParams.aqiPak',
-        'aqiParams.aqiUSA',
       ]),
+      observedAt: _readObservedAt(json),
     );
+  }
+
+  /// Age of the reading, or null when the payload carries no timestamp.
+  Duration? get age {
+    final observed = observedAt;
+    if (observed == null) return null;
+    return DateTime.now().toUtc().difference(observed.toUtc());
+  }
+
+  /// True when the reading is recent enough to show as live.
+  ///
+  /// Unknown timestamps are treated as fresh so a payload shape we do not
+  /// recognise cannot silently disable every station; [age] is null in that
+  /// case and callers can surface the uncertainty.
+  bool isFresh(Duration maxAge) {
+    final current = age;
+    if (current == null) return true;
+    return current <= maxAge && !current.isNegative;
+  }
+
+  static DateTime? _readObservedAt(Map<String, dynamic> json) {
+    final candidates = <dynamic>[];
+
+    final weatherStats = json['weatherStats'];
+    if (weatherStats is List && weatherStats.isNotEmpty) {
+      final latest = weatherStats.first;
+      if (latest is Map) {
+        for (final key in const [
+          'dateTime',
+          'date_time',
+          'timestamp',
+          'observationTime',
+          'observation_time',
+          'obsTime',
+          'recordedAt',
+          'recorded_at',
+          'createdAt',
+          'created_at',
+          'updatedAt',
+          'updated_at',
+          'time',
+          'date',
+        ]) {
+          if (latest[key] != null) candidates.add(latest[key]);
+        }
+        final nowcast = latest['nowcast'];
+        if (nowcast is Map) {
+          for (final key in const [
+            'dateTime',
+            'timestamp',
+            'observationTime',
+            'time',
+            'date',
+          ]) {
+            if (nowcast[key] != null) candidates.add(nowcast[key]);
+          }
+        }
+      }
+    }
+
+    for (final key in const [
+      'lastUpdated',
+      'last_updated',
+      'lastSeen',
+      'last_seen',
+      'updatedAt',
+      'updated_at',
+      'timestamp',
+    ]) {
+      if (json[key] != null) candidates.add(json[key]);
+    }
+
+    for (final value in candidates) {
+      final parsed = _parseTimestamp(value);
+      if (parsed != null) return parsed;
+    }
+    return null;
+  }
+
+  static DateTime? _parseTimestamp(dynamic value) {
+    if (value is DateTime) return value;
+    if (value is num) {
+      // Heuristic: 10-digit values are seconds, 13-digit are milliseconds.
+      final asInt = value.toInt();
+      if (asInt <= 0) return null;
+      final ms = asInt < 100000000000 ? asInt * 1000 : asInt;
+      return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+    }
+    if (value is String) {
+      final text = value.trim();
+      if (text.isEmpty) return null;
+      final direct = DateTime.tryParse(text);
+      if (direct != null) return direct;
+      final asNumber = int.tryParse(text);
+      if (asNumber != null) return _parseTimestamp(asNumber);
+    }
+    return null;
   }
 
   CurrentWeather toCurrentWeather(CurrentWeather fallback) {

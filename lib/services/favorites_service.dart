@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../utils/log.dart';
 
 class FavoritesService extends ChangeNotifier {
   static const String _favoritesKey = 'favorite_locations';
@@ -69,7 +70,7 @@ class FavoritesService extends ChangeNotifier {
           decoded.map((item) => Map<String, dynamic>.from(item)).toList();
       return _favorites;
     } catch (e) {
-      print('Error loading favorites: $e');
+      logDebug('Error loading favorites: $e');
       _favorites = [];
       return [];
     }

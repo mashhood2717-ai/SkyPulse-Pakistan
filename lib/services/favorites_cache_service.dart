@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/weather_model.dart';
+import '../utils/log.dart';
 
 /// Caches weather data for favorite locations to enable instant card navigation
 /// and persistent display when switching between favorites
@@ -37,7 +38,7 @@ class FavoritesCacheService extends ChangeNotifier {
       'timestamp': DateTime.now(),
     };
     notifyListeners();
-    print('✅ [FavoritesCacheService] Cached weather for $cityName');
+    logDebug('✅ [FavoritesCacheService] Cached weather for $cityName');
   }
 
   /// Remove cached data for a city
@@ -45,7 +46,7 @@ class FavoritesCacheService extends ChangeNotifier {
     _weatherCache.remove(cityName);
     _metadataCache.remove(cityName);
     notifyListeners();
-    print('❌ [FavoritesCacheService] Cleared cache for $cityName');
+    logDebug('❌ [FavoritesCacheService] Cleared cache for $cityName');
   }
 
   /// Clear all cached data
@@ -53,7 +54,7 @@ class FavoritesCacheService extends ChangeNotifier {
     _weatherCache.clear();
     _metadataCache.clear();
     notifyListeners();
-    print('🗑️ [FavoritesCacheService] Cleared all cache');
+    logDebug('🗑️ [FavoritesCacheService] Cleared all cache');
   }
 
   /// Get metadata for a cached city

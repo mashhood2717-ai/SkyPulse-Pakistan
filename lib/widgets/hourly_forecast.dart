@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../models/weather_model.dart';
 import '../providers/settings_provider.dart';
 import 'weather_lottie_icon.dart';
+import '../utils/log.dart';
+import '../utils/theme_utils.dart';
 
 class HourlyForecast extends StatelessWidget {
   final WeatherData weatherData;
@@ -14,15 +16,16 @@ class HourlyForecast extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final hourlyData =
         _extractHourlyData(context); // Pass context to get settings
 
     if (hourlyData.isEmpty) {
-      return const SizedBox(
+      return SizedBox(
         child: Center(
           child: Text(
             'No hourly data available',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(color: p.textSecondary, fontSize: 12),
           ),
         ),
       );
@@ -31,10 +34,10 @@ class HourlyForecast extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Hourly Forecast (Next 24h)',
           style: TextStyle(
-            color: Colors.white,
+            color: p.text,
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -47,7 +50,7 @@ class HourlyForecast extends StatelessWidget {
               hourlyData.length,
               (index) {
                 final hour = hourlyData[index];
-                return _buildHourCard(hour);
+                return _buildHourCard(p, hour);
               },
             ),
           ),
@@ -56,7 +59,7 @@ class HourlyForecast extends StatelessWidget {
     );
   }
 
-  Widget _buildHourCard(Map<String, dynamic> hour) {
+  Widget _buildHourCard(AppPalette p, Map<String, dynamic> hour) {
     return Container(
       width: 65,
       margin: const EdgeInsets.only(right: 10),
@@ -72,7 +75,7 @@ class HourlyForecast extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: p.border,
           width: 1,
         ),
       ),
@@ -83,8 +86,8 @@ class HourlyForecast extends StatelessWidget {
           // Time
           Text(
             hour['time'],
-            style: const TextStyle(
-              color: Colors.white70,
+            style: TextStyle(
+              color: p.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -108,8 +111,8 @@ class HourlyForecast extends StatelessWidget {
           // Temperature (from API)
           Text(
             '${hour['temp']}',
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: p.text,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -143,11 +146,15 @@ class HourlyForecast extends StatelessWidget {
         return [];
       }
 
-      final now = DateTime.now();
-      int startIndex = now.hour; // Direct calculation instead of looping
-
-      // Verify the index matches by checking the first time entry
-      // to ensure we're on the same day (API data is always from midnight today)
+      // Start from the hour the model already located for this location.
+      // `DateTime.now().hour` assumed the hourly array was indexed in the
+      // phone's timezone, so "Now" pointed at the wrong column for any city
+      // outside it.
+      final now = WeatherData.nowAt(weatherData.utcOffsetSeconds);
+      int startIndex = weatherData.currentHourIndex;
+      if (startIndex < 0 || startIndex >= weatherData.hourlyTemperatures.length) {
+        startIndex = now.hour;
+      }
       if (startIndex >= weatherData.hourlyTemperatures.length) {
         startIndex = 0;
       }
@@ -165,7 +172,8 @@ class HourlyForecast extends StatelessWidget {
         String timeStr = 'N/A';
         if (apiIndex < weatherData.hourlyTimes.length) {
           try {
-            final hourTime = DateTime.parse(weatherData.hourlyTimes[apiIndex]);
+            final hourTime =
+                WeatherData.parseWallClock(weatherData.hourlyTimes[apiIndex])!;
             timeStr = i == 0 ? 'Now' : '${hourTime.hour}:00';
           } catch (e) {
             timeStr = i == 0 ? 'Now' : '${(now.hour + i) % 24}:00';
@@ -190,7 +198,8 @@ class HourlyForecast extends StatelessWidget {
         if (apiIndex < weatherData.hourlyTimes.length) {
           try {
             displayHour =
-                DateTime.parse(weatherData.hourlyTimes[apiIndex]).hour;
+                WeatherData.parseWallClock(weatherData.hourlyTimes[apiIndex])!
+                    .hour;
           } catch (_) {}
         }
         // Prefer the API's hourly is_day flag when available
@@ -213,7 +222,7 @@ class HourlyForecast extends StatelessWidget {
         });
       }
     } catch (e) {
-      print('❌ [HourlyForecast] Error: $e');
+      logDebug('❌ [HourlyForecast] Error: $e');
     }
 
     return hourly;

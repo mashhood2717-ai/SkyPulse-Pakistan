@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../utils/log.dart';
 
 class WeatherData {
   final CurrentWeather current;
@@ -12,6 +13,19 @@ class WeatherData {
   final List<bool> hourlyIsDay; // is_day values per hour
   final int? aqiIndex; // AQI index
 
+  /// Seconds the queried location is ahead of UTC, from `utc_offset_seconds`.
+  ///
+  /// The request uses `timezone=auto`, so every timestamp in the response is
+  /// local *to the location* and carries no offset ("2026-08-15T06:12").
+  /// Parsing those directly gives device-local time, which is only correct
+  /// while the viewed city happens to share the phone's timezone. Everything
+  /// time-related below goes through this offset instead.
+  final int utcOffsetSeconds;
+
+  /// Index into the hourly arrays for the current hour at the location,
+  /// or -1 if it could not be determined.
+  final int currentHourIndex;
+
   WeatherData({
     required this.current,
     required this.forecast,
@@ -21,7 +35,35 @@ class WeatherData {
     this.hourlyTimes = const [],
     this.hourlyIsDay = const [],
     this.aqiIndex,
+    this.utcOffsetSeconds = 0,
+    this.currentHourIndex = -1,
   });
+
+  /// Wall-clock "now" at the queried location, expressed as a UTC-flagged
+  /// DateTime so its fields read as the location's local time.
+  static DateTime nowAt(int utcOffsetSeconds) =>
+      DateTime.now().toUtc().add(Duration(seconds: utcOffsetSeconds));
+
+  /// Reads a naive local timestamp as a wall clock (fields taken literally).
+  static DateTime? parseWallClock(String value) {
+    try {
+      return DateTime.parse('${value}Z');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Converts a naive local timestamp into a true instant.
+  static int? epochSecondsFor(String value, int utcOffsetSeconds) {
+    final wall = parseWallClock(value);
+    if (wall == null) return null;
+    return (wall.millisecondsSinceEpoch ~/ 1000) - utcOffsetSeconds;
+  }
+
+  /// Renders a true instant as wall-clock time at the location.
+  static DateTime localFromEpoch(int epochSeconds, int utcOffsetSeconds) =>
+      DateTime.fromMillisecondsSinceEpoch(epochSeconds * 1000, isUtc: true)
+          .add(Duration(seconds: utcOffsetSeconds));
 
   factory WeatherData.fromJson(Map<String, dynamic> json, {int? aqi}) {
     try {
@@ -36,6 +78,8 @@ class WeatherData {
       final hourlyIsDay = _parseHourlyIsDay(hourlyData);
       final hourlyCloudCover =
           _parseHourlyDoubleList(hourlyData, 'cloud_cover');
+      final hourlyVisibility =
+          _parseHourlyDoubleList(hourlyData, 'visibility');
 
       // Rule: if cloud cover >= 75%, force UV to 0 for that hour
       final hourlyUv = List<double>.generate(hourlyUvRaw.length, (i) {
@@ -45,25 +89,29 @@ class WeatherData {
         return hourlyUvRaw[i];
       });
 
-      // Find the index for the current hour
+      final utcOffsetSeconds = _toInt(json['utc_offset_seconds']);
+
+      // Find the index for the current hour *at the location*, not on the
+      // device. Both sides are wall-clock values, so the fields compare
+      // directly.
       int currentHourIdx = -1;
-      final now = DateTime.now();
+      final now = nowAt(utcOffsetSeconds);
       for (int i = 0; i < hourlyTimes.length; i++) {
-        try {
-          final t = DateTime.parse(hourlyTimes[i]);
-          if (t.year == now.year &&
-              t.month == now.month &&
-              t.day == now.day &&
-              t.hour == now.hour) {
-            currentHourIdx = i;
-            break;
-          }
-        } catch (_) {}
+        final t = parseWallClock(hourlyTimes[i]);
+        if (t == null) continue;
+        if (t.year == now.year &&
+            t.month == now.month &&
+            t.day == now.day &&
+            t.hour == now.hour) {
+          currentHourIdx = i;
+          break;
+        }
       }
 
       double? currentUv;
       double? currentDew;
       bool? currentIsDay;
+      double? currentVisibility;
       if (currentHourIdx >= 0) {
         if (currentHourIdx < hourlyUv.length) {
           currentUv = hourlyUv[currentHourIdx];
@@ -73,6 +121,10 @@ class WeatherData {
         }
         if (currentHourIdx < hourlyIsDay.length) {
           currentIsDay = hourlyIsDay[currentHourIdx];
+        }
+        // Open-Meteo only exposes visibility hourly, and reports it in metres.
+        if (currentHourIdx < hourlyVisibility.length) {
+          currentVisibility = hourlyVisibility[currentHourIdx] / 1000;
         }
       }
 
@@ -85,27 +137,35 @@ class WeatherData {
         uvIndex: gatedCurrentUv,
         dewPoint: currentDew,
         isDay: currentIsDay,
+        visibility: currentVisibility,
       );
 
-      print('🌡️ [CurrentWeather] Parsed from API:');
-      print('   Temperature: ${current.temperature}°C');
-      print('   Wind Gust: ${current.windGust} km/h');
-      print('   UV (current hour): ${current.uvIndex}');
-      print('   Dew Point (current hour): ${current.dewPoint}°C');
-      print('   Is Day (current hour): ${current.isDay}');
+      logDebug('🌡️ [CurrentWeather] Parsed from API:');
+      logDebug('   Temperature: ${current.temperature}°C');
+      logDebug('   Wind Gust: ${current.windGust} km/h');
+      logDebug('   UV (current hour): ${current.uvIndex}');
+      logDebug('   Dew Point (current hour): ${current.dewPoint}°C');
+      logDebug('   Is Day (current hour): ${current.isDay}');
 
       return WeatherData(
         current: current,
-        forecast: _parseDailyForecast(dailyData, hourlyData, hourlyTimes),
+        forecast: _parseDailyForecast(
+          dailyData,
+          hourlyData,
+          hourlyTimes,
+          utcOffsetSeconds,
+        ),
         hourlyTemperatures: _parseHourlyTemps(hourlyData),
         hourlyWeatherCodes: _parseHourlyWeatherCodes(hourlyData),
         hourlyPrecipitation: _parseHourlyPrecipitation(hourlyData),
         hourlyTimes: hourlyTimes,
         hourlyIsDay: hourlyIsDay,
         aqiIndex: aqi,
+        utcOffsetSeconds: utcOffsetSeconds,
+        currentHourIndex: currentHourIdx,
       );
     } catch (e) {
-      print('Error parsing weather data: $e');
+      logDebug('Error parsing weather data: $e');
       rethrow;
     }
   }
@@ -113,17 +173,17 @@ class WeatherData {
   // Parse hourly temperatures
   static List<double> _parseHourlyTemps(Map<String, dynamic> hourly) {
     try {
-      print('📊 [WeatherData] Hourly keys: ${hourly.keys.toList()}');
+      logDebug('📊 [WeatherData] Hourly keys: ${hourly.keys.toList()}');
       final temps = hourly['temperature_2m'] as List?;
       if (temps == null) {
-        print('⚠️ [WeatherData] No temperature_2m found in hourly data');
+        logDebug('⚠️ [WeatherData] No temperature_2m found in hourly data');
         return [];
       }
       final result = temps.map((t) => _toDouble(t)).toList();
-      print('✅ [WeatherData] Parsed ${result.length} hourly temperatures');
+      logDebug('✅ [WeatherData] Parsed ${result.length} hourly temperatures');
       return result;
     } catch (e) {
-      print('❌ Error parsing hourly temps: $e');
+      logDebug('❌ Error parsing hourly temps: $e');
       return [];
     }
   }
@@ -133,18 +193,18 @@ class WeatherData {
     try {
       final times = hourly['time'] as List?;
       if (times == null) {
-        print('⚠️ [WeatherData] No time found in hourly data');
+        logDebug('⚠️ [WeatherData] No time found in hourly data');
         return [];
       }
       final result = times.map((t) => t.toString()).toList();
-      print('✅ [WeatherData] Parsed ${result.length} hourly times');
+      logDebug('✅ [WeatherData] Parsed ${result.length} hourly times');
       if (result.isNotEmpty) {
-        print('   First time: ${result.first}');
-        print('   Last time: ${result.last}');
+        logDebug('   First time: ${result.first}');
+        logDebug('   Last time: ${result.last}');
       }
       return result;
     } catch (e) {
-      print('❌ Error parsing hourly times: $e');
+      logDebug('❌ Error parsing hourly times: $e');
       return [];
     }
   }
@@ -154,14 +214,14 @@ class WeatherData {
     try {
       final codes = hourly['weather_code'] as List?;
       if (codes == null) {
-        print('⚠️ [WeatherData] No weather_code found in hourly data');
+        logDebug('⚠️ [WeatherData] No weather_code found in hourly data');
         return [];
       }
       final result = codes.map((c) => _toInt(c)).toList();
-      print('✅ [WeatherData] Parsed ${result.length} hourly weather codes');
+      logDebug('✅ [WeatherData] Parsed ${result.length} hourly weather codes');
       return result;
     } catch (e) {
-      print('❌ Error parsing hourly weather codes: $e');
+      logDebug('❌ Error parsing hourly weather codes: $e');
       return [];
     }
   }
@@ -171,16 +231,16 @@ class WeatherData {
     try {
       final precips = hourly['precipitation_probability'] as List?;
       if (precips == null) {
-        print(
+        logDebug(
             '⚠️ [WeatherData] No precipitation_probability found in hourly data');
         return [];
       }
       final result = precips.map((p) => _toInt(p)).toList();
-      print(
+      logDebug(
           '✅ [WeatherData] Parsed ${result.length} hourly precipitation values');
       return result;
     } catch (e) {
-      print('❌ Error parsing hourly precipitation: $e');
+      logDebug('❌ Error parsing hourly precipitation: $e');
       return [];
     }
   }
@@ -193,7 +253,7 @@ class WeatherData {
       if (list == null) return [];
       return list.map((v) => _toDouble(v)).toList();
     } catch (e) {
-      print('❌ Error parsing hourly $key: $e');
+      logDebug('❌ Error parsing hourly $key: $e');
       return [];
     }
   }
@@ -210,7 +270,7 @@ class WeatherData {
         return true;
       }).toList();
     } catch (e) {
-      print('❌ Error parsing hourly is_day: $e');
+      logDebug('❌ Error parsing hourly is_day: $e');
       return [];
     }
   }
@@ -235,23 +295,24 @@ class WeatherData {
     Map<String, dynamic> daily,
     Map<String, dynamic> hourly,
     List<String> hourlyTimes,
+    int utcOffsetSeconds,
   ) {
     final List<DailyForecast> forecasts = [];
     final times = daily['time'] as List?;
 
-    print('📊 [WeatherModel] Daily data keys: ${daily.keys.toList()}');
-    print('📊 [WeatherModel] Forecast days count: ${times?.length ?? 0}');
+    logDebug('📊 [WeatherModel] Daily data keys: ${daily.keys.toList()}');
+    logDebug('📊 [WeatherModel] Forecast days count: ${times?.length ?? 0}');
 
     // Debug: Print sunrise/sunset values
     if (daily['sunrise'] != null) {
-      print('🌅 [WeatherModel] First sunrise (raw): ${daily['sunrise']?[0]}');
+      logDebug('🌅 [WeatherModel] First sunrise (raw): ${daily['sunrise']?[0]}');
     }
     if (daily['sunset'] != null) {
-      print('🌇 [WeatherModel] First sunset (raw): ${daily['sunset']?[0]}');
+      logDebug('🌇 [WeatherModel] First sunset (raw): ${daily['sunset']?[0]}');
     }
 
     if (times == null || times.isEmpty) {
-      print('⚠️ [WeatherModel] No time data found in daily forecast!');
+      logDebug('⚠️ [WeatherModel] No time data found in daily forecast!');
       return forecasts;
     }
 
@@ -275,6 +336,7 @@ class WeatherData {
         forecasts.add(DailyForecast.fromJson(
           daily,
           i,
+          utcOffsetSeconds: utcOffsetSeconds,
           fallbackPrecipProb:
               i < fallbackPrecipProb.length ? fallbackPrecipProb[i] : null,
           fallbackWindGust:
@@ -283,11 +345,11 @@ class WeatherData {
               i < fallbackWindSpeed.length ? fallbackWindSpeed[i] : null,
         ));
       } catch (e) {
-        print('❌ Error parsing forecast at index $i: $e');
+        logDebug('❌ Error parsing forecast at index $i: $e');
       }
     }
 
-    print(
+    logDebug(
         '✅ [WeatherModel] Successfully parsed ${forecasts.length} forecast days');
     return forecasts;
   }
@@ -321,7 +383,7 @@ class WeatherData {
       final val = hourlyValues[i];
       if (val == null) continue;
       try {
-        final t = DateTime.parse(hourlyTimes[i]);
+        final t = parseWallClock(hourlyTimes[i]) ?? DateTime.parse(hourlyTimes[i]);
         final dateStr =
             '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
         final dayIndex = dailyDates.indexOf(dateStr);
@@ -409,6 +471,7 @@ class CurrentWeather {
     double? uvIndex,
     double? dewPoint,
     bool? isDay,
+    double? visibility,
   }) {
     return CurrentWeather(
       temperature: temperature,
@@ -421,7 +484,7 @@ class CurrentWeather {
       pressure: pressure,
       cloudCover: cloudCover,
       isDay: isDay ?? this.isDay,
-      visibility: visibility,
+      visibility: visibility ?? this.visibility,
       uvIndex: uvIndex ?? this.uvIndex,
       rainRate: rainRate,
       dailyRain: dailyRain,
@@ -430,13 +493,13 @@ class CurrentWeather {
   }
 
   factory CurrentWeather.fromJson(Map<String, dynamic> json) {
-    print(
+    logDebug(
         '🌡️ [CurrentWeather.fromJson] Input JSON keys: ${json.keys.toList()}');
-    print(
-        '� [CurrentWeather.fromJson] is_day value: ${json['is_day']} (type: ${json['is_day']?.runtimeType})');
+    logDebug(
+        '[CurrentWeather.fromJson] is_day value: ${json['is_day']} (type: ${json['is_day']?.runtimeType})');
 
     final isDay = _toBool(json['is_day']);
-    print('🌙 [CurrentWeather] Parsed isDay: $isDay');
+    logDebug('🌙 [CurrentWeather] Parsed isDay: $isDay');
 
     return CurrentWeather(
       temperature: _toDouble(json['temperature_2m']),
@@ -623,6 +686,10 @@ class DailyForecast {
   final double apparentTempMax;
   final double apparentTempMin;
 
+  /// Offset of the location this forecast belongs to; needed to render
+  /// sunrise/sunset and to work out which day "today" is there.
+  final int utcOffsetSeconds;
+
   DailyForecast({
     required this.date,
     required this.maxTemp,
@@ -638,34 +705,46 @@ class DailyForecast {
     this.uvIndexMax = 0.0,
     this.apparentTempMax = 0.0,
     this.apparentTempMin = 0.0,
+    this.utcOffsetSeconds = 0,
   });
+
+  /// Sunrise as wall-clock time at the location.
+  DateTime get sunriseLocal =>
+      WeatherData.localFromEpoch(sunrise, utcOffsetSeconds);
+
+  /// Sunset as wall-clock time at the location.
+  DateTime get sunsetLocal =>
+      WeatherData.localFromEpoch(sunset, utcOffsetSeconds);
 
   factory DailyForecast.fromJson(
     Map<String, dynamic> json,
     int index, {
+    int utcOffsetSeconds = 0,
     num? fallbackPrecipProb,
     num? fallbackWindGust,
     num? fallbackWindSpeed,
   }) {
     try {
-      // Parse sunrise - handle both string and int timestamps
+      // Sunrise/sunset arrive as naive local strings ("2026-08-15T06:12").
+      // Store them as true instants so comparisons against DateTime.now() are
+      // valid for any location, and render them via sunriseLocal/sunsetLocal.
       int sunrise = 0;
       if (json['sunrise'] != null) {
         final sunriseVal = json['sunrise'][index];
         if (sunriseVal is String) {
-          // If it's a datetime string like "2025-11-29T06:30"
-          sunrise = DateTime.parse(sunriseVal).millisecondsSinceEpoch ~/ 1000;
+          sunrise =
+              WeatherData.epochSecondsFor(sunriseVal, utcOffsetSeconds) ?? 0;
         } else if (sunriseVal is int) {
           sunrise = sunriseVal;
         }
       }
 
-      // Parse sunset - handle both string and int timestamps
       int sunset = 0;
       if (json['sunset'] != null) {
         final sunsetVal = json['sunset'][index];
         if (sunsetVal is String) {
-          sunset = DateTime.parse(sunsetVal).millisecondsSinceEpoch ~/ 1000;
+          sunset =
+              WeatherData.epochSecondsFor(sunsetVal, utcOffsetSeconds) ?? 0;
         } else if (sunsetVal is int) {
           sunset = sunsetVal;
         }
@@ -720,20 +799,21 @@ class DailyForecast {
             _toDouble(json['apparent_temperature_max']?[index] ?? 0),
         apparentTempMin:
             _toDouble(json['apparent_temperature_min']?[index] ?? 0),
+        utcOffsetSeconds: utcOffsetSeconds,
       );
 
       // Debug output
       if (index == 0) {
-        print(
+        logDebug(
             '🌅 [DailyForecast] Sunrise timestamp: $sunrise (${DateTime.fromMillisecondsSinceEpoch(sunrise * 1000)})');
-        print(
+        logDebug(
             '🌇 [DailyForecast] Sunset timestamp: $sunset (${DateTime.fromMillisecondsSinceEpoch(sunset * 1000)})');
       }
 
       return result;
     } catch (e) {
-      print('❌ Error in DailyForecast.fromJson at index $index: $e');
-      print('   Available keys: ${json.keys.toList()}');
+      logDebug('❌ Error in DailyForecast.fromJson at index $index: $e');
+      logDebug('   Available keys: ${json.keys.toList()}');
       rethrow;
     }
   }
@@ -806,9 +886,16 @@ class DailyForecast {
   }
 
   String get dayName {
-    final now = DateTime.now();
-    if (date.day == now.day && date.month == now.month) return 'Today';
-    if (date.day == now.day + 1 && date.month == now.month) return 'Tomorrow';
+    // Compared as whole days at the forecast's own location. The old check was
+    // `date.day == now.day + 1`, so nothing was ever labelled "Tomorrow" on
+    // the 31st, and it ignored the year entirely.
+    final today = WeatherData.nowAt(utcOffsetSeconds);
+    final diff = DateTime(date.year, date.month, date.day)
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays;
+
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Tomorrow';
 
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return days[date.weekday - 1];

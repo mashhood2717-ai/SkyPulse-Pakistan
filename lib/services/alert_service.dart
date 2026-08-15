@@ -1,53 +1,71 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../utils/log.dart';
+
+/// Raised when the alert service could not be reached.
+///
+/// Kept distinct from an empty result: "no alerts for your area" and "we
+/// couldn't check" look identical to a user otherwise, and the second one
+/// matters during severe weather.
+class AlertServiceUnavailable implements Exception {
+  final String reason;
+  const AlertServiceUnavailable(this.reason);
+
+  @override
+  String toString() => 'AlertServiceUnavailable: $reason';
+}
 
 class AlertService {
-  // Your Cloudflare Worker endpoint
-  static const String _alertApiBase =
-      'https://skypulse-alerts.mashhood2717.workers.dev';
+  /// Override at build time once the worker sits behind a weatherwalay.com
+  /// hostname:
+  ///   flutter build appbundle --dart-define=ALERT_API_BASE=https://alerts.weatherwalay.com
+  static const String _alertApiBase = String.fromEnvironment(
+    'ALERT_API_BASE',
+    defaultValue: 'https://skypulse-alerts.mashhood2717.workers.dev',
+  );
 
-  /// Check alerts for user's current location
+  /// Check alerts for user's current location.
+  ///
+  /// Throws [AlertServiceUnavailable] if the service could not be reached.
   Future<List<Map<String, dynamic>>> checkAlertsForLocation(
     double latitude,
     double longitude,
   ) async {
+    logDebug('🚨 [AlertService] Checking alerts for $latitude, $longitude');
+
+    final url =
+        Uri.parse('$_alertApiBase/alerts/check?lat=$latitude&lon=$longitude');
+
+    late final http.Response response;
     try {
-      print(
-          '🚨 [AlertService] Checking alerts for Lat: $latitude, Lon: $longitude');
-
-      final url =
-          Uri.parse('$_alertApiBase/alerts/check?lat=$latitude&lon=$longitude');
-
-      final response = await http.get(url).timeout(
+      response = await http.get(url).timeout(
             const Duration(seconds: 10),
-            onTimeout: () => throw Exception('Alert API timeout'),
+            onTimeout: () => throw const AlertServiceUnavailable('timeout'),
           );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final alerts = List<Map<String, dynamic>>.from(data['alerts'] ?? []);
-
-        print('✅ [AlertService] Found ${alerts.length} active alerts');
-        for (var alert in alerts) {
-          print('   - ${alert['title']}: ${alert['message']}');
-        }
-
-        return alerts;
-      } else {
-        print(
-            '⚠️ [AlertService] Failed to fetch alerts: ${response.statusCode}');
-        return [];
-      }
+    } on AlertServiceUnavailable {
+      rethrow;
     } catch (e) {
-      print('❌ [AlertService] Error: $e');
-      return []; // Return empty list on error - alerts are optional
+      throw AlertServiceUnavailable(e.toString());
+    }
+
+    if (response.statusCode != 200) {
+      throw AlertServiceUnavailable('HTTP ${response.statusCode}');
+    }
+
+    try {
+      final data = jsonDecode(response.body);
+      final alerts = List<Map<String, dynamic>>.from(data['alerts'] ?? []);
+      logDebug('✅ [AlertService] Found ${alerts.length} active alerts');
+      return alerts;
+    } catch (e) {
+      throw AlertServiceUnavailable('malformed response: $e');
     }
   }
 
   /// Get alert history (last 24 hours)
   Future<List<Map<String, dynamic>>> getAlertHistory() async {
     try {
-      print('📋 [AlertService] Fetching alert history');
+      logDebug('📋 [AlertService] Fetching alert history');
 
       final url = Uri.parse('$_alertApiBase/alerts/history');
 
@@ -60,15 +78,15 @@ class AlertService {
         final data = jsonDecode(response.body);
         final alerts = List<Map<String, dynamic>>.from(data['alerts'] ?? []);
 
-        print('✅ [AlertService] Got ${alerts.length} alerts from history');
+        logDebug('✅ [AlertService] Got ${alerts.length} alerts from history');
         return alerts;
       } else {
-        print(
+        logDebug(
             '⚠️ [AlertService] Failed to fetch history: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('❌ [AlertService] Error: $e');
+      logDebug('❌ [AlertService] Error: $e');
       return [];
     }
   }

@@ -3,6 +3,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../main.dart';
+import 'alert_store.dart';
+import '../utils/log.dart';
 
 // Flutter Local Notifications plugin instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -11,10 +13,32 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 // Background message handler - MUST be top-level
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  print('🔔 [Background] Message received: ${message.notification?.title}');
+  logDebug('🔔 [Background] Message received: ${message.notification?.title}');
 
-  // Show local notification when app is in background/terminated
-  await _showLocalNotification(message);
+  // Record it so the Alerts tab matches the notification tray on next launch.
+  await AlertStore.addPendingPush(_alertFromMessage(message));
+
+  // A message carrying a `notification` block is drawn by the system itself
+  // while the app is backgrounded. Posting our own copy here is what produced
+  // two identical entries in the shade; only data-only messages need us to
+  // render them.
+  if (message.notification == null) {
+    await _showLocalNotification(message);
+  }
+}
+
+/// Flatten an FCM message into the shape the Alerts tab renders.
+Map<String, dynamic> _alertFromMessage(RemoteMessage message) {
+  final data = message.data;
+  return {
+    'messageId': message.messageId ?? data['messageId'] ?? '',
+    'title': message.notification?.title ?? data['title'] ?? 'Weather Alert',
+    'message': message.notification?.body ?? data['message'] ?? '',
+    'description': data['description'] ?? message.notification?.body ?? '',
+    'severity': data['severity'] ?? 'medium',
+    'timestamp': data['timestamp'] ??
+        (message.sentTime ?? DateTime.now()).toIso8601String(),
+  };
 }
 
 /// Show local notification (top-level for background access)
@@ -57,12 +81,12 @@ class PushNotificationService {
   /// Initialize push notifications
   static Future<void> initializePushNotifications() async {
     if (_initialized) {
-      print('⚠️ [PushNotifications] Already initialized');
+      logDebug('⚠️ [PushNotifications] Already initialized');
       return;
     }
 
     try {
-      print('✅ [PushNotifications] Starting initialization...');
+      logDebug('✅ [PushNotifications] Starting initialization...');
 
       // Initialize local notifications FIRST
       await _initializeLocalNotifications();
@@ -80,34 +104,38 @@ class PushNotificationService {
       );
 
       if (settings.authorizationStatus != AuthorizationStatus.authorized) {
-        print('❌ [PushNotifications] Permission denied');
+        logDebug('❌ [PushNotifications] Permission denied');
         _initialized = true;
         return;
       }
-      print('✅ [PushNotifications] Permission granted');
+      logDebug('✅ [PushNotifications] Permission granted');
 
       // Get FCM token
       String? token = await _firebaseMessaging.getToken();
       if (token != null) {
-        print('✅ [PushNotifications] FCM Token obtained');
+        logDebug('✅ [PushNotifications] FCM Token obtained');
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', token);
       }
 
-      // Subscribe to topics
-      await _subscribeToAllTopics();
+      // Global topic only. The city topic is managed by WeatherProvider once a
+      // location is known, so the device holds at most two subscriptions.
+      await subscribeToTopic('all_alerts');
+      await _clearLegacyBroadcastTopics();
 
       // Foreground messages - Show local notification
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        print('📨 [Foreground] ${message.notification?.title}');
+        logDebug('📨 [Foreground] ${message.notification?.title}');
         _messages.add(message);
-        // Show notification even when app is in foreground
+        AlertStore.addPendingPush(_alertFromMessage(message));
+        // The system does NOT auto-display while the app is foregrounded, so
+        // this is the only copy the user sees.
         _showLocalNotification(message);
       });
 
       // Token refresh
       _firebaseMessaging.onTokenRefresh.listen((newToken) {
-        print('🔄 [PushNotifications] Token refreshed');
+        logDebug('🔄 [PushNotifications] Token refreshed');
         SharedPreferences.getInstance().then((prefs) {
           prefs.setString('fcm_token', newToken);
         });
@@ -115,7 +143,7 @@ class PushNotificationService {
 
       // Notification tap - Navigate to alerts tab
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-        print('📩 [Tapped] ${message.notification?.title}');
+        logDebug('📩 [Tapped] ${message.notification?.title}');
         // Navigate to alerts tab when notification is tapped
         _navigateToAlerts();
       });
@@ -123,7 +151,7 @@ class PushNotificationService {
       // App launched from notification - navigate to alerts
       final initialMessage = await _firebaseMessaging.getInitialMessage();
       if (initialMessage != null) {
-        print(
+        logDebug(
             '📩 [App Opened from Notification] ${initialMessage.notification?.title}');
         // Navigate to alerts tab after a short delay (wait for app to build)
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -132,9 +160,9 @@ class PushNotificationService {
       }
 
       _initialized = true;
-      print('✅ [PushNotifications] Initialization complete!');
+      logDebug('✅ [PushNotifications] Initialization complete!');
     } catch (e) {
-      print('❌ [PushNotifications] Error: $e');
+      logDebug('❌ [PushNotifications] Error: $e');
     }
   }
 
@@ -151,7 +179,7 @@ class PushNotificationService {
     await flutterLocalNotificationsPlugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        print('📩 [Local Notification Tapped] ${response.payload}');
+        logDebug('📩 [Local Notification Tapped] ${response.payload}');
         _navigateToAlerts();
       },
     );
@@ -169,54 +197,77 @@ class PushNotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    print('✅ [LocalNotifications] Initialized with channel: weather_alerts');
+    logDebug('✅ [LocalNotifications] Initialized with channel: weather_alerts');
   }
 
   /// Navigate to alerts tab (called when notification is tapped)
   static void _navigateToAlerts() {
     try {
       AppNavigation.navigateToAlerts();
-      print('📩 [PushNotifications] Navigating to Alerts tab');
+      logDebug('📩 [PushNotifications] Navigating to Alerts tab');
     } catch (e) {
-      print('⚠️ [PushNotifications] Could not navigate to alerts: $e');
+      logDebug('⚠️ [PushNotifications] Could not navigate to alerts: $e');
     }
   }
 
-  /// Subscribe to all alert topics
-  static Future<void> _subscribeToAllTopics() async {
-    final topics = [
-      'all_alerts',
-      'islamabad_alerts',
-      'lahore_alerts',
-      'karachi_alerts',
-      'peshawar_alerts',
-      'quetta_alerts',
-      'multan_alerts',
-      'faisalabad_alerts',
-      'rawalpindi_alerts',
-      'hazro_alerts',
-      'mailsi_city_alerts',
-    ];
+  /// City topics every install used to be subscribed to unconditionally, which
+  /// meant a Karachi-only warning was delivered nationwide. Kept here solely so
+  /// existing devices can be unsubscribed once on upgrade.
+  static const List<String> _legacyBroadcastTopics = [
+    'islamabad_alerts',
+    'lahore_alerts',
+    'karachi_alerts',
+    'peshawar_alerts',
+    'quetta_alerts',
+    'multan_alerts',
+    'faisalabad_alerts',
+    'rawalpindi_alerts',
+    'hazro_alerts',
+    'mailsi_city_alerts',
+  ];
 
-    print('📢 [PushNotifications] Subscribing to ${topics.length} topics...');
+  static const String _legacyClearedKey = 'legacy_city_topics_cleared';
+  static const String _cityTopicKey = 'subscribed_city_topic';
 
-    for (String topic in topics) {
+  /// One-shot cleanup for devices upgrading from a build that subscribed to
+  /// every city. Without this they stay subscribed on the FCM server forever.
+  static Future<void> _clearLegacyBroadcastTopics() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_legacyClearedKey) ?? false) return;
+
+    logDebug('🧹 [PushNotifications] Clearing legacy city-wide subscriptions...');
+    for (final topic in _legacyBroadcastTopics) {
       try {
-        await _firebaseMessaging.subscribeToTopic(topic);
-        print('   ✅ $topic');
+        await _firebaseMessaging.unsubscribeFromTopic(topic);
       } catch (e) {
-        print('   ⚠️ Failed: $topic');
+        // A failure here is retried on the next launch: the flag is only set
+        // once the whole sweep has completed.
+        logDebug('   ⚠️ Could not unsubscribe $topic: $e');
+        return;
       }
     }
+    await prefs.setBool(_legacyClearedKey, true);
+    logDebug('   ✅ Legacy topics cleared');
+  }
+
+  /// The city topic this device is currently subscribed to, if any.
+  static Future<String?> getSubscribedCityTopic() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_cityTopicKey);
+  }
+
+  static Future<void> setSubscribedCityTopic(String topic) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_cityTopicKey, topic);
   }
 
   /// Subscribe to topic
   static Future<void> subscribeToTopic(String topic) async {
     try {
       await _firebaseMessaging.subscribeToTopic(topic);
-      print('✅ Subscribed to: $topic');
+      logDebug('✅ Subscribed to: $topic');
     } catch (e) {
-      print('❌ Error subscribing to $topic: $e');
+      logDebug('❌ Error subscribing to $topic: $e');
     }
   }
 
@@ -230,9 +281,9 @@ class PushNotificationService {
   static Future<void> unsubscribeFromTopic(String topic) async {
     try {
       await _firebaseMessaging.unsubscribeFromTopic(topic);
-      print('✅ Unsubscribed from: $topic');
+      logDebug('✅ Unsubscribed from: $topic');
     } catch (e) {
-      print('❌ Error unsubscribing: $e');
+      logDebug('❌ Error unsubscribing: $e');
     }
   }
 

@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:intl/intl.dart';
+import '../models/weather_model.dart';
 import 'dart:ui' as ui;
+import '../utils/theme_utils.dart';
 
 class SunArcWidget extends StatelessWidget {
+  /// True instants (epoch seconds), not device-local wall clocks.
   final int sunrise;
   final int sunset;
+
+  /// Offset of the location being shown, so the printed times read as local
+  /// there rather than on the phone.
+  final int utcOffsetSeconds;
 
   const SunArcWidget({
     Key? key,
     required this.sunrise,
     required this.sunset,
+    this.utcOffsetSeconds = 0,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final sunriseTime = DateTime.fromMillisecondsSinceEpoch(sunrise * 1000);
-    final sunsetTime = DateTime.fromMillisecondsSinceEpoch(sunset * 1000);
+    final sunriseTime = WeatherData.localFromEpoch(sunrise, utcOffsetSeconds);
+    final sunsetTime = WeatherData.localFromEpoch(sunset, utcOffsetSeconds);
 
     // Calculate progress (0 to 1)
     double progress = 0.0;
@@ -40,7 +49,7 @@ class SunArcWidget extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: p.border,
           width: 1.5,
         ),
       ),
@@ -62,10 +71,10 @@ class SunArcWidget extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Sunrise',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: p.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -73,8 +82,8 @@ class SunArcWidget extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         DateFormat.jm().format(sunriseTime),
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: p.text,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -97,10 +106,10 @@ class SunArcWidget extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Sunset',
                         style: TextStyle(
-                          color: Colors.white70,
+                          color: p.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),
@@ -108,8 +117,8 @@ class SunArcWidget extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         DateFormat.jm().format(sunsetTime),
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: p.text,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),

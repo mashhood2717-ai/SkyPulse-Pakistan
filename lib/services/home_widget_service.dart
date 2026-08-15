@@ -1,25 +1,42 @@
 import 'package:home_widget/home_widget.dart';
 import '../models/weather_model.dart';
+import '../utils/log.dart';
 
-/// Service to update the home screen widget with weather data
+/// Service to update the home screen widget with weather data.
 class HomeWidgetService {
-  static const String appGroupId = 'com.mashhood.skypulse';
+  // Must match the applicationId; iOS app groups are prefixed with 'group.'.
+  static const String appGroupId = 'group.com.mashhood.skypulsepk';
   static const String iOSWidgetName = 'WeatherWidget';
   static const String androidWidgetName = 'WeatherWidgetProvider';
 
-  /// Initialize the home widget
+  /// Initialize the home widget.
   static Future<void> initialize() async {
     await HomeWidget.setAppGroupId(appGroupId);
-    print('✅ [HomeWidget] Initialized');
+    logDebug('[HomeWidget] Initialized');
   }
 
-  /// Update widget with weather data
+  /// Update widget with weather data.
   static Future<void> updateWidget({
     required String city,
     required CurrentWeather current,
+    WeatherData? weatherData,
+    int? aqiIndex,
+    String source = 'LIVE WEATHER',
   }) async {
     try {
-      // Save data to SharedPreferences (accessible by native widget)
+      final forecastToday = weatherData?.forecast.isNotEmpty == true
+          ? weatherData!.forecast.first
+          : null;
+      final dailyRain =
+          current.dailyRain ?? forecastToday?.precipitationSum ?? 0.0;
+      final windDirection = current.windSpeed <= 0.4
+          ? 'Calm'
+          : _getWindDirection(current.windDirection);
+      final highLow = forecastToday == null
+          ? '--'
+          : '${forecastToday.maxTemp.round()}/${forecastToday.minTemp.round()}';
+      final aqi = aqiIndex ?? weatherData?.aqiIndex;
+
       await HomeWidget.saveWidgetData<String>('city', city);
       await HomeWidget.saveWidgetData<String>(
         'temperature',
@@ -27,7 +44,7 @@ class HomeWidgetService {
       );
       await HomeWidget.saveWidgetData<String>(
         'condition',
-        _getWeatherCondition(current.weatherCode),
+        current.weatherDescription,
       );
       await HomeWidget.saveWidgetData<String>(
         'humidity',
@@ -37,73 +54,62 @@ class HomeWidgetService {
         'wind',
         '${current.windSpeed.round()} km/h',
       );
+      await HomeWidget.saveWidgetData<String>(
+        'wind_speed',
+        '${current.windSpeed.round()} km/h',
+      );
+      await HomeWidget.saveWidgetData<String>('wind_direction', windDirection);
+      await HomeWidget.saveWidgetData<String>(
+        'feels_like',
+        current.feelsLike.round().toString(),
+      );
+      await HomeWidget.saveWidgetData<String>(
+        'pressure',
+        '${current.pressure.round()} hPa',
+      );
+      await HomeWidget.saveWidgetData<String>(
+        'rain_rate',
+        '${current.rainRate.toStringAsFixed(1)} mm/h',
+      );
+      await HomeWidget.saveWidgetData<String>(
+        'daily_rain',
+        '${dailyRain.toStringAsFixed(1)} mm',
+      );
+      await HomeWidget.saveWidgetData<String>('aqi', aqi?.toString() ?? '--');
+      await HomeWidget.saveWidgetData<String>('high_low', highLow);
+      await HomeWidget.saveWidgetData<String>('source', source);
+      await HomeWidget.saveWidgetData<String>('updated', _updatedLabel());
       await HomeWidget.saveWidgetData<int>('weather_code', current.weatherCode);
       await HomeWidget.saveWidgetData<bool>('is_day', current.isDay);
 
-      // Trigger widget update
       await HomeWidget.updateWidget(
         androidName: androidWidgetName,
         iOSName: iOSWidgetName,
       );
 
-      print('✅ [HomeWidget] Updated: $city ${current.temperature.round()}°C');
+      logDebug(
+        '[HomeWidget] Updated: $city ${current.temperature.round()}C, rain ${dailyRain.toStringAsFixed(1)} mm',
+      );
     } catch (e) {
-      print('❌ [HomeWidget] Error updating widget: $e');
+      logDebug('[HomeWidget] Error updating widget: $e');
     }
   }
 
-  /// Get weather condition text from WMO code
-  static String _getWeatherCondition(int code) {
-    switch (code) {
-      case 0:
-        return 'Clear Sky';
-      case 1:
-        return 'Mainly Clear';
-      case 2:
-        return 'Partly Cloudy';
-      case 3:
-        return 'Overcast';
-      case 45:
-      case 48:
-        return 'Foggy';
-      case 51:
-      case 53:
-      case 55:
-        return 'Drizzle';
-      case 56:
-      case 57:
-        return 'Freezing Drizzle';
-      case 61:
-      case 63:
-      case 65:
-        return 'Rain';
-      case 66:
-      case 67:
-        return 'Freezing Rain';
-      case 71:
-      case 73:
-      case 75:
-        return 'Snow';
-      case 77:
-        return 'Snow Grains';
-      case 80:
-      case 81:
-      case 82:
-        return 'Rain Showers';
-      case 85:
-      case 86:
-        return 'Snow Showers';
-      case 95:
-        return 'Thunderstorm';
-      case 96:
-      case 99:
-        return 'Thunderstorm with Hail';
-      default:
-        return 'Unknown';
-    }
+  static String _getWindDirection(int degrees) {
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    final normalized = degrees % 360;
+    final index = ((normalized + 22.5) / 45).floor() % directions.length;
+    return directions[index];
   }
 
-  /// Check if widget is pinned/added
+  static String _updatedLabel() {
+    final now = DateTime.now();
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
+    return 'Updated $hour:$minute';
+  }
+
+  /// Check if widget is pinned/added.
   static Future<bool> isWidgetPinned() async {
     try {
       final isPinned = await HomeWidget.getInstalledWidgets();
@@ -113,14 +119,14 @@ class HomeWidgetService {
     }
   }
 
-  /// Request to pin widget (Android only)
+  /// Request to pin widget (Android only).
   static Future<void> requestPinWidget() async {
     try {
       await HomeWidget.requestPinWidget(
         androidName: androidWidgetName,
       );
     } catch (e) {
-      print('❌ [HomeWidget] Error requesting pin: $e');
+      logDebug('[HomeWidget] Error requesting pin: $e');
     }
   }
 }

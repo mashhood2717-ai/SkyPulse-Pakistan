@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import '../models/weather_model.dart';
+import '../utils/log.dart';
 
 class MetarData {
   final String icaoCode;
@@ -30,7 +31,7 @@ class MetarData {
 
   /// Parse from Aviation Weather Center JSON format
   factory MetarData.fromJson(Map<String, dynamic> json) {
-    print('📋 Parsing METAR JSON from Aviation Weather API');
+    logDebug('📋 Parsing METAR JSON from Aviation Weather API');
 
     final icao = json['icaoId'] ?? json['icao'] ?? '';
     final raw = json['rawOb'] ?? json['rawText'] ?? '';
@@ -57,12 +58,12 @@ class MetarData {
     final wxString = json['wxString'] as String?;
     final wx = wxString != null && wxString.isNotEmpty ? wxString : 'Clear';
 
-    print('   🌡️ Temp: $temp°C, Dewpoint: $dewp°C');
-    print('   💨 Wind: ${wdir ?? 0}° at ${wspd ?? 0} kt');
-    print('   👁️ Visibility: ${visibKm?.toStringAsFixed(2)} km');
-    print('   ☁️ Cloud Cover: $cover');
-    print('   🌦️ Weather Condition (wxString): $wx');
-    print('   📊 Pressure: $altim hPa');
+    logDebug('   🌡️ Temp: $temp°C, Dewpoint: $dewp°C');
+    logDebug('   💨 Wind: ${wdir ?? 0}° at ${wspd ?? 0} kt');
+    logDebug('   👁️ Visibility: ${visibKm?.toStringAsFixed(2)} km');
+    logDebug('   ☁️ Cloud Cover: $cover');
+    logDebug('   🌦️ Weather Condition (wxString): $wx');
+    logDebug('   📊 Pressure: $altim hPa');
 
     return MetarData(
       icaoCode: icao,
@@ -80,188 +81,22 @@ class MetarData {
     );
   }
 
-  /// Parse from CheckWX JSON format
-  factory MetarData.fromCheckWxJson(Map<String, dynamic> json) {
-    return MetarData(
-      icaoCode: json['icao'] ?? '',
-      rawMetar: json['raw_text'] ?? '',
-      observationTime: _parseObservationTime(json['observed']),
-      temperature: _toDouble(json['temperature']?['celsius']),
-      dewpoint: _toDouble(json['dewpoint']?['celsius']),
-      windDirection: _toInt(json['wind']?['degrees']),
-      windSpeed: _toDouble(json['wind']?['speed_kts']),
-      visibility: _toDouble(json['visibility']?['meters_float']) != null
-          ? _toDouble(json['visibility']?['meters_float'])! / 1000
-          : null,
-      clouds: json['clouds']?.toString(),
-      pressure: _toDouble(json['barometer']?['mb']),
-      weatherCondition: json['conditions']?[0]?['code'] ?? 'Clear',
-    );
-  }
-
-  /// Parse from raw METAR string
-  factory MetarData.fromRawMetar(String rawMetar, String icaoCode) {
-    final parts = rawMetar.split(' ');
-
-    double? temp;
-    double? dewp;
-    int? windDir;
-    double? windSpd;
-    double? pressure;
-    double? visibility;
-    String clouds = 'CLR';
-    String condition = 'Clear';
-
-    for (int i = 0; i < parts.length; i++) {
-      final part = parts[i];
-
-      // Temperature and Dewpoint (e.g., 15/08 or M05/M08)
-      if (part.contains('/') && part.length <= 6) {
-        final temps = part.split('/');
-        if (temps.length == 2) {
-          temp = _parseTemp(temps[0]);
-          dewp = _parseTemp(temps[1]);
-        }
-      }
-
-      // Wind (e.g., 27015KT or VRB05KT)
-      if (part.endsWith('KT') && part.length >= 5) {
-        final windStr = part.replaceAll('KT', '');
-        if (!windStr.startsWith('VRB')) {
-          if (windStr.length >= 5) {
-            windDir = int.tryParse(windStr.substring(0, 3));
-            windSpd = double.tryParse(windStr.substring(3));
-          }
-        } else {
-          // Variable wind
-          windDir = 0;
-          windSpd = double.tryParse(windStr.substring(3));
-        }
-      }
-
-      // Altimeter/Pressure (e.g., Q1013 or A2992)
-      if (part.startsWith('Q') && part.length == 5) {
-        pressure = double.tryParse(part.substring(1));
-      } else if (part.startsWith('A') && part.length == 5) {
-        final inHg = double.tryParse(part.substring(1));
-        if (inHg != null) {
-          pressure = (inHg / 100) * 33.8639;
-        }
-      }
-
-      // Visibility (e.g., 9999 or 4000)
-      if (part.length == 4 && int.tryParse(part) != null) {
-        final visMeters = int.tryParse(part);
-        if (visMeters != null) {
-          visibility = visMeters / 1000.0; // Convert to km
-        }
-      }
-
-      // Cloud coverage (e.g., FEW020, SCT040, BKN100, OVC200, NSC)
-      if (part == 'NSC' || part == 'SKC' || part == 'CLR') {
-        clouds = 'CLR';
-      } else if (part.startsWith('FEW')) {
-        clouds = 'FEW';
-      } else if (part.startsWith('SCT')) {
-        clouds = 'SCT';
-      } else if (part.startsWith('BKN')) {
-        clouds = 'BKN';
-      } else if (part.startsWith('OVC')) {
-        clouds = 'OVC';
-      }
-
-      // Weather phenomena (wxString equivalents)
-      // Descriptors (can precede weather)
-      if (part == 'VC') condition = 'VC'; // Vicinity
-      if (part == 'MI') condition = 'MI'; // Shallow
-      if (part == 'PR') condition = 'PR'; // Partial
-      if (part == 'BC') condition = 'BC'; // Patches
-      if (part == 'DR') condition = 'DR'; // Low Drifting
-      if (part == 'BL') condition = 'BL'; // Blowing
-      if (part == 'FZ') condition = 'FZ'; // Freezing
-
-      // Precipitation
-      if (part == 'RA' || part == '-RA' || part == '+RA') {
-        condition = 'RA'; // Rain
-      }
-      if (part == 'DZ' || part == '-DZ' || part == '+DZ') {
-        condition = 'DZ'; // Drizzle
-      }
-      if (part == 'SN' || part == '-SN' || part == '+SN') {
-        condition = 'SN'; // Snow
-      }
-      if (part == 'SG') condition = 'SG'; // Snow Grains
-      if (part == 'IC') condition = 'IC'; // Ice Crystals
-      if (part == 'PL') condition = 'PL'; // Ice Pellets/Sleet
-      if (part == 'GR') condition = 'GR'; // Hail
-      if (part == 'GS') condition = 'GS'; // Small Hail and/or Snow Pellets
-      if (part == 'UP') condition = 'UP'; // Unknown Precipitation
-
-      // Shower/Storm
-      if (part == 'SHRA') condition = 'SHRA'; // Rain Showers
-      if (part == 'SHSN') condition = 'SHSN'; // Snow Showers
-      if (part == 'SHGS') condition = 'SHGS'; // Hail Showers
-      if (part == 'SHPL') condition = 'SHPL'; // Ice Pellet Showers
-      if (part == 'SHIC') condition = 'SHIC'; // Ice Crystal Showers
-      if (part == 'TS' || part == 'THUNDERSTORM') {
-        condition = 'TS'; // Thunderstorm
-      }
-      if (part == 'TSRA') condition = 'TSRA'; // Thunderstorm with Rain
-      if (part == 'TSGR') condition = 'TSGR'; // Thunderstorm with Hail
-      if (part == 'TSSN') condition = 'TSSN'; // Thunderstorm with Snow
-      if (part == 'TSPL') condition = 'TSPL'; // Thunderstorm with Ice Pellets
-      if (part == 'RASN') condition = 'RASN'; // Rain and Snow
-
-      // Obscuration (Visibility Reduction)
-      if (part == 'BR' || part == 'MIST') condition = 'BR'; // Mist
-      if (part == 'FG' || part == 'FOG') condition = 'FG'; // Fog
-      if (part == 'FU' || part == 'SMOKE') condition = 'FU'; // Smoke
-      if (part == 'VA') condition = 'VA'; // Volcanic Ash
-      if (part == 'DU') condition = 'DU'; // Widespread Dust
-      if (part == 'SA') condition = 'SA'; // Sand
-      if (part == 'HZ' || part == 'HAZE') condition = 'HZ'; // Haze
-      if (part == 'PY') condition = 'PY'; // Spray
-
-      // Other phenomena
-      if (part == 'PO') condition = 'PO'; // Well-Developed Dust/Sand Whirls
-      if (part == 'SQ') condition = 'SQ'; // Squalls
-      if (part == 'FC') condition = 'FC'; // Funnel Cloud / Tornado
-      if (part == '+FC') condition = 'FC'; // Tornado (with intensity)
-      if (part == 'SS') condition = 'SS'; // Sandstorm
-      if (part == 'DS') condition = 'DS'; // Duststorm
-    }
-
-    return MetarData(
-      icaoCode: icaoCode,
-      rawMetar: rawMetar,
-      observationTime: DateTime.now(),
-      temperature: temp,
-      dewpoint: dewp,
-      windDirection: windDir,
-      windSpeed: windSpd,
-      visibility: visibility,
-      clouds: clouds,
-      pressure: pressure,
-      weatherCondition: condition,
-    );
-  }
-
   /// Convert METAR data to CurrentWeather model
   /// Now accepts sunrise/sunset times from API to determine day/night correctly
   CurrentWeather toCurrentWeather({int? sunrise, int? sunset}) {
     final weatherCode = _getWeatherCode();
     final isDay = _isDayAtLocation(sunrise, sunset);
 
-    print('🔄 Converting METAR to CurrentWeather:');
-    print('   Temperature: ${temperature ?? 20.0}°C');
-    print('   Dewpoint: ${dewpoint ?? 15.0}°C');
-    print(
+    logDebug('🔄 Converting METAR to CurrentWeather:');
+    logDebug('   Temperature: ${temperature ?? 20.0}°C');
+    logDebug('   Dewpoint: ${dewpoint ?? 15.0}°C');
+    logDebug(
         '   Wind Speed: ${(windSpeed ?? 0) * 1.852} km/h (from ${windSpeed ?? 0} kt)');
-    print('   Wind Direction: ${windDirection ?? 0}°');
-    print('   Weather Code: $weatherCode');
-    print('   Visibility: ${visibility ?? 10.0} km');
-    print('   Pressure: ${pressure ?? 1013} hPa');
-    print(
+    logDebug('   Wind Direction: ${windDirection ?? 0}°');
+    logDebug('   Weather Code: $weatherCode');
+    logDebug('   Visibility: ${visibility ?? 10.0} km');
+    logDebug('   Pressure: ${pressure ?? 1013} hPa');
+    logDebug(
         '   Is Day: $isDay (sunrise: ${sunrise != null ? DateTime.fromMillisecondsSinceEpoch(sunrise * 1000) : "N/A"}, sunset: ${sunset != null ? DateTime.fromMillisecondsSinceEpoch(sunset * 1000) : "N/A"})');
 
     return CurrentWeather(
@@ -534,14 +369,5 @@ class MetarData {
     if (value is double) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
-  }
-
-  static double? _parseTemp(String tempStr) {
-    // Handle negative temps (e.g., M05 = -5)
-    if (tempStr.startsWith('M')) {
-      final temp = double.tryParse(tempStr.substring(1));
-      return temp != null ? -temp : null;
-    }
-    return double.tryParse(tempStr);
   }
 }

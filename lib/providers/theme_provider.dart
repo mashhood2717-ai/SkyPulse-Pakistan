@@ -3,32 +3,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider extends ChangeNotifier {
   bool _isDarkMode = true;
-  late SharedPreferences _prefs;
+  SharedPreferences? _prefs;
+
+  /// Completes once preferences have loaded; setters await it rather than
+  /// writing to a `late` field that may not be assigned yet.
+  late final Future<void> _ready = _initPreferences();
 
   bool get isDarkMode => _isDarkMode;
 
   ThemeProvider() {
-    _initPreferences();
+    _ready;
   }
 
   Future<void> _initPreferences() async {
-    _prefs = await SharedPreferences.getInstance();
-    _isDarkMode = _prefs.getBool('isDarkMode') ?? true;
+    final prefs = await SharedPreferences.getInstance();
+    _prefs = prefs;
+    _isDarkMode = prefs.getBool('isDarkMode') ?? true;
     notifyListeners();
   }
 
-  Future<void> toggleTheme() async {
-    _isDarkMode = !_isDarkMode;
-    await _prefs.setBool('isDarkMode', _isDarkMode);
-    notifyListeners();
-  }
+  Future<void> toggleTheme() => setDarkMode(!_isDarkMode);
 
   Future<void> setDarkMode(bool isDark) async {
-    if (_isDarkMode != isDark) {
-      _isDarkMode = isDark;
-      await _prefs.setBool('isDarkMode', _isDarkMode);
-      notifyListeners();
-    }
+    if (_isDarkMode == isDark) return;
+    _isDarkMode = isDark;
+    notifyListeners();
+
+    await _ready;
+    await _prefs?.setBool('isDarkMode', _isDarkMode);
   }
 
   ThemeData getTheme() {

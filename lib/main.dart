@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'providers/weather_provider.dart';
@@ -13,6 +13,9 @@ import 'screens/favorites_screen.dart';
 import 'screens/alerts_screen.dart';
 import 'services/push_notification_service.dart';
 import 'services/home_widget_service.dart';
+import 'services/widget_refresh_service.dart';
+import 'utils/log.dart';
+import 'utils/theme_utils.dart';
 
 /// Global navigation helper for external access (e.g., from push notifications)
 class AppNavigation {
@@ -32,10 +35,10 @@ class AppNavigation {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  print('🚀 Initializing Skypulse...');
+  logDebug('🚀 Initializing Skypulse...');
 
   // Initialize Firebase FIRST (before push notifications)
-  print('🔥 Initializing Firebase...');
+  logDebug('🔥 Initializing Firebase...');
   final firebaseInit = Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   ).timeout(
@@ -43,31 +46,25 @@ void main() async {
   );
 
   // Initialize home screen widget
-  print('📱 Initializing home widget...');
-  HomeWidgetService.initialize();
+  logDebug('📱 Initializing home widget...');
+  if (!kIsWeb) {
+    await HomeWidgetService.initialize();
+    // Keeps the home-screen widget current while the app is closed.
+    await WidgetRefreshService.initialize();
+  }
 
   // Wait for Firebase first (critical)
   try {
     await firebaseInit;
-    print('✅ Firebase initialized successfully!');
+    logDebug('✅ Firebase initialized successfully!');
   } catch (e) {
-    print('⚠️ Firebase init issue (app will continue)');
+    logDebug('⚠️ Firebase init issue (app will continue)');
   }
 
-  // Request permissions BEFORE starting UI
-  print('📱 Requesting notification permission...');
-  await Permission.notification.request();
-
-  print('📍 Requesting location permissions...');
-  await Permission.location.request();
-  await Permission.locationAlways.request();
-
-  // Initialize push notifications
-  print('🔔 Initializing push notifications...');
-  await PushNotificationService.initializePushNotifications();
-
-  // Then run UI with all permissions already requested
-  print('✅ Starting app...');
+  // Permission prompts and push registration deliberately happen *after* the
+  // first frame (see _HomePageState.initState). Awaiting them here meant the
+  // user stared at a blank window through up to three system dialogs.
+  logDebug('✅ Starting app...');
   runApp(const MyApp());
 }
 
@@ -109,7 +106,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 1; // Start with Weather (home screen)
+  static const int _alertsTab = 0;
+  static const int _weatherTab = 1;
+  static const int _favoritesTab = 2;
+
+  int _selectedIndex = _weatherTab; // Start with Weather (home screen)
+
+  /// Tabs the user has actually opened. IndexedStack builds every child
+  /// eagerly, which used to run FavoritesScreen's per-city geocode + forecast
+  /// fan-out at launch, before anything was on screen.
+  final Set<int> _builtTabs = {_weatherTab};
 
   @override
   void initState() {
@@ -118,88 +124,74 @@ class _HomePageState extends State<HomePage> {
     // Register navigation callback for push notifications
     AppNavigation.registerNavigateToAlerts(_goToAlertsTab);
 
-    // Fetch weather on app start (urgent, high priority)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = Provider.of<WeatherProvider>(context, listen: false);
-      // Fetch weather ONLY - will show loading spinner
-      provider.fetchWeatherByLocation();
+      // Single owner of the launch fetch. It already schedules alerts and topic
+      // subscription itself via _doBackgroundTasks, so nothing else needs to
+      // trigger a refresh here. Geolocator raises the location prompt from
+      // inside this call, so permission_handler is not asked separately.
+      Provider.of<WeatherProvider>(context, listen: false)
+          .fetchWeatherByLocation();
 
-      // Then do background tasks after weather is loaded
-      provider.weatherData != null
-          ? _startBackgroundTasks(provider)
-          : Future.delayed(const Duration(milliseconds: 500), () {
-              if (provider.weatherData != null) {
-                _startBackgroundTasks(provider);
-              }
-            });
-    });
-  }
-
-  /// Start background tasks after weather is loaded
-  void _startBackgroundTasks(WeatherProvider provider) {
-    // Fetch alerts in background
-    Future.delayed(const Duration(milliseconds: 300), () async {
-      try {
-        // This will update alerts without blocking UI
-        await provider.refresh();
-      } catch (e) {
-        print('Background task error: $e');
+      if (!kIsWeb) {
+        // FirebaseMessaging.requestPermission() covers POST_NOTIFICATIONS on
+        // Android 13+. ACCESS_BACKGROUND_LOCATION is deliberately never
+        // requested: it is not declared in the manifest, so the old
+        // Permission.locationAlways call could only ever fail, and asking for
+        // it at all triggers a Play policy review the app does not need.
+        PushNotificationService.initializePushNotifications();
       }
     });
   }
 
-  void _goToAlertsTab() {
+  void _selectTab(int index) {
     setState(() {
-      _selectedIndex = 0; // Alerts tab
+      _selectedIndex = index;
+      _builtTabs.add(index);
     });
   }
 
-  void switchToWeatherTab() {
-    setState(() {
-      _selectedIndex = 1;
-    });
+  void _goToAlertsTab() {
+    _selectTab(_alertsTab);
   }
 
   void switchToWeatherTabWithFavorite(String cityName) {
-    setState(() {
-      _selectedIndex = 1;
-    });
+    _selectTab(_weatherTab);
     // Call after frame to ensure HomeScreen is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       HomeScreen.goToFavorite(cityName);
     });
   }
 
-  void goToHome() {
-    // Navigate to weather tab and trigger going to first page
-    setState(() {
-      _selectedIndex = 1;
-    });
-    // Call after frame to ensure HomeScreen is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      HomeScreen.goToHome();
-    });
+  Widget _buildTab(int index) {
+    if (!_builtTabs.contains(index)) return const SizedBox.shrink();
+
+    switch (index) {
+      case _alertsTab:
+        return const AlertsScreen();
+      case _favoritesTab:
+        return _FavoritesScreenWrapper(
+          onFavoriteSelected: switchToWeatherTabWithFavorite,
+        );
+      default:
+        return const HomeScreen();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
+
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: [
-          const AlertsScreen(), // Index 0 - Alerts
-          const HomeScreen(), // Index 1 - Weather/Home
-          _FavoritesScreenWrapper(
-            onFavoriteSelected: switchToWeatherTabWithFavorite,
-          ), // Index 2 - Favorites (was 3)
-        ],
+        children: List.generate(3, _buildTab),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1F3A).withOpacity(0.7), // Transparent
+          color: p.surface.withOpacity(p.isLight ? 0.92 : 0.7),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withOpacity(p.isLight ? 0.08 : 0.3),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -209,31 +201,24 @@ class _HomePageState extends State<HomePage> {
           builder: (context, weatherProvider, _) {
             final unreadCount = weatherProvider.unreadAlertCount;
 
+            // One item per IndexedStack child. The bar used to carry a fourth
+            // "Home" item that mapped onto the Weather screen, so Home could
+            // never render as selected; "back to my location" now lives on the
+            // Weather screen's app bar, next to search. `type` is pinned to
+            // fixed because BottomNavigationBar silently switches to shifting
+            // at four or more items, which hides the unselected labels.
             return BottomNavigationBar(
-              currentIndex:
-                  _selectedIndex + 1, // Adjust for Home button (add 1)
+              currentIndex: _selectedIndex,
+              type: BottomNavigationBarType.fixed,
               backgroundColor: Colors.transparent,
               elevation: 0,
-              selectedItemColor: const Color(0xFF667EEA),
-              unselectedItemColor: Colors.white54,
+              selectedItemColor: WeatherTheme.accent,
+              unselectedItemColor: p.textMuted,
               onTap: (index) {
                 FocusManager.instance.primaryFocus?.unfocus();
-
-                if (index == 0) {
-                  // Home button - navigate to home and go to first page
-                  goToHome();
-                } else {
-                  // Adjust tab index: remove Home (0) and map to IndexedStack
-                  setState(() {
-                    _selectedIndex = index - 1;
-                  });
-                }
+                _selectTab(index);
               },
               items: [
-                const BottomNavigationBarItem(
-                  icon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
                 BottomNavigationBarItem(
                   icon: Stack(
                     clipBehavior: Clip.none,

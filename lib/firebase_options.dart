@@ -58,6 +58,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1062690430472',
     projectId: 'skypulse-pakistan',
     storageBucket: 'skypulse-pakistan.firebasestorage.app',
-    iosBundleId: 'com.mashhood.skypulse',
+    iosBundleId: 'com.mashhood.skypulsepk',
   );
 }

@@ -4,6 +4,7 @@ import '../models/weather_model.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import 'weather_lottie_icon.dart';
+import '../utils/theme_utils.dart';
 
 class ForecastCard extends StatelessWidget {
   final DailyForecast forecast;
@@ -27,11 +28,12 @@ class ForecastCard extends StatelessWidget {
   }
 
   Widget _buildDetailSheet(BuildContext context) {
+    final p = AppPalette.of(context);
     final settings = Provider.of<SettingsProvider>(context);
     final sunriseTime =
-        DateTime.fromMillisecondsSinceEpoch(forecast.sunrise * 1000);
+        forecast.sunriseLocal;
     final sunsetTime =
-        DateTime.fromMillisecondsSinceEpoch(forecast.sunset * 1000);
+        forecast.sunsetLocal;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.65,
@@ -46,7 +48,7 @@ class ForecastCard extends StatelessWidget {
         ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: p.border,
           width: 1,
         ),
       ),
@@ -89,8 +91,8 @@ class ForecastCard extends StatelessWidget {
                         children: [
                           Text(
                             forecast.dayName,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: p.text,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
                             ),
@@ -98,7 +100,7 @@ class ForecastCard extends StatelessWidget {
                           Text(
                             '${forecast.date.day}/${forecast.date.month}/${forecast.date.year}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: p.textSecondary,
                               fontSize: 14,
                             ),
                           ),
@@ -106,7 +108,7 @@ class ForecastCard extends StatelessWidget {
                           Text(
                             forecast.weatherDescription,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
+                              color: p.textSecondary,
                               fontSize: 16,
                             ),
                           ),
@@ -118,8 +120,8 @@ class ForecastCard extends StatelessWidget {
                       children: [
                         Text(
                           settings.getTempString(forecast.maxTemp),
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: p.text,
                             fontSize: 36,
                             fontWeight: FontWeight.bold,
                           ),
@@ -127,7 +129,7 @@ class ForecastCard extends StatelessWidget {
                         Text(
                           settings.getTempString(forecast.minTemp),
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: p.textMuted,
                             fontSize: 20,
                           ),
                         ),
@@ -150,6 +152,7 @@ class ForecastCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.thermostat_outlined,
                               label: 'Feels Like High',
                               value: settings
@@ -160,6 +163,7 @@ class ForecastCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.thermostat_outlined,
                               label: 'Feels Like Low',
                               value: settings
@@ -176,6 +180,7 @@ class ForecastCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.air,
                               label: 'Max Wind',
                               value: settings
@@ -186,6 +191,7 @@ class ForecastCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.storm,
                               label: 'Wind Gust',
                               value: settings
@@ -202,6 +208,7 @@ class ForecastCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.explore,
                               label: 'Wind Direction',
                               value: _getWindDirection(forecast.windDirection),
@@ -211,6 +218,7 @@ class ForecastCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.wb_sunny_outlined,
                               label: 'UV Index',
                               value: forecast.uvIndexMax.toStringAsFixed(1),
@@ -226,6 +234,7 @@ class ForecastCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.water_drop,
                               label: 'Rain Chance',
                               value: '${forecast.precipitationProbability}%',
@@ -235,6 +244,7 @@ class ForecastCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.grain,
                               label: 'Precipitation',
                               value:
@@ -251,6 +261,7 @@ class ForecastCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.wb_twilight,
                               label: 'Sunrise',
                               value:
@@ -261,6 +272,7 @@ class ForecastCard extends StatelessWidget {
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildDetailTile(
+                              p: p,
                               icon: Icons.nightlight_round,
                               label: 'Sunset',
                               value:
@@ -282,6 +294,7 @@ class ForecastCard extends StatelessWidget {
   }
 
   Widget _buildDetailTile({
+    required AppPalette p,
     required IconData icon,
     required String label,
     required String value,
@@ -308,7 +321,7 @@ class ForecastCard extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: p.textSecondary,
                     fontSize: 11,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -319,8 +332,8 @@ class ForecastCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: p.text,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -346,6 +359,7 @@ class ForecastCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final settings = Provider.of<SettingsProvider>(context);
 
     return GestureDetector(
@@ -364,7 +378,7 @@ class ForecastCard extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: Colors.white.withOpacity(0.2),
+            color: p.border,
             width: 1,
           ),
         ),
@@ -375,8 +389,8 @@ class ForecastCard extends StatelessWidget {
               width: 70,
               child: Text(
                 forecast.dayName,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: p.text,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -417,8 +431,8 @@ class ForecastCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${forecast.precipitationProbability}%',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: p.text,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -468,8 +482,8 @@ class ForecastCard extends StatelessWidget {
                 // Max temp
                 Text(
                   settings.getTempString(forecast.maxTemp),
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: p.text,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),

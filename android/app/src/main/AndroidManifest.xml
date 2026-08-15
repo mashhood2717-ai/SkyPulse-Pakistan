@@ -14,27 +14,17 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false">
         
-        <!-- Google Maps API Key - Restrict to Android apps only in Google Cloud Console -->
-        <!-- For production, create a restricted API key in Google Cloud Console -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyCPwVis-FxNbbd367k-WPgFTPj_6_I4T3Q" />
-        
-        
         <!-- Default Firebase Notification Channel -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="weather_alerts" />
-        
-        <!-- Firebase FCM Service -->
-        <service
-            android:name="com.google.firebase.messaging.FirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-            
+
+        <!-- No FirebaseMessagingService declared here on purpose: the
+             firebase_messaging plugin merges in its own. Declaring the SDK base
+             class as a second MESSAGING_EVENT handler makes it unpredictable
+             which one receives the message, and the base class does not
+             forward to the Dart background handler. -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

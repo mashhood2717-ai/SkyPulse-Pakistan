@@ -9,6 +9,7 @@ import '../services/weather_service.dart';
 import '../models/weather_model.dart';
 import '../widgets/skeleton_loader.dart';
 import '../utils/theme_utils.dart';
+import '../utils/log.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final Function(String)? onLocationSelected;
@@ -59,7 +60,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   /// Called when FavoritesService notifies changes
   void _onFavoritesChanged() {
     if (mounted) {
-      print('🔔 [FavoritesScreen] Favorites changed, reloading...');
+      logDebug('🔔 [FavoritesScreen] Favorites changed, reloading...');
       _loadFavoritesWithWeather();
     }
   }
@@ -100,9 +101,13 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
     _animationController.forward();
 
-    // Load weather for each favorite in background (non-blocking)
-    for (var favorite in favorites) {
-      Future.microtask(() => _loadWeatherForCity(favorite['city'] as String));
+    // Only fetch cities we have not already loaded. This method also runs on
+    // every FavoritesService notification, so adding one city used to re-issue
+    // a geocode + forecast request for every existing favourite.
+    for (final favorite in favorites) {
+      final city = favorite['city'] as String;
+      if (_weatherCache.containsKey(city)) continue;
+      Future.microtask(() => _loadWeatherForCity(city));
     }
   }
 
@@ -124,7 +129,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
         );
       }
     } catch (e) {
-      print('Error loading weather for $cityName: $e');
+      logDebug('Error loading weather for $cityName: $e');
     }
   }
 
@@ -167,21 +172,24 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   }
 
   Future<void> _reorderFavorites(int oldIndex, int newIndex) async {
+    // Reordering is disabled while filtering (see _buildFavoritesList), so the
+    // visible list is always the full list here. Previously a drag during a
+    // search reordered the filtered copy and then saved the untouched full
+    // list, so the new order was silently thrown away.
     setState(() {
       if (newIndex > oldIndex) {
         newIndex -= 1;
       }
       final item = _filteredFavorites.removeAt(oldIndex);
       _filteredFavorites.insert(newIndex, item);
-
-      if (_searchController.text.isEmpty) {
-        _favorites = List.from(_filteredFavorites);
-      }
+      _favorites = List.from(_filteredFavorites);
     });
 
     final favoritesService = context.read<FavoritesService>();
     await favoritesService.reorderFavorites(_favorites);
   }
+
+  bool get _isFiltering => _searchController.text.trim().isNotEmpty;
 
   Future<void> _selectLocation(String city) async {
     // Show loading indicator
@@ -191,7 +199,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       final provider = context.read<WeatherProvider>();
 
       // Always fetch fresh data when selecting a favorite
-      print('🔄 [FavoritesScreen] Fetching fresh data for $city');
+      logDebug('🔄 [FavoritesScreen] Fetching fresh data for $city');
       await provider.fetchWeatherByCity(city);
 
       // Navigate to favorite card AFTER data is loaded
@@ -204,6 +212,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     }
   }
 
+  /// Theme-aware colours for the weather surfaces.
+  AppPalette get p => AppPalette.of(context);
+
   @override
   Widget build(BuildContext context) {
     final weatherProvider = Provider.of<WeatherProvider>(context);
@@ -212,7 +223,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: WeatherTheme.getBackgroundGradient(isDay),
+          gradient: WeatherTheme.getBackgroundGradient(isDay, isLight: p.isLight),
         ),
         child: SafeArea(
           child: Column(
@@ -262,10 +273,10 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Favorite Locations',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: p.text,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                           ),
@@ -274,7 +285,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                           Text(
                             '${_favorites.length} saved location${_favorites.length != 1 ? 's' : ''}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: p.textSecondary,
                               fontSize: 14,
                             ),
                           ),
@@ -333,12 +344,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: p.border,
                   width: 1,
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: Colors.white, size: 22),
+              child: Icon(icon, color: p.text, size: 22),
             ),
           ),
         ),
@@ -356,7 +367,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: Colors.white.withOpacity(0.2),
+              color: p.border,
               width: 1,
             ),
           ),
@@ -373,7 +384,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               ),
               prefixIcon: Icon(
                 Icons.search_rounded,
-                color: Colors.white.withOpacity(0.5),
+                color: p.textMuted,
               ),
             ),
           ),
@@ -403,7 +414,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.2),
+                  color: p.border,
                   width: 1.5,
                 ),
               ),
@@ -416,17 +427,17 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                       color: Colors.white.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.favorite_border_rounded,
                       size: 60,
-                      color: Colors.white70,
+                      color: p.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'No favorites yet',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: p.text,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -436,7 +447,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                     'Add cities to your favorites\nfrom the home screen',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: p.textSecondary,
                       fontSize: 16,
                       height: 1.5,
                     ),
@@ -454,6 +465,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     return ReorderableListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       itemCount: _filteredFavorites.length,
+      // Dragging within a filtered subset has no well-defined meaning against
+      // the full list, so the handle is inert while searching.
+      buildDefaultDragHandles: !_isFiltering,
       onReorder: _reorderFavorites,
       proxyDecorator: (child, index, animation) {
         return ScaleTransition(
@@ -518,7 +532,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.25),
+                color: p.border,
                 width: 1.5,
               ),
               boxShadow: [
@@ -551,7 +565,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                             ),
                             child: Icon(
                               Icons.drag_indicator_rounded,
-                              color: Colors.white.withOpacity(0.5),
+                              color: p.textMuted,
                               size: 20,
                             ),
                           ),
@@ -564,8 +578,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                               children: [
                                 Text(
                                   cityName,
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: p.text,
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -575,7 +589,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                                   Text(
                                     countryCode,
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.6),
+                                      color: p.textMuted,
                                       fontSize: 13,
                                     ),
                                   ),
@@ -646,8 +660,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               children: [
                 Text(
                   '${weather.temperature.round()}°C',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: p.text,
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
                   ),
@@ -655,7 +669,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 Text(
                   weather.weatherDescription,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: p.textSecondary,
                     fontSize: 12,
                   ),
                   maxLines: 1,
@@ -664,7 +678,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 Text(
                   'Feels ${feelsLike.round()}°C',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.5),
+                    color: p.textMuted,
                     fontSize: 10,
                   ),
                 ),
@@ -684,7 +698,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   const SizedBox(width: 3),
                   Text('${weather.humidity.round()}%',
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                          color: p.text, fontSize: 11)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -696,7 +710,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   const SizedBox(width: 3),
                   Text('${weather.windSpeed.round()} km/h',
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                          color: p.text, fontSize: 11)),
                 ],
               ),
               const SizedBox(height: 4),
@@ -708,7 +722,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   const SizedBox(width: 3),
                   Text('${weather.pressure.round()}hPa',
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.9), fontSize: 11)),
+                          color: p.text, fontSize: 11)),
                 ],
               ),
             ],
@@ -770,7 +784,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       builder: (context) => BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: AlertDialog(
-          backgroundColor: const Color(0xFF2a2a4a),
+          backgroundColor: p.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

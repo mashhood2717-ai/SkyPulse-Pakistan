@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/weather_model.dart';
 import '../providers/settings_provider.dart';
 import '../providers/weather_provider.dart';
+import '../utils/theme_utils.dart';
 
 class WeatherDetails extends StatelessWidget {
   final CurrentWeather current;
@@ -15,6 +16,7 @@ class WeatherDetails extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = AppPalette.of(context);
     final provider = Provider.of<WeatherProvider>(context, listen: false);
     final settings = Provider.of<SettingsProvider>(context);
     final windDirection = provider.usingCompanyStation
@@ -22,6 +24,7 @@ class WeatherDetails extends StatelessWidget {
         : provider.metarData?.windDirection?.toDouble() ??
             current.windDirection.toDouble();
     final tiles = _buildTiles(
+      p: p,
       settings: settings,
       windDirection: windDirection,
       showStationRain: provider.usingCompanyStation,
@@ -30,12 +33,12 @@ class WeatherDetails extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(left: 4, bottom: 12),
           child: Text(
             'Current Conditions',
             style: TextStyle(
-              color: Colors.white,
+              color: p.text,
               fontSize: 20,
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
@@ -59,13 +62,15 @@ class WeatherDetails extends StatelessWidget {
   }
 
   List<Widget> _buildTiles({
+    required AppPalette p,
     required SettingsProvider settings,
     required double windDirection,
     required bool showStationRain,
   }) {
     return [
-      _buildWindTile(windDirection, settings),
+      _buildWindTile(p, windDirection, settings),
       _buildDetailTile(
+        p: p,
         icon: Icons.water_drop_rounded,
         iconColor: const Color(0xFF4FC3F7),
         label: 'Humidity',
@@ -73,6 +78,7 @@ class WeatherDetails extends StatelessWidget {
         backgroundColor: const Color(0xFF4FC3F7).withOpacity(0.1),
       ),
       _buildDetailTile(
+        p: p,
         icon: Icons.thermostat_rounded,
         iconColor: const Color(0xFF81C784),
         label: 'Dew Point',
@@ -80,6 +86,7 @@ class WeatherDetails extends StatelessWidget {
         backgroundColor: const Color(0xFF81C784).withOpacity(0.1),
       ),
       _buildDetailTile(
+        p: p,
         icon: Icons.air_rounded,
         iconColor: const Color(0xFF64B5F6),
         label: 'Wind Gust',
@@ -87,6 +94,7 @@ class WeatherDetails extends StatelessWidget {
         backgroundColor: const Color(0xFF64B5F6).withOpacity(0.1),
       ),
       _buildDetailTile(
+        p: p,
         icon: Icons.wb_sunny_rounded,
         iconColor: _getUVColor(current.uvIndex),
         label: 'UV Index',
@@ -95,6 +103,7 @@ class WeatherDetails extends StatelessWidget {
         backgroundColor: _getUVColor(current.uvIndex).withOpacity(0.1),
       ),
       _buildDetailTile(
+        p: p,
         icon: Icons.visibility_rounded,
         iconColor: const Color(0xFF9C27B0),
         label: 'Visibility',
@@ -104,6 +113,7 @@ class WeatherDetails extends StatelessWidget {
         backgroundColor: const Color(0xFF9C27B0).withOpacity(0.1),
       ),
       _buildDetailTile(
+        p: p,
         icon: Icons.compress_rounded,
         iconColor: const Color(0xFFFF7043),
         label: 'Pressure',
@@ -112,6 +122,7 @@ class WeatherDetails extends StatelessWidget {
         backgroundColor: const Color(0xFFFF7043).withOpacity(0.1),
       ),
       _buildDetailTile(
+        p: p,
         icon: Icons.cloud_rounded,
         iconColor: const Color(0xFF78909C),
         label: 'Cloud Cover',
@@ -120,6 +131,7 @@ class WeatherDetails extends StatelessWidget {
       ),
       if (showStationRain) ...[
         _buildDetailTile(
+          p: p,
           icon: Icons.grain_rounded,
           iconColor: const Color(0xFF42A5F5),
           label: 'Rain Rate',
@@ -130,6 +142,7 @@ class WeatherDetails extends StatelessWidget {
           backgroundColor: const Color(0xFF42A5F5).withOpacity(0.1),
         ),
         _buildDetailTile(
+          p: p,
           icon: Icons.water_rounded,
           iconColor: const Color(0xFF29B6F6),
           label: 'Daily Rain',
@@ -143,12 +156,14 @@ class WeatherDetails extends StatelessWidget {
     ];
   }
 
-  Widget _buildWindTile(double windDirection, SettingsProvider settings) {
+  Widget _buildWindTile(
+      AppPalette p, double windDirection, SettingsProvider settings) {
     final directionLabel = _getWindDirectionLabel(windDirection);
     final directionValue =
         windDirection > 0 ? '${windDirection.round()} deg' : '';
 
     return _buildDetailTile(
+      p: p,
       icon: Icons.explore_rounded,
       iconColor: const Color(0xFF66BB6A),
       label: 'Wind',
@@ -162,6 +177,7 @@ class WeatherDetails extends StatelessWidget {
   }
 
   Widget _buildDetailTile({
+    required AppPalette p,
     required IconData icon,
     required Color iconColor,
     required String label,
@@ -208,8 +224,8 @@ class WeatherDetails extends StatelessWidget {
           const Spacer(),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white70,
+            style: TextStyle(
+              color: p.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.1,
@@ -220,8 +236,8 @@ class WeatherDetails extends StatelessWidget {
           const SizedBox(height: 5),
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: p.text,
               fontSize: 17,
               fontWeight: FontWeight.w800,
               height: 1.05,
@@ -234,7 +250,7 @@ class WeatherDetails extends StatelessWidget {
             Text(
               subValue,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.62),
+                color: p.textMuted,
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
                 height: 1.15,

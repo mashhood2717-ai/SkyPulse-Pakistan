@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
@@ -11,6 +13,19 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  // Read from the platform rather than hardcoded: the About section used to
+  // claim 1.1.0 while pubspec said 1.2.0+7.
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (!mounted) return;
+      setState(() => _version = '${info.version} (${info.buildNumber})');
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -207,28 +222,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             const Icon(Icons.location_on, color: Colors.blue),
                       ),
                       title: const Text('Location Access'),
-                      subtitle: const Text('Manage app permissions'),
+                      subtitle: const Text('Open system permission settings'),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                      onTap: () {
-                        // Open app settings
-                        // We need to import 'package:permission_handler/permission_handler.dart';
-                        // Since I cannot check imports right now, I'll use a dialog for now or assume package is available
-                        // Given user constraints, I will use a simple dialog explaining how to change permissions
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Manage Permissions'),
-                            content: const Text(
-                                'To change location permissions, please go to your device settings:\n\nSettings > Apps > SkyPulse > Permissions'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('OK'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                      // Takes the user straight there, instead of describing
+                      // the path and leaving them to find it.
+                      onTap: openAppSettings,
                     ),
                   ],
                 ),
@@ -252,7 +250,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    _buildInfoRow(context, 'App Version', '1.1.0'),
+                    _buildInfoRow(
+                        context, 'App Version', _version.isEmpty ? '...' : _version),
                     const Divider(),
                     _buildInfoRow(context, 'Developer', 'SkyPulse Pakistan'),
                     const Divider(),

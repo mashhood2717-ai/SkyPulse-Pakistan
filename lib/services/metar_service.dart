@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 import '../models/metar_model.dart';
+import '../utils/log.dart';
 
 class MetarService {
   // Aviation Weather Center (no API key needed)
@@ -60,21 +61,21 @@ class MetarService {
   /// PRIORITY: Uses coordinates first (more accurate), then falls back to city name lookup
   Future<MetarData?> getMetarDataForCity(
       String cityName, double latitude, double longitude) async {
-    print(
+    logDebug(
         '🔍 Attempting to find METAR data for $cityName at ($latitude, $longitude)');
 
     // 1. FIRST: Search for nearby airports using coordinates (most reliable)
-    print('   📍 Searching for nearby airports by coordinates...');
+    logDebug('   📍 Searching for nearby airports by coordinates...');
     final nearbyMetar = await _searchNearbyAirports(latitude, longitude);
     if (nearbyMetar != null) {
-      print('   ✅ Found METAR from nearby airport using coordinates!');
+      logDebug('   ✅ Found METAR from nearby airport using coordinates!');
       return nearbyMetar;
     }
 
     // 2. FALLBACK: Check if we have a known airport for this city name
     final knownIcao = _getKnownIcaoCode(cityName);
     if (knownIcao != null) {
-      print(
+      logDebug(
           '   🔄 Fallback: trying known airport $knownIcao for city name "$cityName"');
       final metar = await _fetchMetarByIcao(knownIcao).timeout(
         const Duration(seconds: 2),
@@ -85,7 +86,7 @@ class MetarService {
       }
     }
 
-    print('   ⏭️ No METAR available, using weather API only');
+    logDebug('   ⏭️ No METAR available, using weather API only');
     return null;
   }
 
@@ -104,10 +105,10 @@ class MetarService {
         final dynamic data = json.decode(response.body);
 
         if (data is List && data.isNotEmpty) {
-          print('✅ METAR fetched for $icaoCode');
+          logDebug('✅ METAR fetched for $icaoCode');
           return MetarData.fromJson(data[0]);
         } else if (data is Map) {
-          print('✅ METAR fetched for $icaoCode');
+          logDebug('✅ METAR fetched for $icaoCode');
           return MetarData.fromJson(data as Map<String, dynamic>);
         }
       }
@@ -127,7 +128,7 @@ class MetarService {
         _findNearbyAirportICAOs(latitude, longitude, radiusKm: 20);
 
     if (nearbyAirports.isEmpty) {
-      print('   ⚠️ No airports found within 20km radius');
+      logDebug('   ⚠️ No airports found within 20km radius');
       return null;
     }
 
@@ -138,7 +139,7 @@ class MetarService {
         onTimeout: () => null,
       );
       if (metar != null) {
-        print('   ✅ Found METAR from nearby airport using coordinates!');
+        logDebug('   ✅ Found METAR from nearby airport using coordinates!');
         return metar;
       }
     }
@@ -215,7 +216,7 @@ class MetarService {
 
     // Print only the closest one for efficiency
     if (nearby.isNotEmpty) {
-      print(
+      logDebug(
           '   📍 Closest airport: ${nearby.first.key} at ${nearby.first.value.toStringAsFixed(1)} km');
     }
 

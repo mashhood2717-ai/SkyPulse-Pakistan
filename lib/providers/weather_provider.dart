@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import '../models/weather_model.dart';
@@ -6,10 +7,14 @@ import '../services/weather_service.dart';
 import '../services/company_weather_service.dart';
 import '../services/metar_service.dart';
 import '../services/alert_service.dart';
+import '../services/alert_store.dart';
 import '../services/push_notification_service.dart';
 import '../services/home_widget_service.dart';
+import '../services/widget_refresh_service.dart';
 import '../models/company_weather_station.dart';
 import '../models/metar_model.dart';
+import '../utils/city_areas.dart';
+import '../utils/log.dart';
 
 class WeatherProvider extends ChangeNotifier {
   final WeatherService _weatherService = WeatherService();
@@ -28,6 +33,15 @@ class WeatherProvider extends ChangeNotifier {
   MetarData? _metarData;
   List<Map<String, dynamic>> _activeAlerts = [];
   Timer? _alertRefreshTimer;
+  Future<void>? _locationFetch;
+
+  /// True when the last alert check could not reach the service.
+  bool _alertsUnavailable = false;
+
+  /// The city used for alert topic subscription. Deliberately separate from
+  /// _cityName, which is a street-level display label ("I-8/3 Islamabad") and
+  /// would produce a topic nobody publishes to.
+  String _alertCity = '';
   double _currentLatitude =
       33.6699; // Default: Islamabad (will update on app start)
   double _currentLongitude =
@@ -45,7 +59,9 @@ class WeatherProvider extends ChangeNotifier {
   WeatherProvider() {
     // Don't fetch location here - permissions not granted yet
     // Instead, initialize FCM and fetch location when fetchWeatherByLocation is called
-    _ensureFCMTokenFresh();
+    if (!kIsWeb) {
+      _ensureFCMTokenFresh();
+    }
   }
 
   WeatherData? get weatherData => _weatherData;
@@ -58,6 +74,7 @@ class WeatherProvider extends ChangeNotifier {
   CompanyWeatherStation? get companyStation => _companyStation;
   MetarData? get metarData => _metarData;
   List<Map<String, dynamic>> get activeAlerts => _activeAlerts;
+  bool get alertsUnavailable => _alertsUnavailable;
   double get latitude => _currentLatitude;
   double get longitude => _currentLongitude;
 
@@ -66,118 +83,65 @@ class WeatherProvider extends ChangeNotifier {
     return _activeAlerts.where((alert) => !(alert['isRead'] ?? false)).length;
   }
 
-  /// Check if two city names are in the same metro area (for METAR matching)
-  bool _isSameCityArea(String city1, String city2) {
-    final c1 = city1.toLowerCase().trim();
-    final c2 = city2.toLowerCase().trim();
-
-    // Direct match
-    if (c1 == c2 || c1.contains(c2) || c2.contains(c1)) return true;
-
-    // Pakistan major cities and their neighborhoods
-    const cityAreas = {
-      'lahore': [
-        'samanabad',
-        'model town',
-        'gulberg',
-        'dha',
-        'johar town',
-        'iqbal town',
-        'allama iqbal town',
-        'garden town',
-        'faisal town',
-        'township',
-        'cantt',
-        'cantonment',
-        'bahria',
-        'wapda town',
-        'valencia',
-        'raiwind'
-      ],
-      'karachi': [
-        'dha',
-        'clifton',
-        'gulshan',
-        'nazimabad',
-        'north nazimabad',
-        'korangi',
-        'malir',
-        'saddar',
-        'bahria',
-        'pechs',
-        'tariq road'
-      ],
-      'islamabad': [
-        'f-6',
-        'f-7',
-        'f-8',
-        'f-10',
-        'f-11',
-        'g-6',
-        'g-7',
-        'g-8',
-        'g-9',
-        'g-10',
-        'g-11',
-        'i-8',
-        'i-9',
-        'i-10',
-        'e-7',
-        'e-11',
-        'dha',
-        'bahria',
-        'blue area'
-      ],
-      'rawalpindi': [
-        'saddar',
-        'cantt',
-        'cantonment',
-        'chaklala',
-        'satellite town',
-        'bahria',
-        'commercial market'
-      ],
-      'faisalabad': [
-        'dha',
-        'peoples colony',
-        'madina town',
-        'ghulam muhammad abad'
-      ],
-      'multan': ['dha', 'cantt', 'cantonment', 'bosan road'],
-      'peshawar': ['hayatabad', 'university town', 'cantt', 'cantonment'],
-    };
-
-    // Find which major city each belongs to
-    String? majorCity1, majorCity2;
-
-    for (final entry in cityAreas.entries) {
-      final major = entry.key;
-      final areas = entry.value;
-
-      if (c1.contains(major) || areas.any((a) => c1.contains(a))) {
-        majorCity1 = major;
-      }
-      if (c2.contains(major) || areas.any((a) => c2.contains(a))) {
-        majorCity2 = major;
-      }
-    }
-
-    // Both in same metro area
-    return majorCity1 != null && majorCity1 == majorCity2;
-  }
-
   /// Update the home screen widget with current weather data
   void _updateHomeWidget() {
+    if (kIsWeb) return;
+
     if (_weatherData != null && _cityName.isNotEmpty) {
       HomeWidgetService.updateWidget(
         city: _cityName,
         current: _weatherData!.current,
+        weatherData: _weatherData,
+        aqiIndex: _weatherData!.aqiIndex,
+        source: _widgetSourceLabel,
+      );
+      // So the background refresh has somewhere to fetch for.
+      WidgetRefreshService.rememberLocation(
+        latitude: _currentLatitude,
+        longitude: _currentLongitude,
+        city: _cityName,
       );
     }
   }
 
+  String get _widgetSourceLabel {
+    if (_usingCompanyStation) return 'LIVE STATION';
+    if (_usingMetar) return 'LIVE METAR';
+    return 'LIVE WEATHER';
+  }
+
+  /// The launch/refresh fetch currently in flight, or a completed future when
+  /// nothing is running. Screens can await this instead of starting their own.
+  Future<void> get currentLocationFetch =>
+      _locationFetch ?? Future<void>.value();
+
   // Fetch weather by current location (URGENT - blocks on this)
-  Future<void> fetchWeatherByLocation() async {
+  //
+  // Re-entrant callers share one request. Three separate call sites used to
+  // fire this in the same frame at launch, which raced three responses into
+  // one provider and tripled the API cost of a cold start.
+  Future<void> fetchWeatherByLocation() {
+    final inFlight = _locationFetch;
+    if (inFlight != null) {
+      logDebug('⏳ [WeatherProvider] Location fetch already running - joining it');
+      return inFlight;
+    }
+
+    // Errors are absorbed here rather than propagated: _fetchWeatherByLocation
+    // already records them on `error` for the UI, and this future is handed to
+    // several callers at once, so a rethrow would surface as an unhandled
+    // async error in whichever one did not attach a handler.
+    final future = _fetchWeatherByLocation().catchError((Object e) {
+      logDebug('⚠️ [WeatherProvider] Location fetch failed: $e');
+    }).whenComplete(() {
+      _locationFetch = null;
+    });
+
+    _locationFetch = future;
+    return future;
+  }
+
+  Future<void> _fetchWeatherByLocation() async {
     _isLoading = true;
     _error = null;
     _usingMetar = false;
@@ -186,7 +150,7 @@ class WeatherProvider extends ChangeNotifier {
 
     // 🚀 SHOW CACHE FIRST (instant)
     if (_cachedWeatherData != null) {
-      print('💾 Showing cached weather data...');
+      logDebug('💾 Showing cached weather data...');
       _weatherData = _cachedWeatherData;
       _cityName = _cachedCityName;
       _countryCode = _cachedCountryCode;
@@ -219,16 +183,16 @@ class WeatherProvider extends ChangeNotifier {
         ).timeout(
           const Duration(seconds: 10),
           onTimeout: () {
-            print(
+            logDebug(
                 '⚠️ Location timeout - will use cached location if available');
             throw TimeoutException('Location request timeout');
           },
         );
       } catch (locErr) {
-        print('⚠️ Location fetch failed during refresh: $locErr');
+        logDebug('⚠️ Location fetch failed during refresh: $locErr');
         // If we have cached location data, just refresh from API without location change
         if (_cachedWeatherData != null && _cityName.isNotEmpty) {
-          print('✅ Using cached location for refresh: $_cityName');
+          logDebug('✅ Using cached location for refresh: $_cityName');
           // Just fetch fresh data for the same location
           final lat = _currentLatitude;
           final lon = _currentLongitude;
@@ -251,7 +215,7 @@ class WeatherProvider extends ChangeNotifier {
       // 📍 Update current location coordinates
       _currentLatitude = position.latitude;
       _currentLongitude = position.longitude;
-      print(
+      logDebug(
           '✅ Current location updated: $_currentLatitude, $_currentLongitude');
 
       // 🌐 URGENT: Fetch fresh weather data and cache it
@@ -265,6 +229,7 @@ class WeatherProvider extends ChangeNotifier {
       if (location['country'] != null && location['country'].isNotEmpty) {
         _countryCode = location['country'];
       }
+      _alertCity = (location['city'] as String?) ?? '';
 
       // 💾 Update cache with fresh data
       _cachedWeatherData = _weatherData;
@@ -284,15 +249,15 @@ class WeatherProvider extends ChangeNotifier {
       // NOW do background tasks without blocking UI
       _doBackgroundTasks(position.latitude, position.longitude);
     } catch (e) {
-      print('⚠️ [WeatherProvider] fetchWeatherByLocation failed: $e');
+      logDebug('⚠️ [WeatherProvider] fetchWeatherByLocation failed: $e');
       try {
         if (_cityName.isEmpty) {
-          print('🔄 [WeatherProvider] Falling back to default city: Islamabad');
+          logDebug('🔄 [WeatherProvider] Falling back to default city: Islamabad');
           await fetchWeatherByCity('Islamabad');
           return;
         }
       } catch (fallbackErr) {
-        print('❌ [WeatherProvider] Fallback fetch failed: $fallbackErr');
+        logDebug('❌ [WeatherProvider] Fallback fetch failed: $fallbackErr');
       }
 
       _error = e.toString();
@@ -305,23 +270,29 @@ class WeatherProvider extends ChangeNotifier {
   void _doBackgroundTasks(double latitude, double longitude) {
     Future.microtask(() async {
       try {
-        // Fetch alerts
         final alerts = await _alertService.checkAlertsForLocation(
           latitude,
           longitude,
         );
-        setActiveAlerts(alerts);
-        print('✅ Background: Alerts fetched');
+        _alertsUnavailable = false;
+        await setActiveAlerts(alerts);
+        logDebug('✅ Background: Alerts fetched');
+      } on AlertServiceUnavailable catch (e) {
+        // Distinct from an empty list: the Alerts tab says so rather than
+        // showing a reassuring "All Clear".
+        _alertsUnavailable = true;
+        notifyListeners();
+        logDebug('⚠️ Background: Alert service unavailable: $e');
       } catch (e) {
-        print('⚠️ Background: Error fetching alerts: $e');
+        logDebug('⚠️ Background: Error fetching alerts: $e');
       }
 
       try {
         // Subscribe to Firebase topics
         await _subscribeToTopics();
-        print('✅ Background: Firebase topics subscribed');
+        logDebug('✅ Background: Firebase topics subscribed');
       } catch (e) {
-        print('⚠️ Background: Error subscribing to topics: $e');
+        logDebug('⚠️ Background: Error subscribing to topics: $e');
       }
     });
   }
@@ -350,6 +321,7 @@ class WeatherProvider extends ChangeNotifier {
       _currentLongitude = location['longitude'];
       _cityName = location['name'];
       _countryCode = location['country'];
+      _alertCity = (location['city'] as String?) ?? location['name'] ?? '';
 
       // 💾 Update cache with fresh data
       _cachedWeatherData = _weatherData;
@@ -372,11 +344,11 @@ class WeatherProvider extends ChangeNotifier {
         location['longitude'],
       );
     } catch (e) {
-      print('⚠️ [fetchWeatherByCity] Error: $e');
+      logDebug('⚠️ [fetchWeatherByCity] Error: $e');
 
       // 🔄 Fallback: Use cached data if available
       if (_cachedWeatherData != null) {
-        print(
+        logDebug(
             '💾 [fetchWeatherByCity] Using cached data for $_cachedCityName due to network error');
         _weatherData = _cachedWeatherData;
         _cityName = _cachedCityName;
@@ -401,6 +373,7 @@ class WeatherProvider extends ChangeNotifier {
     double longitude, {
     String? cityName,
     String? countryCode,
+    String? alertCity,
   }) async {
     _isLoading = true;
     _error = null;
@@ -414,6 +387,9 @@ class WeatherProvider extends ChangeNotifier {
     }
     if (countryCode != null) {
       _countryCode = countryCode;
+    }
+    if (alertCity != null && alertCity.isNotEmpty) {
+      _alertCity = alertCity;
     }
 
     _currentLatitude = latitude;
@@ -431,11 +407,11 @@ class WeatherProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      print('⚠️ [fetchWeatherByCoordinates] Error: $e');
+      logDebug('⚠️ [fetchWeatherByCoordinates] Error: $e');
 
       // 🔄 Fallback: Use cached data if available
       if (_cachedWeatherData != null) {
-        print(
+        logDebug(
             '💾 [fetchWeatherByCoordinates] Using cached data due to network error');
         _weatherData = _cachedWeatherData;
         _cityName = _cachedCityName;
@@ -497,7 +473,7 @@ class WeatherProvider extends ChangeNotifier {
           _weatherService.getWeatherByCoordinates(latitude, longitude).timeout(
         const Duration(seconds: 15),
         onTimeout: () {
-          print('⏱️ [API Timeout] Weather API took too long');
+          logDebug('⏱️ [API Timeout] Weather API took too long');
           throw TimeoutException('Weather API request timeout');
         },
       );
@@ -510,48 +486,70 @@ class WeatherProvider extends ChangeNotifier {
 
       final apiData = await apiFuture;
       final station = await stationFuture;
-      final displayData = station == null
-          ? apiData
-          : WeatherData(
-              current: station.toCurrentWeather(apiData.current),
-              forecast: apiData.forecast,
-              hourlyTemperatures: apiData.hourlyTemperatures,
-              hourlyWeatherCodes: apiData.hourlyWeatherCodes,
-              hourlyPrecipitation: apiData.hourlyPrecipitation,
-              hourlyTimes: apiData.hourlyTimes,
-              hourlyIsDay: apiData.hourlyIsDay,
-              aqiIndex: station.aqiIndex ?? apiData.aqiIndex,
+      WeatherData displayData;
+      bool usingMetar = false;
+      bool usingCompanyStation = false;
+      CompanyWeatherStation? companyStation;
+      MetarData? metarData;
+
+      if (station != null) {
+        displayData = WeatherData(
+          current: station.toCurrentWeather(apiData.current),
+          forecast: apiData.forecast,
+          hourlyTemperatures: apiData.hourlyTemperatures,
+          hourlyWeatherCodes: apiData.hourlyWeatherCodes,
+          hourlyPrecipitation: apiData.hourlyPrecipitation,
+          hourlyTimes: apiData.hourlyTimes,
+          hourlyIsDay: apiData.hourlyIsDay,
+          aqiIndex: station.aqiIndex ?? apiData.aqiIndex,
+        );
+        usingCompanyStation = true;
+        companyStation = station;
+      } else {
+        metarData = await _metarService
+            .getMetarDataForCity(cityName, latitude, longitude)
+            .timeout(
+              const Duration(seconds: 10),
+              onTimeout: () => null,
             );
 
-      // Display API data right away (don't wait for METAR)
+        if (metarData != null) {
+          displayData = _buildMetarWeatherData(metarData, apiData);
+          usingMetar = true;
+        } else {
+          displayData = apiData;
+        }
+      }
+
+      // Source priority: active station, then METAR, then Open-Meteo.
       _weatherData = displayData;
-      _usingMetar = false;
-      _usingCompanyStation = station != null;
-      _companyStation = station;
-      _metarData = null;
+      _usingMetar = usingMetar;
+      _usingCompanyStation = usingCompanyStation;
+      _companyStation = companyStation;
+      _metarData = metarData;
       _cityName = cityName;
       _error = null;
       notifyListeners();
-      print('🌐 Weather API data loaded for $cityName');
+      logDebug('Weather data loaded for $cityName from $_widgetSourceLabel');
 
       // 📱 Update home screen widget
-      if (station != null) {
-        print(
-          '[CompanyWeather] Station data loaded for $cityName from ${station.name}',
+      if (companyStation != null) {
+        logDebug(
+          '[CompanyWeather] Station data loaded for $cityName from ${companyStation.name}',
         );
+      } else if (metarData != null) {
+        logDebug('[METAR] Data loaded for $cityName from ${metarData.icaoCode}');
+      } else {
+        logDebug('[OpenMeteo] Using API fallback for $cityName');
       }
       _updateHomeWidget();
 
-      // 📡 BACKGROUND: Fetch METAR and AQI in background without blocking UI
-      // Pass cityName to ensure background tasks validate against the correct city
-      if (station == null) {
-        _fetchMetarInBackground(cityName, latitude, longitude, apiData);
-      }
-      if (station == null) {
+      // Pass cityName to ensure background tasks validate against the correct city.
+      if (companyStation == null) {
         _fetchAQIInBackground(cityName, latitude, longitude, displayData);
       }
     } catch (e) {
-      print('❌ [_fetchWeatherWithMetarAttempt] Failed: $e');
+      logDebug('❌ [_fetchWeatherWithMetarAttempt] Failed: $e');
       _error = 'Failed to fetch weather: $e';
       _isLoading = false;
       notifyListeners();
@@ -566,32 +564,32 @@ class WeatherProvider extends ChangeNotifier {
     double longitude,
     WeatherData apiData,
   ) {
-    print(
+    logDebug(
         '🌍 [AQI] Starting background fetch for lat=$latitude, lon=$longitude');
     _weatherService.getAQIByCoordinates(latitude, longitude).timeout(
       const Duration(seconds: 8),
       onTimeout: () {
-        print('⏱️ [AQI] Request timeout after 8 seconds');
+        logDebug('⏱️ [AQI] Request timeout after 8 seconds');
         return {'current': {}};
       },
     ).then((aqiData) {
       // ⚠️ CRITICAL: Check if we're STILL viewing the same city area
       // Use flexible matching for neighborhoods (e.g., Samanabad ↔ Lahore)
-      if (!_isSameCityArea(_cityName, targetCity)) {
-        print(
+      if (!CityAreas.isSameArea(_cityName, targetCity)) {
+        logDebug(
             '⏭️ [AQI] Ignoring AQI for $targetCity - now viewing $_cityName (different area)');
         return;
       }
 
-      print('🌍 [AQI] Response received: ${aqiData.keys.toList()}');
-      print('🌍 [AQI] Full response: $aqiData');
+      logDebug('🌍 [AQI] Response received: ${aqiData.keys.toList()}');
+      logDebug('🌍 [AQI] Full response: $aqiData');
 
       if (aqiData['current'] != null) {
-        print('🌍 [AQI] Current object exists: ${aqiData['current']}');
+        logDebug('🌍 [AQI] Current object exists: ${aqiData['current']}');
 
         // Try different possible keys for AQI
         var aqi = aqiData['current']['us_aqi'] ?? aqiData['current']['aqi'];
-        print('🌍 [AQI] Parsed aqi value: $aqi (type: ${aqi?.runtimeType})');
+        logDebug('🌍 [AQI] Parsed aqi value: $aqi (type: ${aqi?.runtimeType})');
 
         if (aqi != null) {
           int aqiInt = 0;
@@ -603,7 +601,7 @@ class WeatherProvider extends ChangeNotifier {
             aqiInt = int.tryParse(aqi) ?? 0;
           }
 
-          print('✅ [AQI] AQI Index: $aqiInt - Updating weather data');
+          logDebug('✅ [AQI] AQI Index: $aqiInt - Updating weather data');
           // Update weather data with AQI - preserve current data if METAR is active
           _weatherData = WeatherData(
             current: (_usingMetar || _usingCompanyStation)
@@ -617,7 +615,7 @@ class WeatherProvider extends ChangeNotifier {
             hourlyIsDay: apiData.hourlyIsDay,
             aqiIndex: aqiInt,
           );
-          print(
+          logDebug(
               '🌍 [AQI] Weather data updated. aqiIndex = ${_weatherData?.aqiIndex}');
 
           // 💾 Update local cache to preserve AQI when swiping through favorites
@@ -625,18 +623,61 @@ class WeatherProvider extends ChangeNotifier {
           _cachedUsingCompanyStation = _usingCompanyStation;
           _cachedCompanyStation = _companyStation;
           notifyListeners();
+          _updateHomeWidget();
         } else {
-          print('⚠️ [AQI] us_aqi and aqi both null in response');
+          logDebug('⚠️ [AQI] us_aqi and aqi both null in response');
         }
       } else {
-        print('⚠️ [AQI] current is null in response');
+        logDebug('⚠️ [AQI] current is null in response');
       }
     }).catchError((e) {
-      print('❌ [AQI] Error fetching AQI: $e');
+      logDebug('❌ [AQI] Error fetching AQI: $e');
     });
   }
 
+  WeatherData _buildMetarWeatherData(MetarData metarData, WeatherData apiData) {
+    final sunrise =
+        apiData.forecast.isNotEmpty ? apiData.forecast[0].sunrise : null;
+    final sunset =
+        apiData.forecast.isNotEmpty ? apiData.forecast[0].sunset : null;
+
+    final metarCurrent = metarData.toCurrentWeather(
+      sunrise: sunrise,
+      sunset: sunset,
+    );
+
+    final enhancedCurrent = CurrentWeather(
+      temperature: metarCurrent.temperature,
+      humidity: metarCurrent.humidity,
+      windSpeed: metarCurrent.windSpeed,
+      windGust: metarCurrent.windGust,
+      windDirection: metarCurrent.windDirection,
+      dewPoint: metarCurrent.dewPoint,
+      weatherCode: metarCurrent.weatherCode,
+      pressure: metarCurrent.pressure,
+      cloudCover: metarCurrent.cloudCover,
+      isDay: metarCurrent.isDay,
+      visibility: metarCurrent.visibility,
+      uvIndex: apiData.current.uvIndex,
+      rainRate: apiData.current.rainRate,
+      dailyRain: apiData.current.dailyRain,
+      customDescription: metarCurrent.customDescription,
+    );
+
+    return WeatherData(
+      current: enhancedCurrent,
+      forecast: apiData.forecast,
+      hourlyTemperatures: apiData.hourlyTemperatures,
+      hourlyWeatherCodes: apiData.hourlyWeatherCodes,
+      hourlyPrecipitation: apiData.hourlyPrecipitation,
+      hourlyTimes: apiData.hourlyTimes,
+      hourlyIsDay: apiData.hourlyIsDay,
+      aqiIndex: apiData.aqiIndex,
+    );
+  }
+
   /// Fetch METAR in background and update UI if it arrives
+  // ignore: unused_element
   void _fetchMetarInBackground(
     String targetCity,
     double latitude,
@@ -656,15 +697,15 @@ class WeatherProvider extends ChangeNotifier {
       // ⚠️ CRITICAL: Check if we're STILL viewing the same city area
       // If user swiped to a completely different location, ignore this METAR
       // Use flexible matching for neighborhoods (e.g., Samanabad ↔ Lahore)
-      if (!_isSameCityArea(_cityName, targetCity)) {
-        print(
+      if (!CityAreas.isSameArea(_cityName, targetCity)) {
+        logDebug(
             '⏭️ [METAR] Ignoring METAR for $targetCity - now viewing $_cityName (different area)');
         return;
       }
 
       // Only update if METAR was successfully fetched
       if (metarData != null) {
-        print('✈️ METAR arrived! Updating weather data for $targetCity...');
+        logDebug('✈️ METAR arrived! Updating weather data for $targetCity...');
         _metarData = metarData;
 
         // Get sunrise/sunset from API forecast
@@ -716,191 +757,169 @@ class WeatherProvider extends ChangeNotifier {
         _cachedUsingMetar = _usingMetar;
         _cachedMetarData = _metarData;
 
-        print('✈️ Using METAR data for $_cityName');
-        print('   Airport: ${metarData.icaoCode}');
-        print('   Temp: ${metarData.temperature}°C');
-        print(
+        logDebug('✈️ Using METAR data for $_cityName');
+        logDebug('   Airport: ${metarData.icaoCode}');
+        logDebug('   Temp: ${metarData.temperature}°C');
+        logDebug(
             '   Wind: ${metarData.windDirection}° at ${metarData.windSpeed} kt');
-        print('   Visibility: ${metarData.visibility} km');
-        print('   Is Day: ${metarCurrent.isDay}');
+        logDebug('   Visibility: ${metarData.visibility} km');
+        logDebug('   Is Day: ${metarCurrent.isDay}');
 
         // Notify listeners only if METAR was successful
         notifyListeners();
+        _updateHomeWidget();
       }
     }).catchError((e) {
       // Silently ignore METAR errors - API data is already displayed
-      print('⏭️ METAR unavailable, keeping API data');
+      logDebug('⏭️ METAR unavailable, keeping API data');
     });
   }
 
-  /// Subscribe to Firebase topics based on current location
+  /// Subscribe to Firebase topics based on current location.
+  ///
+  /// Exactly two topics are ever active: the global one and the city the user
+  /// is currently looking at. Moving to a new city unsubscribes the old one,
+  /// otherwise a device accumulates every city it has ever visited and
+  /// city-targeted alerts stop meaning anything.
   Future<void> _subscribeToTopics() async {
+    if (kIsWeb) return;
+
     try {
-      // Subscribe to global alerts topic
       await PushNotificationService.subscribeToTopic('all_alerts');
-      print('✅ Subscribed to topic: all_alerts');
 
-      // Subscribe to city-specific topic
-      if (_cityName.isNotEmpty && _cityName != 'Current Location') {
-        // Sanitize city name: transliterate accents to ASCII, keep only valid Firebase topic chars
-        // Firebase topics allow: [a-zA-Z0-9-_]
-        String cityTopic = _sanitizeTopicName(_cityName);
+      final city = _alertCity.isNotEmpty ? _alertCity : _cityName;
+      if (city.isEmpty || city == 'Current Location') return;
 
-        print(
-            '📝 [Topic Sanitization] Original: "$_cityName" → Sanitized: "$cityTopic"');
-
-        if (cityTopic.isNotEmpty) {
-          try {
-            await PushNotificationService.subscribeToTopic(
-                '${cityTopic}_alerts');
-            print('✅ Subscribed to topic: ${cityTopic}_alerts');
-          } catch (topicErr) {
-            print('⚠️ Error subscribing to ${cityTopic}_alerts: $topicErr');
-            // Don't rethrow - continue with other subscriptions
-          }
-        } else {
-          print(
-              '⚠️ City name "$_cityName" sanitized to empty string, skipping topic subscription');
-        }
-      }
-    } catch (e) {
-      print('⚠️ Error subscribing to topics: $e');
-    }
-  }
-
-  /// Set active alerts - only notify if alerts changed
-  /// Preserves read status from previous alerts
-  void setActiveAlerts(List<Map<String, dynamic>> alerts) {
-    // Preserve read status from existing alerts
-    final Map<String, bool> readStatus = {};
-    for (var alert in _activeAlerts) {
-      final messageId = alert['messageId'] as String?;
-      if (messageId != null) {
-        readStatus[messageId] = alert['isRead'] ?? false;
-      }
-    }
-
-    // Process new alerts - ensure each has a consistent messageId
-    for (var alert in alerts) {
-      var messageId = alert['messageId'] as String?;
-
-      // If no messageId, generate one from the alert content for consistency
-      if (messageId == null || messageId.isEmpty) {
-        final title = (alert['title'] ?? '').toString();
-        final message = (alert['message'] ?? '').toString();
-        // Use title as primary ID if available, otherwise use title+message hash
-        messageId =
-            title.isNotEmpty ? title : '${title}_$message'.hashCode.toString();
-        alert['messageId'] = messageId;
-      }
-
-      // Apply preserved read status if it exists
-      if (readStatus.containsKey(messageId)) {
-        alert['isRead'] = readStatus[messageId]!;
-      } else if (alert['isRead'] == null) {
-        alert['isRead'] = false; // Default to unread for new alerts
-      }
-    }
-
-    // Check if alerts actually changed by comparing keys and count
-    bool alertsChanged = false;
-
-    if (alerts.length != _activeAlerts.length) {
-      alertsChanged = true;
-    } else {
-      // Compare alert messageIds to detect real changes
-      final newIds = alerts.map((a) => a['messageId'] ?? '').toSet();
-      final oldIds = _activeAlerts.map((a) => a['messageId'] ?? '').toSet();
-      alertsChanged = newIds != oldIds;
-    }
-
-    // Only update and notify if alerts actually changed
-    if (alertsChanged) {
-      _activeAlerts = alerts;
-      notifyListeners();
-      print('🔔 Alerts updated: ${alerts.length} active alert(s)');
-      print('   📖 Preserved read status for existing alerts');
-    } else {
-      // Even if alerts didn't change, update read status if we have new ones
-      _activeAlerts = alerts;
-      print(
-          '🔔 Alerts refreshed: ${alerts.length} active alert(s) (no new alerts)');
-      print('   📖 Read status preserved');
-    }
-  }
-
-  /// Update read status for an alert by matching its properties
-  void markAlertAsRead(Map<String, dynamic> alert) {
-    for (int i = 0; i < _activeAlerts.length; i++) {
-      // Match by title and timestamp
-      if (_activeAlerts[i]['title'] == alert['title'] &&
-          _activeAlerts[i]['timestamp'] == alert['timestamp']) {
-        _activeAlerts[i]['isRead'] = true;
-        notifyListeners();
-
-        final alertTitle = _activeAlerts[i]['title'] ?? 'Alert';
-        final unreadCount = unreadAlertCount;
-        print('📖 Alert "$alertTitle" marked as read');
-        print('📊 Unread alerts: $unreadCount');
+      // Firebase topics allow [a-zA-Z0-9-_] only.
+      final cityTopic = _sanitizeTopicName(CityAreas.alertCityFor(city));
+      if (cityTopic.isEmpty) {
+        logDebug('⚠️ City "$city" sanitized to empty, skipping topic');
         return;
       }
+
+      final topic = '${cityTopic}_alerts';
+      final previous = await PushNotificationService.getSubscribedCityTopic();
+      if (previous == topic) return;
+
+      if (previous != null && previous.isNotEmpty) {
+        await PushNotificationService.unsubscribeFromTopic(previous);
+      }
+
+      await PushNotificationService.subscribeToTopic(topic);
+      await PushNotificationService.setSubscribedCityTopic(topic);
+      logDebug('✅ City alert topic: $topic (was ${previous ?? 'none'})');
+    } catch (e) {
+      logDebug('⚠️ Error subscribing to topics: $e');
     }
   }
 
-  /// Update read status for an alert (legacy, by index)
-  void updateAlertReadStatus(int index, bool isRead) {
-    if (index >= 0 && index < _activeAlerts.length) {
-      _activeAlerts[index]['isRead'] = isRead;
-      notifyListeners();
+  /// Replace the alert list from the API.
+  ///
+  /// Alerts the user dismissed stay dismissed and read state survives a
+  /// restart: both live in [AlertStore], because this list is overwritten on
+  /// every poll and anything held only in memory was silently undone.
+  Future<void> setActiveAlerts(List<Map<String, dynamic>> alerts) async {
+    final dismissed = await AlertStore.dismissedIds();
+    final read = await AlertStore.readIds();
 
-      final alertTitle = _activeAlerts[index]['title'] ?? 'Alert';
-      final unreadCount = unreadAlertCount;
-      print('📖 Alert "$alertTitle" marked as ${isRead ? 'read' : 'unread'}');
-      print('📊 Unread alerts: $unreadCount');
+    // Alerts pushed while the app was closed are merged in, so the tab agrees
+    // with what actually appeared in the notification tray.
+    final pending = await AlertStore.takePendingPushes();
+
+    final merged = <String, Map<String, dynamic>>{};
+    for (final alert in [...alerts, ...pending]) {
+      final id = AlertStore.idFor(alert);
+      if (dismissed.contains(id)) continue;
+
+      alert['messageId'] = id;
+      alert['isRead'] = read.contains(id);
+      merged[id] = alert;
     }
+
+    final next = merged.values.toList();
+    final changed = !_sameAlertIds(next, _activeAlerts);
+    _activeAlerts = next;
+
+    if (changed) {
+      logDebug('🔔 Alerts updated: ${next.length} active alert(s)');
+    }
+    notifyListeners();
   }
 
-  /// Delete a single alert by matching its properties
-  void deleteAlert(Map<String, dynamic> alert) {
-    _activeAlerts.removeWhere((a) =>
-        a['title'] == alert['title'] && a['timestamp'] == alert['timestamp']);
-    notifyListeners();
-    print('🗑️ Alert "${alert['title']}" deleted');
-    print('📊 Remaining alerts: ${_activeAlerts.length}');
+  bool _sameAlertIds(
+    List<Map<String, dynamic>> a,
+    List<Map<String, dynamic>> b,
+  ) {
+    if (a.length != b.length) return false;
+    final idsA = a.map(AlertStore.idFor).toSet();
+    final idsB = b.map(AlertStore.idFor).toSet();
+    return idsA.containsAll(idsB) && idsB.containsAll(idsA);
   }
 
-  /// Clear all alerts
-  void clearAllAlerts() {
-    final count = _activeAlerts.length;
-    _activeAlerts.clear();
+  /// Load persisted alert state at startup so the badge and list are correct
+  /// before the first poll returns.
+  Future<void> loadStoredAlerts() async {
+    final pending = await AlertStore.takePendingPushes();
+    if (pending.isEmpty) return;
+    await setActiveAlerts([..._activeAlerts, ...pending]);
+  }
+
+  /// Mark an alert read, durably.
+  Future<void> markAlertAsRead(Map<String, dynamic> alert) async {
+    final id = AlertStore.idFor(alert);
+    for (final existing in _activeAlerts) {
+      if (AlertStore.idFor(existing) == id) {
+        if (existing['isRead'] == true) return;
+        existing['isRead'] = true;
+        notifyListeners();
+        break;
+      }
+    }
+    await AlertStore.markRead(id);
+  }
+
+  /// Delete a single alert, durably.
+  Future<void> deleteAlert(Map<String, dynamic> alert) async {
+    final id = AlertStore.idFor(alert);
+    _activeAlerts.removeWhere((a) => AlertStore.idFor(a) == id);
     notifyListeners();
-    print('🗑️ Cleared all $count alerts');
+    await AlertStore.markDismissed([id]);
+    logDebug('🗑️ Alert dismissed: ${alert['title']}');
+  }
+
+  /// Clear every alert currently shown, durably.
+  Future<void> clearAllAlerts() async {
+    final ids = _activeAlerts.map(AlertStore.idFor).toList();
+    _activeAlerts = [];
+    notifyListeners();
+    await AlertStore.markDismissed(ids);
+    logDebug('🗑️ Cleared ${ids.length} alert(s)');
   }
 
   /// Ensure FCM token is fresh (called on app startup)
   Future<void> _ensureFCMTokenFresh() async {
     try {
-      print('🔑 [FCMToken] Ensuring FCM token is fresh on app startup...');
+      logDebug('🔑 [FCMToken] Ensuring FCM token is fresh on app startup...');
 
       // Try to get current token
       final currentToken = await PushNotificationService.getFCMToken();
 
       if (currentToken != null && currentToken.isNotEmpty) {
-        print(
+        logDebug(
             '✅ [FCMToken] Current token is available: ${currentToken.substring(0, 20)}...');
       } else {
-        print('⚠️ [FCMToken] No token available, requesting new one...');
+        logDebug('⚠️ [FCMToken] No token available, requesting new one...');
         final newToken = await PushNotificationService.getFCMToken();
         if (newToken != null) {
-          print('✅ [FCMToken] Token obtained: ${newToken.substring(0, 20)}...');
+          logDebug('✅ [FCMToken] Token obtained: ${newToken.substring(0, 20)}...');
         }
       }
 
       // Also re-subscribe to topics to ensure persistence
-      print('📢 [FCMToken] Re-subscribing to topics...');
+      logDebug('📢 [FCMToken] Re-subscribing to topics...');
       await _subscribeToTopics();
     } catch (e) {
-      print('⚠️ [FCMToken] Error ensuring fresh token: $e');
+      logDebug('⚠️ [FCMToken] Error ensuring fresh token: $e');
     }
   }
 
@@ -908,7 +927,7 @@ class WeatherProvider extends ChangeNotifier {
   void _stopAlertRefreshTimer() {
     _alertRefreshTimer?.cancel();
     _alertRefreshTimer = null;
-    print('⏹️ [AlertRefresh] Timer stopped');
+    logDebug('⏹️ [AlertRefresh] Timer stopped');
   }
 
   /// Get METAR info string for display

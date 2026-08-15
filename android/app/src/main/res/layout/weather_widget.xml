@@ -1,124 +1,168 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:padding="14dp">
+    android:orientation="vertical"
+    android:padding="8dp">
 
-    <!-- Top Row: City & Weather Icon -->
     <LinearLayout
-        android:id="@+id/top_row"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:layout_height="30dp"
         android:gravity="center_vertical"
-        android:layout_alignParentTop="true">
+        android:orientation="horizontal">
 
-        <!-- City Name -->
-        <TextView
-            android:id="@+id/tv_city"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Loading..."
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:shadowColor="#40000000"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="2" />
+            android:orientation="vertical">
 
-        <!-- Weather Icon Placeholder -->
-        <TextView
-            android:id="@+id/tv_weather_emoji"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🌤️"
-            android:textSize="28sp" />
+            <TextView
+                android:id="@+id/tv_city"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="Loading..."
+                android:textColor="#FFFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
+            <TextView
+                android:id="@+id/tv_condition"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="--"
+                android:textColor="#B8FFFFFF"
+                android:textSize="9sp" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@drawable/widget_icon_background">
+
+            <ImageView
+                android:id="@+id/iv_weather_icon"
+                android:layout_width="21dp"
+                android:layout_height="21dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/widget_weather_icon"
+                android:src="@drawable/widget_ic_sun" />
+        </FrameLayout>
     </LinearLayout>
 
-    <!-- Center: Big Temperature -->
     <LinearLayout
-        android:id="@+id/center_row"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_below="@id/top_row"
-        android:orientation="horizontal"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:gravity="center_vertical"
-        android:layout_marginTop="2dp">
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/tv_temperature"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:fontFamily="sans-serif"
+            android:includeFontPadding="false"
             android:text="--"
-            android:textColor="#FFFFFF"
-            android:textSize="38sp"
-            android:textStyle="bold"
-            android:fontFamily="sans-serif-thin"
-            android:shadowColor="#40000000"
-            android:shadowDx="2"
-            android:shadowDy="2"
-            android:shadowRadius="3" />
+            android:textColor="#FFFFFFFF"
+            android:textSize="34sp"
+            android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/tv_unit"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="°C"
-            android:textColor="#DDFFFFFF"
-            android:textSize="16sp"
             android:layout_marginStart="2dp"
-            android:layout_marginTop="8dp" />
-
-        <!-- Weather Condition -->
-        <TextView
-            android:id="@+id/tv_condition"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="--"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp"
-            android:maxLines="1"
-            android:ellipsize="end"
-            android:gravity="end"
-            android:layout_marginStart="8dp" />
-
+            android:text="&#176;"
+            android:textColor="#D9FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- Bottom Row: Humidity & Wind -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:layout_height="28dp"
+        android:orientation="horizontal">
 
-        <!-- Humidity -->
-        <TextView
-            android:id="@+id/tv_humidity"
+        <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_marginEnd="3dp"
             android:layout_weight="1"
-            android:text="💧 --%"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp" />
+            android:background="@drawable/widget_chip_background"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="3dp">
 
-        <!-- Wind -->
-        <TextView
-            android:id="@+id/tv_wind"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="💨 -- km/h"
-            android:textColor="#CCFFFFFF"
-            android:textSize="11sp"
-            android:gravity="end" />
+            <TextView
+                android:id="@+id/tv_metric_1_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="HUM"
+                android:textColor="#AFFFFFFF"
+                android:textSize="7sp"
+                android:textStyle="bold" />
 
+            <TextView
+                android:id="@+id/tv_metric_1_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="--"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="3dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_chip_background"
+            android:gravity="center_vertical"
+            android:orientation="vertical"
+            android:paddingHorizontal="6dp"
+            android:paddingVertical="3dp">
+
+            <TextView
+                android:id="@+id/tv_metric_2_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="WIND"
+                android:textColor="#AFFFFFFF"
+                android:textSize="7sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_metric_2_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="--"
+                android:textColor="#FFFFFFFF"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
     </LinearLayout>
-
-</RelativeLayout>
+</LinearLayout>

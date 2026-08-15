@@ -2,5 +2,6 @@
 <resources>
     <string name="app_name">SkyPulse</string>
     <string name="widget_name">SkyPulse Weather</string>
-    <string name="widget_description">Shows current weather with temperature, humidity, and wind</string>
+    <string name="widget_description">Shows current weather, station metrics, rain, AQI, and wind</string>
+    <string name="widget_weather_icon">Weather icon</string>
 </resources>

@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SkyPulse Android Widget Wireframe</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --phone: #121821;
+      --panel: rgba(255, 255, 255, 0.11);
+      --stroke: rgba(255, 255, 255, 0.22);
+      --text: #f7fbff;
+      --muted: rgba(247, 251, 255, 0.68);
+      --faint: rgba(247, 251, 255, 0.46);
+      --blue: #75c8ff;
+      --green: #76e4b1;
+      --yellow: #ffd166;
+      --hot: #ff8f70;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 28px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 18% 12%, rgba(117, 200, 255, 0.22), transparent 30%),
+        linear-gradient(150deg, #243b55, #0d1420);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .stage {
+      width: min(1100px, 100%);
+      display: grid;
+      gap: 24px;
+    }
+
+    .header {
+      display: grid;
+      gap: 8px;
+      max-width: 760px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .intro {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+      margin: 0;
+    }
+
+    .phone {
+      border-radius: 36px;
+      border: 1px solid rgba(255, 255, 255, 0.20);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 24%),
+        var(--phone);
+      min-height: 720px;
+      padding: 28px;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .launcher-label {
+      grid-column: 1 / -1;
+      color: var(--faint);
+      font-size: 12px;
+      letter-spacing: 0;
+      margin-bottom: -6px;
+    }
+
+    .widget {
+      position: relative;
+      overflow: hidden;
+      border-radius: 26px;
+      border: 1px solid var(--stroke);
+      background:
+        radial-gradient(circle at 86% 18%, rgba(255, 255, 255, 0.28), transparent 17%),
+        linear-gradient(145deg, rgba(40, 106, 168, 0.96), rgba(13, 23, 38, 0.98));
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.30);
+    }
+
+    .widget::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 48%);
+      pointer-events: none;
+    }
+
+    .compact {
+      width: 188px;
+      height: 188px;
+      padding: 14px;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+      width: 100%;
+      height: 178px;
+      padding: 18px;
+    }
+
+    .expanded {
+      grid-column: 1 / -1;
+      width: 100%;
+      height: 318px;
+      padding: 20px;
+    }
+
+    .label {
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 7px;
+      text-transform: uppercase;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .city {
+      font-size: 15px;
+      font-weight: 800;
+      max-width: 145px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .wide .city,
+    .expanded .city {
+      font-size: 18px;
+      max-width: 260px;
+    }
+
+    .condition {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 4px;
+      max-width: 170px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .temp {
+      font-size: 48px;
+      font-weight: 850;
+      line-height: 0.9;
+      letter-spacing: 0;
+      position: relative;
+      z-index: 1;
+      margin-top: 16px;
+    }
+
+    .wide .temp {
+      font-size: 64px;
+      margin-top: 0;
+    }
+
+    .expanded .temp {
+      font-size: 70px;
+      margin-top: 20px;
+    }
+
+    .icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff7c2;
+      position: relative;
+      z-index: 1;
+    }
+
+    .wide .icon,
+    .expanded .icon {
+      width: 76px;
+      height: 76px;
+      border-radius: 22px;
+      font-size: 12px;
+    }
+
+    .metrics {
+      display: grid;
+      gap: 8px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .compact .metrics {
+      grid-template-columns: 1fr;
+      margin-top: 12px;
+    }
+
+    .wide .metrics {
+      grid-template-columns: repeat(4, 1fr);
+      margin-top: 16px;
+    }
+
+    .expanded .metrics {
+      grid-template-columns: repeat(2, 1fr);
+      margin-top: 18px;
+    }
+
+    .metric {
+      min-height: 44px;
+      border-radius: 14px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.10);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .metric-title {
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .metric-value {
+      margin-top: 7px;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.05;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .compact .metric {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .compact .metric-value {
+      margin-top: 0;
+      font-size: 12px;
+    }
+
+    .expanded .metric {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .expanded .metric-value {
+      margin-top: 0;
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .layout-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 9px;
+      border-radius: 9px;
+      background: rgba(118, 228, 177, 0.16);
+      color: #c7ffdf;
+      border: 1px solid rgba(118, 228, 177, 0.28);
+      font-size: 10px;
+      font-weight: 800;
+      margin-top: 8px;
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .note {
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, 0.08);
+      padding: 16px;
+    }
+
+    .note strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+
+    .note span {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 760px) {
+      body {
+        padding: 16px;
+      }
+
+      .phone,
+      .notes {
+        grid-template-columns: 1fr;
+      }
+
+      .wide,
+      .expanded {
+        grid-column: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="stage" aria-label="SkyPulse Android widget wireframe">
+    <section class="header">
+      <h1>Android Widget Overhaul</h1>
+      <p class="intro">A premium resizable widget system with compact, wide, and expanded states. The design keeps the current weather instantly readable while adding more useful detail as the user resizes.</p>
+    </section>
+
+    <section class="phone" aria-label="Android launcher preview">
+      <div class="launcher-label">Launcher preview with resize states</div>
+
+      <div>
+        <div class="label">2 x 2 Compact</div>
+        <section class="widget compact" aria-label="Compact weather widget">
+          <div class="row">
+            <div>
+              <div class="city">Lahore</div>
+              <div class="condition">Clear</div>
+            </div>
+            <div class="icon">SUN</div>
+          </div>
+          <div class="temp">31</div>
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-title">HUM</div><div class="metric-value">46%</div>
+            </div>
+            <div class="metric"><div class="metric-title">WIND</div><div class="metric-value">13 km/h</div></div>
+          </div>
+        </section>
+      </div>
+
+      <div>
+        <div class="label">Alternate 2 x 2 Night</div>
+        <section class="widget compact" style="background: radial-gradient(circle at 82% 20%, rgba(180, 204, 255, 0.22), transparent 20%), linear-gradient(145deg, rgba(53, 64, 134, 0.96), rgba(7, 11, 24, 0.98));" aria-label="Compact night weather widget">
+          <div class="row">
+            <div>
+              <div class="city">Islamabad</div>
+              <div class="condition">Breezy</div>
+            </div>
+            <div class="icon">WIND</div>
+          </div>
+          <div class="temp">24</div>
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-title">AQI</div><div class="metric-value">82</div>
+            </div>
+            <div class="metric"><div class="metric-title">RAIN</div><div class="metric-value">0.0 mm</div></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="wide">
+        <div class="label">4 x 2 Wide</div>
+        <section class="widget wide" aria-label="Wide weather widget">
+          <div class="row">
+            <div>
+              <div class="city">Lahore</div>
+              <div class="condition">Clear sky - Feels 34</div>
+              <div class="badge">LIVE STATION</div>
+            </div>
+            <div class="temp">31</div>
+            <div class="icon">SUN</div>
+          </div>
+          <div class="metrics">
+            <div class="metric"><div class="metric-title">HUMIDITY</div><div class="metric-value">46%</div></div>
+            <div class="metric"><div class="metric-title">WIND</div><div class="metric-value">13 km/h</div></div>
+            <div class="metric"><div class="metric-title">AQI</div><div class="metric-value">82</div></div>
+            <div class="metric"><div class="metric-title">RAIN</div><div class="metric-value">0.0 mm</div></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="expanded">
+        <div class="label">4 x 3 Expanded</div>
+        <section class="widget expanded" aria-label="Expanded weather widget">
+          <div class="layout-grid">
+            <div>
+              <div class="city">Model Town, Lahore</div>
+              <div class="condition">Clear sky - Updated recently</div>
+              <div class="temp">31</div>
+            </div>
+            <div>
+              <div class="icon" style="margin-left: auto;">SUN</div>
+              <div class="badge" style="float: right;">LIVE STATION</div>
+            </div>
+          </div>
+          <div class="metrics">
+            <div class="metric"><div class="metric-title">FEELS</div><div class="metric-value">34</div></div>
+            <div class="metric"><div class="metric-title">WIND</div><div class="metric-value">NE 13</div></div>
+            <div class="metric"><div class="metric-title">HUM</div><div class="metric-value">46%</div></div>
+            <div class="metric"><div class="metric-title">PRESS</div><div class="metric-value">1008</div></div>
+            <div class="metric"><div class="metric-title">AQI</div><div class="metric-value">82</div></div>
+            <div class="metric"><div class="metric-title">RATE</div><div class="metric-value">0.0</div></div>
+            <div class="metric"><div class="metric-title">RAIN</div><div class="metric-value">0.0</div></div>
+            <div class="metric"><div class="metric-title">H/L</div><div class="metric-value">37 / 25</div></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="notes" aria-label="Implementation notes">
+      <div class="note">
+        <strong>Resize behavior</strong>
+        <span>Use Android widget options to choose compact, wide, or expanded layouts based on width and height. Compact uses two stacked metrics; expanded uses two-column rows so values do not clip.</span>
+      </div>
+      <div class="note">
+        <strong>Visual direction</strong>
+        <span>Replace emoji text with native drawable weather icons, glass gradient backgrounds, readable metric chips, and day/night color variants.</span>
+      </div>
+      <div class="note">
+        <strong>Data direction</strong>
+        <span>Save more widget fields from Flutter: feels-like, AQI, pressure, rain rate, daily rain, wind direction, high, low, source, and update status.</span>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
